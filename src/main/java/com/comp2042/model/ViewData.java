@@ -1,4 +1,6 @@
-package com.comp2042;
+package com.comp2042.model;
+
+import com.comp2042.util.MatrixOperations;
 
 public final class ViewData {
 
@@ -18,11 +20,11 @@ public final class ViewData {
         return MatrixOperations.copy(brickData);
     }
 
-    public int getxPosition() {
+    public int getXPosition() {
         return xPosition;
     }
 
-    public int getyPosition() {
+    public int getYPosition() {
         return yPosition;
     }
 
@@ -30,3 +32,4 @@ public final class ViewData {
         return MatrixOperations.copy(nextBrickData);
     }
 }
+

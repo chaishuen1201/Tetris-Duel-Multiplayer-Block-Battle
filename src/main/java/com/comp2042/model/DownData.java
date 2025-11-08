@@ -1,4 +1,4 @@
-package com.comp2042;
+package com.comp2042.model;
 
 public final class DownData {
     private final ClearRow clearRow;
@@ -17,3 +17,4 @@ public final class DownData {
         return viewData;
     }
 }
+

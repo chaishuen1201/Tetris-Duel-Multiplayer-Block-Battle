@@ -1,4 +1,4 @@
-package com.comp2042;
+package com.comp2042.view;
 
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
@@ -25,16 +25,15 @@ public class NotificationPanel extends BorderPane {
         score.setEffect(glow);
         score.setTextFill(Color.WHITE);
         setCenter(score);
-
     }
 
     public void showScore(ObservableList<Node> list) {
-        FadeTransition ft = new FadeTransition(Duration.millis(2000), this);
-        TranslateTransition tt = new TranslateTransition(Duration.millis(2500), this);
-        tt.setToY(this.getLayoutY() - 40);
-        ft.setFromValue(1);
-        ft.setToValue(0);
-        ParallelTransition transition = new ParallelTransition(tt, ft);
+        FadeTransition fadeTransition = new FadeTransition(Duration.millis(2000), this);
+        TranslateTransition translateTransition = new TranslateTransition(Duration.millis(2500), this);
+        translateTransition.setToY(this.getLayoutY() - 40);
+        fadeTransition.setFromValue(1);
+        fadeTransition.setToValue(0);
+        ParallelTransition transition = new ParallelTransition(translateTransition, fadeTransition);
         transition.setOnFinished(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
@@ -44,3 +43,4 @@ public class NotificationPanel extends BorderPane {
         transition.play();
     }
 }
+

@@ -1,15 +1,15 @@
-package com.comp2042;
+package com.comp2042.util;
 
 import com.comp2042.logic.bricks.Brick;
+import com.comp2042.model.NextShapeInfo;
 
-public class BrickRotator {
+public final class BrickRotator {
 
     private Brick brick;
     private int currentShape = 0;
 
     public NextShapeInfo getNextShape() {
-        int nextShape = currentShape;
-        nextShape = (++nextShape) % brick.getShapeMatrix().size();
+        int nextShape = (currentShape + 1) % brick.getShapeMatrix().size();
         return new NextShapeInfo(brick.getShapeMatrix().get(nextShape), nextShape);
     }
 
@@ -25,6 +25,5 @@ public class BrickRotator {
         this.brick = brick;
         currentShape = 0;
     }
-
-
 }
+

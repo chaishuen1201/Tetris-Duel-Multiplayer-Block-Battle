@@ -1,32 +1,34 @@
 package com.comp2042;
 
+import com.comp2042.controller.GameController;
+import com.comp2042.controller.GuiController;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-import java.net.URL;
-import java.util.ResourceBundle;
-
 public class Main extends Application {
+
+    private static final String FXML_RESOURCE = "/gameLayout.fxml";
+    private static final String WINDOW_TITLE = "TetrisJFX";
+    private static final int WINDOW_WIDTH = 300;
+    private static final int WINDOW_HEIGHT = 510;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-
-        URL location = getClass().getClassLoader().getResource("gameLayout.fxml");
-        ResourceBundle resources = null;
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/gameLayout.fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource(FXML_RESOURCE));
         Parent root = fxmlLoader.load();
-        GuiController c = fxmlLoader.getController();
+        GuiController guiController = fxmlLoader.getController();
 
-        primaryStage.setTitle("TetrisJFX");
-        Scene scene = new Scene(root, 300, 510);
+        primaryStage.setTitle(WINDOW_TITLE);
+        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         primaryStage.setScene(scene);
         primaryStage.show();
-        new GameController(c);
+        
+        // Initialize game controller with view
+        new GameController(guiController);
     }
-
 
     public static void main(String[] args) {
         launch(args);

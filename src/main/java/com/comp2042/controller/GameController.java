@@ -1,17 +1,30 @@
-package com.comp2042;
+package com.comp2042.controller;
+
+import com.comp2042.model.DownData;
+import com.comp2042.event.EventSource;
+import com.comp2042.event.InputEventListener;
+import com.comp2042.event.MoveEvent;
+import com.comp2042.model.Board;
+import com.comp2042.model.ClearRow;
+import com.comp2042.model.SimpleBoard;
+import com.comp2042.model.ViewData;
+import com.comp2042.view.GameView;
 
 public class GameController implements InputEventListener {
 
-    private Board board = new SimpleBoard(25, 10);
+    private static final int BOARD_WIDTH = 25;
+    private static final int BOARD_HEIGHT = 10;
 
-    private final GuiController viewGuiController;
+    private final Board board;
+    private final GameView gameView;
 
-    public GameController(GuiController c) {
-        viewGuiController = c;
+    public GameController(GameView gameView) {
+        this.board = new SimpleBoard(BOARD_WIDTH, BOARD_HEIGHT);
+        this.gameView = gameView;
         board.createNewBrick();
-        viewGuiController.setEventListener(this);
-        viewGuiController.initGameView(board.getBoardMatrix(), board.getViewData());
-        viewGuiController.bindScore(board.getScore().scoreProperty());
+        gameView.setEventListener(this);
+        gameView.initGameView(board.getBoardMatrix(), board.getViewData());
+        gameView.bindScore(board.getScore().scoreProperty());
     }
 
     @Override
@@ -25,11 +38,9 @@ public class GameController implements InputEventListener {
                 board.getScore().add(clearRow.getScoreBonus());
             }
             if (board.createNewBrick()) {
-                viewGuiController.gameOver();
+                gameView.gameOver();
             }
-
-            viewGuiController.refreshGameBackground(board.getBoardMatrix());
-
+            gameView.refreshGameBackground(board.getBoardMatrix());
         } else {
             if (event.getEventSource() == EventSource.USER) {
                 board.getScore().add(1);
@@ -56,10 +67,10 @@ public class GameController implements InputEventListener {
         return board.getViewData();
     }
 
-
     @Override
     public void createNewGame() {
         board.newGame();
-        viewGuiController.refreshGameBackground(board.getBoardMatrix());
+        gameView.refreshGameBackground(board.getBoardMatrix());
     }
 }
+

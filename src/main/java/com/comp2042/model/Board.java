@@ -1,4 +1,4 @@
-package com.comp2042;
+package com.comp2042.model;
 
 public interface Board {
 
@@ -24,3 +24,4 @@ public interface Board {
 
     void newGame();
 }
+
