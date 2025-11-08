@@ -16,7 +16,7 @@ public class Main extends Application {
 
         URL location = getClass().getClassLoader().getResource("gameLayout.fxml");
         ResourceBundle resources = null;
-        FXMLLoader fxmlLoader = new FXMLLoader(location, resources);
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/gameLayout.fxml"));
         Parent root = fxmlLoader.load();
         GuiController c = fxmlLoader.getController();
 
