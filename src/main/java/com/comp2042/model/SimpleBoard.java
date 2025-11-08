@@ -14,8 +14,8 @@ import java.util.List;
 
 public class SimpleBoard implements Board {
 
-    private static final int INITIAL_X = 4;
-    private static final int INITIAL_Y = 10;
+    private static final int INITIAL_X = 3;
+    private static final int INITIAL_Y = -1;
     private static final int LINES_PER_LEVEL = 10;
 
     private final int width;
