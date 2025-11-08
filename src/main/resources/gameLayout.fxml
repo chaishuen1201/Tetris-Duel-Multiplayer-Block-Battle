@@ -1,26 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
 <?import com.comp2042.view.GameOverPanel?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ToggleButton?>
-<?import javafx.scene.Group?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Text?>
+<?import javafx.scene.Group?>
 <?import java.net.URL?>
-<Pane fx:controller="com.comp2042.controller.GuiController"
-      xmlns:fx="http://javafx.com/fxml">
-    <GridPane fx:id="brickPanel" vgap="1" hgap="1"/>
-    <BorderPane styleClass="gameBoard" fx:id="gameBoard">
-        <center>
-            <GridPane fx:id="gamePanel" hgap="1" vgap="1" layoutY="30" layoutX="40"/>
-        </center>
-    </BorderPane>
+<BorderPane fx:controller="com.comp2042.controller.GuiController"
+            xmlns:fx="http://javafx.com/fxml" styleClass="root-pane" prefWidth="800" prefHeight="700">
 
-    <Group fx:id="groupNotification" layoutX="14" layoutY="203">
-        <VBox alignment="CENTER">
-            <GameOverPanel fx:id="gameOverPanel"/>
+    <left>
+        <VBox spacing="20" styleClass="side-panel" prefWidth="150" maxWidth="150">
+            <VBox styleClass="info-box">
+                <Label text="HOLD" styleClass="panel-title"/>
+                <GridPane fx:id="holdBrickPanel" vgap="1" hgap="1" styleClass="brick-preview"
+                          prefWidth="100" prefHeight="100" maxWidth="100" maxHeight="100"/>
+            </VBox>
+
+            <VBox styleClass="info-box">
+                <Label text="SCORE" styleClass="panel-title"/>
+                <Label fx:id="scoreLabel" text="0" styleClass="score-display"/>
+            </VBox>
+
+            <VBox styleClass="info-box">
+                <Label text="LEVEL" styleClass="panel-title"/>
+                <Label fx:id="levelLabel" text="1" styleClass="info-display"/>
+            </VBox>
+
+            <VBox styleClass="info-box">
+                <Label text="LINES" styleClass="panel-title"/>
+                <Label fx:id="linesLabel" text="0" styleClass="info-display"/>
+            </VBox>
         </VBox>
-    </Group>
+    </left>
+
+    <center>
+        <VBox alignment="CENTER" styleClass="game-area-container">
+            <!-- Game board with black background - slightly larger to account for gaps -->
+            <BorderPane fx:id="gameBoard" styleClass="gameBoard"
+                        prefWidth="309" prefHeight="619"
+                        maxWidth="309" maxHeight="619"
+                        minWidth="309" minHeight="619">
+                <center>
+                    <StackPane styleClass="game-stack"
+                               prefWidth="300" prefHeight="600"
+                               maxWidth="300" maxHeight="600">
+                        <!-- Game grid for background blocks -->
+                        <GridPane fx:id="gamePanel" hgap="1" vgap="1" styleClass="game-grid"
+                                  prefWidth="300" prefHeight="600"
+                                  maxWidth="300" maxHeight="600"/>
+
+                        <!-- Brick panel for current falling brick -->
+                        <GridPane fx:id="brickPanel" vgap="1" hgap="1" styleClass="brick-grid"
+                                  prefWidth="300" prefHeight="600"
+                                  maxWidth="300" maxHeight="600"
+                                  mouseTransparent="true"/>
+
+                        <!-- Notification group -->
+                        <Group fx:id="groupNotification"/>
+
+                        <!-- Game over panel -->
+                        <GameOverPanel fx:id="gameOverPanel" visible="false"/>
+                    </StackPane>
+                </center>
+            </BorderPane>
+        </VBox>
+    </center>
+
+    <right>
+        <VBox spacing="20" styleClass="side-panel" prefWidth="150" maxWidth="150">
+            <VBox styleClass="info-box">
+                <Label text="NEXT" styleClass="panel-title"/>
+                <VBox fx:id="nextBricksPanel" spacing="10" styleClass="next-bricks-panel"
+                      prefWidth="120" prefHeight="300" maxWidth="120" maxHeight="300"/>
+            </VBox>
+
+            <VBox styleClass="info-box">
+                <Label text="CONTROLS" styleClass="panel-title"/>
+                <VBox styleClass="controls-list">
+                    <Label text="←→ : Move" styleClass="control-item"/>
+                    <Label text="↑ : Rotate" styleClass="control-item"/>
+                    <Label text="↓ : Soft Drop" styleClass="control-item"/>
+                    <Label text="SPACE : Hard Drop" styleClass="control-item"/>
+                    <Label text="C : Hold" styleClass="control-item"/>
+                    <Label text="P : Pause" styleClass="control-item"/>
+                    <Label text="N : New Game" styleClass="control-item"/>
+                </VBox>
+            </VBox>
+        </VBox>
+    </right>
+
+    <bottom>
+        <HBox alignment="CENTER" spacing="20" styleClass="bottom-panel">
+            <Button text="New Game" onAction="#newGame" styleClass="menu-button"/>
+            <Button text="Pause" onAction="#pauseGame" styleClass="menu-button"/>
+        </HBox>
+    </bottom>
+
     <stylesheets>
         <URL value="@window_style.css"/>
     </stylesheets>
-</Pane>
+</BorderPane>
