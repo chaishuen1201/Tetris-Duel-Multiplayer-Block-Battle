@@ -169,14 +169,16 @@ public class SimpleBoard implements Board {
     }
 
     public List<Brick> getNextBricks() {
+        // Get the next 3 bricks for display
+        if (brickGenerator instanceof RandomBrickGenerator) {
+            return ((RandomBrickGenerator) brickGenerator).getNextBricks(3);
+        }
+        // Fallback: if not RandomBrickGenerator, return just the next brick
         List<Brick> nextBricks = new ArrayList<>();
-        // Get the next brick (peek without removing)
         Brick next = brickGenerator.getNextBrick();
         if (next != null) {
             nextBricks.add(next);
         }
-        // For now, just return the next brick. In a full implementation,
-        // you might want to peek ahead at more bricks
         return nextBricks;
     }
 
