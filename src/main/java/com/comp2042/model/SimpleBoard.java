@@ -89,14 +89,41 @@ public class SimpleBoard implements Board {
     public boolean rotateLeftBrick() {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
         NextShapeInfo nextShape = brickRotator.getNextShape();
-        boolean conflict = MatrixOperations.intersect(currentMatrix, nextShape.getShape(), 
-                (int) currentOffset.getX(), (int) currentOffset.getY());
-        if (conflict) {
-            return false;
-        } else {
+        int[][] rotatedShape = nextShape.getShape();
+        
+        // Try rotation at current position first
+        if (!MatrixOperations.intersect(currentMatrix, rotatedShape, 
+                (int) currentOffset.getX(), (int) currentOffset.getY())) {
             brickRotator.setCurrentShape(nextShape.getPosition());
             return true;
         }
+        
+        // Wall kick: try different offset positions to find a valid rotation
+        // Standard wall kick offsets: left 1, right 1, left 2, right 2, up 1
+        int[][] wallKickOffsets = {
+            {-1, 0},  // Try left 1
+            {1, 0},   // Try right 1
+            {-2, 0},  // Try left 2
+            {2, 0},   // Try right 2
+            {0, -1},  // Try up 1
+            {-1, -1}, // Try left 1, up 1
+            {1, -1}   // Try right 1, up 1
+        };
+        
+        for (int[] offset : wallKickOffsets) {
+            int newX = (int) currentOffset.getX() + offset[0];
+            int newY = (int) currentOffset.getY() + offset[1];
+            
+            if (!MatrixOperations.intersect(currentMatrix, rotatedShape, newX, newY)) {
+                // Valid rotation found with wall kick
+                currentOffset = new Point(newX, newY);
+                brickRotator.setCurrentShape(nextShape.getPosition());
+                return true;
+            }
+        }
+        
+        // No valid rotation position found
+        return false;
     }
 
     @Override
