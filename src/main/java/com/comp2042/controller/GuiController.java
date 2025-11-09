@@ -27,6 +27,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.control.Label;
 import javafx.util.Duration;
+import javafx.scene.control.Button;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ public class GuiController implements Initializable {
     @FXML private Label scoreLabel;
     @FXML private Label levelLabel;
     @FXML private Label linesLabel;
+    @FXML private Button pauseButton;
 
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
@@ -305,15 +307,24 @@ public class GuiController implements Initializable {
         if (timeLine != null) timeLine.play();
         isPause.set(false);
         isGameOver.set(false);
+        if (pauseButton != null) {
+            pauseButton.setText("Pause");
+        }
     }
 
     public void pauseGame(ActionEvent actionEvent) {
         if (!isPause.get()) {
             if (timeLine != null) timeLine.pause();
             isPause.set(true);
+            if (pauseButton != null) {
+                pauseButton.setText("Resume");
+            }
         } else {
             if (timeLine != null) { timeLine.play(); updateTimelineRate(); }
             isPause.set(false);
+            if (pauseButton != null) {
+                pauseButton.setText("Pause");
+            }
         }
         if (gameBoard != null) gameBoard.requestFocus();
     }
