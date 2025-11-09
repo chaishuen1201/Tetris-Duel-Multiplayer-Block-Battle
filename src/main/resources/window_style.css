@@ -5,6 +5,32 @@
     -fx-padding: 20;
 }
 
+/* ==============================================
+   Main Menu Panel
+   ============================================== */
+
+.main-menu-container {
+    -fx-alignment: center;
+}
+
+.main-menu-title {
+    -fx-font-size: 48px;
+    -fx-font-weight: bold;
+    -fx-text-fill: linear-gradient(to bottom, #ff5252, #ffeb3b, #ff4081);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 82, 82, 0.8), 15, 0, 0, 0);
+    -fx-font-family: "Public Pixel";
+}
+
+.main-menu-button-group {
+    -fx-alignment: center;
+}
+
+.menu-button {
+    -fx-pref-width: 150;
+    -fx-pref-height: 50;
+}
+
+
 .game-area-container {
     -fx-alignment: center;
     -fx-padding: 20;

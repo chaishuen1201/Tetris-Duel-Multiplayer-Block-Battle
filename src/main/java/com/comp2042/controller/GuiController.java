@@ -9,6 +9,7 @@ import com.comp2042.model.DownData;
 import com.comp2042.model.ViewData;
 import com.comp2042.view.ColorStrategy;
 import com.comp2042.view.GameOverPanel;
+import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.NotificationPanel;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -42,9 +43,8 @@ public class GuiController implements Initializable {
     private static final int BOARD_HEIGHT = 20;
     private static final int GAME_PANEL_WIDTH = (BRICK_SIZE * BOARD_WIDTH) + (GRID_GAP * (BOARD_WIDTH - 1));
     private static final int GAME_PANEL_HEIGHT = (BRICK_SIZE * BOARD_HEIGHT) + (GRID_GAP * (BOARD_HEIGHT - 1));
-    private static final int GAME_BOARD_WIDTH = GAME_PANEL_WIDTH + 18;
-    private static final int GAME_BOARD_HEIGHT = GAME_PANEL_HEIGHT + 18;
     private static final double SOFT_DROP_RATE = 12.0;
+    private ViewData currentBrickData; // Store current brick data for countdown refresh
 
     @FXML private BorderPane gameBoard;
     @FXML private StackPane gameStack;
@@ -58,12 +58,14 @@ public class GuiController implements Initializable {
     @FXML private Label levelLabel;
     @FXML private Label linesLabel;
     @FXML private Button pauseButton;
+    @FXML private MainMenuPanel mainMenuPanel;
 
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
     private Timeline timeLine;
     private final BooleanProperty isPause = new SimpleBooleanProperty(false);
     private final BooleanProperty isGameOver = new SimpleBooleanProperty(false);
+    private boolean gameStarted = false;
     private int currentLevel = 1;
 
     private Rectangle[][] holdBrickRectangles;
@@ -76,6 +78,12 @@ public class GuiController implements Initializable {
         } catch (Exception e) {
             System.out.println("Font not found, using default font");
         }
+        
+        try {
+            Font.loadFont(getClass().getClassLoader().getResource("PublicPixel-rv0pA.ttf").toExternalForm(), 48);
+        } catch (Exception e) {
+            System.out.println("PublicPixel font not found, using default font");
+        }
 
         initializeGamePanel();
         initializeHoldPanel();
@@ -83,6 +91,17 @@ public class GuiController implements Initializable {
         initializeInfoPanel();
 
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
+
+        // Hide brick panel when main menu is visible
+        if (brickPanel != null) {
+            brickPanel.setVisible(false);
+        }
+
+        // Set up main menu panel
+        if (mainMenuPanel != null) {
+            mainMenuPanel.getPlayButton().setOnAction(e -> startGame());
+            mainMenuPanel.getQuitButton().setOnAction(e -> quitGame());
+        }
 
         if (gameBoard != null) {
             gameBoard.setFocusTraversable(true);
@@ -188,6 +207,15 @@ public class GuiController implements Initializable {
     }
 
     private void handleKeyPress(KeyEvent keyEvent) {
+        if (!gameStarted) {
+            // If game hasn't started, Enter key can start it
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                startGame();
+                keyEvent.consume();
+            }
+            return;
+        }
+
         if (!isPause.get() && !isGameOver.get()) {
             switch (keyEvent.getCode()) {
                 case LEFT, A -> { if (eventListener != null) refreshBrick(eventListener.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER))); }
@@ -214,7 +242,7 @@ public class GuiController implements Initializable {
         if (timeLine != null) timeLine.stop();
         timeLine = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD))));
         timeLine.setCycleCount(Timeline.INDEFINITE);
-        timeLine.play();
+
         updateTimelineRate();
 
         if (gameBoard != null) gameBoard.requestFocus();
@@ -225,6 +253,16 @@ public class GuiController implements Initializable {
     }
 
     private void refreshBrick(ViewData brick) {
+        // Always store the current brick data
+        if (brick != null) {
+            currentBrickData = brick;
+        }
+
+        // Don't show brick if game hasn't started (menu is visible)
+        if (!gameStarted) {
+            return;
+        }
+
         if (!isPause.get() && brickPanel != null && brick != null) {
             brickPanel.getChildren().clear();
             int[][] data = brick.getBrickData();
@@ -255,7 +293,10 @@ public class GuiController implements Initializable {
     }
 
     private void moveDown(MoveEvent event) {
-        if (!isPause.get() && eventListener != null) {
+        if (!gameStarted || isPause.get() || isGameOver.get()) {
+            return;
+        }
+        if (eventListener != null) {
             DownData downData = eventListener.onDownEvent(event);
             if (downData != null) {
                 if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0)
@@ -307,9 +348,42 @@ public class GuiController implements Initializable {
         if (timeLine != null) timeLine.play();
         isPause.set(false);
         isGameOver.set(false);
+        gameStarted = true;
         if (pauseButton != null) {
             pauseButton.setText("Pause");
         }
+        if (mainMenuPanel != null) {
+            mainMenuPanel.setVisible(false);
+        }
+    }
+
+    public void startGame() {
+        if (!gameStarted && mainMenuPanel != null) {
+            mainMenuPanel.setVisible(false);
+            gameStarted = true;
+            
+            // Make brick panel visible
+            if (brickPanel != null) {
+                brickPanel.setVisible(true);
+            }
+            
+            // Refresh the brick display with stored brick data
+            // The brick data was stored when initGameView was called
+            if (currentBrickData != null) {
+                refreshBrick(currentBrickData);
+            }
+            
+            if (timeLine != null) {
+                timeLine.play();
+            }
+            if (gameBoard != null) {
+                gameBoard.requestFocus();
+            }
+        }
+    }
+
+    public void quitGame() {
+        javafx.application.Platform.exit();
     }
 
     public void pauseGame(ActionEvent actionEvent) {
@@ -372,4 +446,6 @@ public class GuiController implements Initializable {
             timeLine.setRate(rate);
         }
     }
+
+    
 }
