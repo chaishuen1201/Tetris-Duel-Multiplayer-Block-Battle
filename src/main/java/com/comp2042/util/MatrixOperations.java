@@ -85,8 +85,29 @@ public final class MatrixOperations {
                 break;
             }
         }
-        int scoreBonus = 50 * clearedRows.size() * clearedRows.size();
-        return new ClearRow(clearedRows.size(), result, scoreBonus);
+        // Calculate base score based on Tetris scoring system (without level multiplier)
+        // Single: 40, Double: 100, Triple: 300, Tetris: 1200
+        int baseScore = 0;
+        int linesCleared = clearedRows.size();
+        switch (linesCleared) {
+            case 1:
+                baseScore = 40;
+                break;
+            case 2:
+                baseScore = 100;
+                break;
+            case 3:
+                baseScore = 300;
+                break;
+            case 4:
+                baseScore = 1200;
+                break;
+            default:
+                // For 0 or more than 4 lines (shouldn't happen, but handle gracefully)
+                baseScore = 0;
+                break;
+        }
+        return new ClearRow(clearedRows.size(), result, baseScore);
     }
 
     public static List<int[][]> deepCopyList(List<int[][]> list) {

@@ -36,10 +36,10 @@ public class MainMenuPanel extends BorderPane {
         VBox buttonBox = new VBox(15);
         buttonBox.getStyleClass().add("main-menu-button-group");
 
-        playButton = new Button("Play");
+        playButton = new Button("PLAY");
         playButton.getStyleClass().add("menu-button");
 
-        quitButton = new Button("Quit");
+        quitButton = new Button("QUIT");
         quitButton.getStyleClass().add("menu-button");
 
         buttonBox.getChildren().addAll(playButton, quitButton);

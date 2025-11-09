@@ -11,6 +11,7 @@ import com.comp2042.view.ColorStrategy;
 import com.comp2042.view.GameOverPanel;
 import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.NotificationPanel;
+import com.comp2042.model.HighScoreManager;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
@@ -60,6 +61,7 @@ public class GuiController implements Initializable {
     @FXML private Button pauseButton;
     @FXML private MainMenuPanel mainMenuPanel;
     @FXML private Label countdownLabel;
+    @FXML private HBox bottomPanel;
 
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
@@ -71,6 +73,7 @@ public class GuiController implements Initializable {
 
     private Rectangle[][] holdBrickRectangles;
     private List<GridPane> nextBrickPanes = new ArrayList<>();
+    private HighScoreManager highScoreManager = new HighScoreManager();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -208,9 +211,17 @@ public class GuiController implements Initializable {
     }
 
     private void initializeInfoPanel() {
-        if (scoreLabel != null) scoreLabel.setText("0");
-        if (levelLabel != null) levelLabel.setText("1");
-        if (linesLabel != null) linesLabel.setText("0");
+        // Don't set text directly for scoreLabel - it will be bound to the score property
+        // Only set initial text if not already bound
+        if (scoreLabel != null && !scoreLabel.textProperty().isBound()) {
+            scoreLabel.setText("0");
+        }
+        if (levelLabel != null && !levelLabel.textProperty().isBound()) {
+            levelLabel.setText("1");
+        }
+        if (linesLabel != null && !linesLabel.textProperty().isBound()) {
+            linesLabel.setText("0");
+        }
     }
 
     private void handleKeyPress(KeyEvent keyEvent) {
@@ -325,7 +336,11 @@ public class GuiController implements Initializable {
     public void setEventListener(InputEventListener listener) { this.eventListener = listener; }
 
     public void bindScore(IntegerProperty score) {
-        if (scoreLabel != null && score != null) scoreLabel.textProperty().bind(score.asString("Score: %d"));
+        if (scoreLabel != null && score != null) {
+            // Unbind first to avoid binding conflicts
+            scoreLabel.textProperty().unbind();
+            scoreLabel.textProperty().bind(score.asString("Score: %d"));
+        }
     }
 
     public void bindLevel(IntegerProperty level) {
@@ -343,7 +358,97 @@ public class GuiController implements Initializable {
 
     public void gameOver() {
         if (timeLine != null) timeLine.stop();
-        if (gameOverPanel != null) gameOverPanel.setVisible(true);
+        // Hide bottom panel when game is over
+        if (bottomPanel != null) {
+            bottomPanel.setVisible(false);
+        }
+        if (gameOverPanel != null) {
+            // Get current score from scoreLabel
+            int currentScore = 0;
+            if (scoreLabel != null) {
+                try {
+                    String scoreText = scoreLabel.getText();
+                    if (scoreText != null && scoreText.contains(":")) {
+                        String scoreValue = scoreText.substring(scoreText.indexOf(":") + 1).trim();
+                        currentScore = Integer.parseInt(scoreValue);
+                    }
+                } catch (Exception e) {
+                    // If parsing fails, use 0
+                }
+            }
+            
+            // Add score to high scores
+            highScoreManager.addScore(currentScore);
+            
+            // Update game over panel
+            gameOverPanel.setCurrentScore(currentScore);
+            gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
+            
+            // Set button actions
+            gameOverPanel.setOnYesAction(() -> {
+                newGame(null);
+            });
+            
+            gameOverPanel.setOnNoAction(() -> {
+                // Go back to main menu and reset the game
+                if (eventListener != null) {
+                    // Reset the game board state
+                    eventListener.createNewGame();
+                }
+                // Clear the game board display
+                if (displayMatrix != null) {
+                    for (int i = 0; i < displayMatrix.length; i++) {
+                        for (int j = 0; j < displayMatrix[i].length; j++) {
+                            if (displayMatrix[i][j] != null) {
+                                displayMatrix[i][j].setFill(getFillColor(0));
+                            }
+                        }
+                    }
+                }
+                // Clear next bricks display
+                if (nextBrickPanes != null) {
+                    for (GridPane pane : nextBrickPanes) {
+                        if (pane != null) {
+                            pane.getChildren().clear();
+                            // Re-initialize empty cells
+                            for (int r = 0; r < 4; r++) {
+                                for (int c = 0; c < 4; c++) {
+                                    Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
+                                    rect.setFill(Color.TRANSPARENT);
+                                    pane.add(rect, c, r);
+                                }
+                            }
+                        }
+                    }
+                }
+                // Clear hold brick display
+                if (holdBrickRectangles != null) {
+                    for (int i = 0; i < holdBrickRectangles.length; i++) {
+                        for (int j = 0; j < holdBrickRectangles[i].length; j++) {
+                            if (holdBrickRectangles[i][j] != null) {
+                                holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                            }
+                        }
+                    }
+                }
+                // Clear current brick display
+                if (brickPanel != null) {
+                    brickPanel.getChildren().clear();
+                    brickPanel.setVisible(false);
+                }
+                
+                // Hide game over panel and show main menu
+                if (gameOverPanel != null) gameOverPanel.setVisible(false);
+                if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
+                // Hide bottom panel when returning to main menu
+                if (bottomPanel != null) bottomPanel.setVisible(false);
+                isGameOver.set(false);
+                gameStarted = false;
+                if (timeLine != null) timeLine.stop();
+            });
+            
+            gameOverPanel.setVisible(true);
+        }
         isGameOver.set(true);
     }
 
@@ -356,6 +461,10 @@ public class GuiController implements Initializable {
         isPause.set(false);
         isGameOver.set(false);
         gameStarted = true;
+        // Show bottom panel when starting a new game
+        if (bottomPanel != null) {
+            bottomPanel.setVisible(true);
+        }
         if (pauseButton != null) {
             pauseButton.setText("Pause");
         }
@@ -430,10 +539,23 @@ public class GuiController implements Initializable {
     
     private void actuallyStartGame() {
         gameStarted = true;
+        isGameOver.set(false);
+        isPause.set(false);
+        
+        // Ensure score binding is active
+        if (eventListener instanceof GameController) {
+            GameController gameController = (GameController) eventListener;
+            bindScore(gameController.getScoreProperty());
+        }
         
         // Make brick panel visible
         if (brickPanel != null) {
             brickPanel.setVisible(true);
+        }
+        
+        // Show bottom panel when game starts
+        if (bottomPanel != null) {
+            bottomPanel.setVisible(true);
         }
         
         // Refresh the brick display with stored brick data

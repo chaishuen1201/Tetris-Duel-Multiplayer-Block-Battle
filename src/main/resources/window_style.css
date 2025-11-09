@@ -1,234 +1,406 @@
-/* === Root Background with Night Sky Gradient === */
+/* === Root Background with Enhanced Gradient === */
 .root-pane {
-    -fx-background-color: linear-gradient(to bottom, #834d9b, #d04ed6);
+    -fx-background-color: linear-gradient(to bottom, #6a11cb 0%, #2575fc 100%);
     -fx-alignment: center;
-    -fx-padding: 20;
+    -fx-padding: 25;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.3), 20, 0, 0, 5);
 }
 
 /* ==============================================
-   Main Menu Panel
+   Glass Morphism Effects
+   ============================================== */
+
+.glass-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 20;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 1;
+    -fx-border-radius: 20;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.1), 15, 0, 0, 5);
+}
+
+.glass-panel-dark {
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-background-radius: 15;
+    -fx-border-color: rgba(255, 255, 255, 0.15);
+    -fx-border-width: 1;
+    -fx-border-radius: 15;
+}
+
+/* ==============================================
+   Main Menu Panel - Enhanced
    ============================================== */
 
 .main-menu-container {
     -fx-alignment: center;
+    -fx-spacing: 40;
+    -fx-padding: 50;
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-background-radius: 25;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-width: 2;
+    -fx-border-radius: 25;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 30, 0, 0, 10);
 }
 
 .main-menu-title {
-    -fx-font-size: 48px;
+    -fx-font-size: 34px;
     -fx-font-weight: bold;
-    -fx-text-fill: linear-gradient(to bottom, #ff5252, #ffeb3b, #ff4081);
-    -fx-effect: dropshadow(three-pass-box, rgba(255, 82, 82, 0.8), 15, 0, 0, 0);
+    -fx-text-fill: linear-gradient(to bottom, #ff6b6b, #ffd93d, #6bcf7f);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 107, 107, 0.6), 20, 0, 0, 5);
     -fx-font-family: "Public Pixel";
+    -fx-padding: 0 0 20 0;
 }
 
 .main-menu-button-group {
     -fx-alignment: center;
+    -fx-spacing: 20;
 }
+
+/* ==============================================
+   Enhanced Button Styles - Modern Glass Buttons
+   ============================================== */
 
 .menu-button {
-    -fx-pref-width: 150;
-    -fx-pref-height: 50;
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-font-size: 18px;
+    -fx-padding: 15 40;
+    -fx-border-width: 1.5;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-radius: 25;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+    -fx-font-family: "Public Pixel";
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.3), 8, 0, 2, 2);
+    -fx-transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+.menu-button:hover {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+    -fx-text-fill: #ffeb3b;
+    -fx-border-color: rgba(255, 235, 59, 0.6);
+    -fx-effect: dropshadow(one-pass-box, rgba(255, 235, 59, 0.4), 12, 0, 3, 3);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+    -fx-translate-y: -2px;
+}
+
+.menu-button:pressed {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 107, 107, 0.3), rgba(255, 107, 107, 0.1));
+    -fx-text-fill: #ff6b6b;
+    -fx-border-color: rgba(255, 107, 107, 0.5);
+    -fx-effect: dropshadow(one-pass-box, rgba(255, 107, 107, 0.3), 6, 0, 1, 1);
+    -fx-scale-x: 0.98;
+    -fx-scale-y: 0.98;
+}
+
+/* ==============================================
+   Game Board & Grid - Enhanced
+   ============================================== */
 
 .game-area-container {
     -fx-alignment: center;
-    -fx-padding: 20;
-    -fx-background-color: rgba(255, 255, 255, 0.1);
-    -fx-background-radius: 10;
-    -fx-border-radius: 10;
-    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-padding: 25;
+    -fx-background-color: rgba(0, 0, 0, 0.2);
+    -fx-background-radius: 20;
+    -fx-border-color: rgba(255, 255, 255, 0.15);
     -fx-border-width: 1;
+    -fx-border-radius: 20;
 }
 
 .gameBoard {
-    -fx-background-color: #000000;
-    -fx-border-color: #e1b4ff;
-    -fx-border-width: 3;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-effect: dropshadow(three-pass-box, rgba(225, 180, 255, 0.4), 10, 0, 0, 0);
-}
-
-.game-stack {
-    -fx-background-color: transparent;
-    -fx-alignment: top-left;
+    -fx-background-color: #0a0a15;
+    -fx-border-color: linear-gradient(to bottom, #667eea, #764ba2);
+    -fx-border-width: 4;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(three-pass-box, rgba(102, 126, 234, 0.4), 20, 0, 0, 5);
 }
 
 .game-grid {
-    -fx-background-color: transparent;
-    -fx-padding: 0;
+    -fx-background-color: #0a0a15;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
 }
 
-.brick-grid {
-    -fx-background-color: transparent;
-    -fx-padding: 0;
-}
+/* ==============================================
+   Side Panels
+   ============================================== */
 
 .side-panel {
-    -fx-padding: 15;
-    -fx-background-color: linear-gradient(to bottom, rgba(107, 65, 128, 0.9), rgba(75, 45, 95, 0.9));
-    -fx-border-color: #e1b4ff;
-    -fx-border-width: 2;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.4), 8, 0, 0, 0);
+    -fx-padding: 20;
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-border-color: rgba(255, 255, 255, 0.15);
+    -fx-border-width: 1;
+    -fx-border-radius: 15;
+    -fx-background-radius: 15;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.3), 15, 0, 3, 3);
 }
 
 .info-box {
     -fx-alignment: CENTER;
-    -fx-spacing: 8;
+    -fx-spacing: 10;
+    -fx-padding: 15;
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
 }
 
 .panel-title {
-    -fx-text-fill: #fad316;
-    -fx-font-size: 16px;
+    -fx-text-fill: #ffd93d;
+    -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 2, 0, 1, 1);
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.8), 3, 0, 1, 1);
+    -fx-font-family: "Public Pixel";
+    -fx-alignment: center;
 }
 
 .score-display {
-    -fx-text-fill: #f48d45;
-    -fx-font-size: 24px;
+    -fx-text-fill: #6bcf7f;
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 3, 0, 1, 1);
+    -fx-effect: dropshadow(one-pass-box, rgba(107, 207, 127, 0.4), 4, 0, 2, 2);
+    -fx-font-family: "Digital", monospace;
 }
 
 .info-display {
-    -fx-text-fill: #53aaa4;
-    -fx-font-size: 20px;
+    -fx-text-fill: #4fc3f7;
+    -fx-font-size: 22px;
     -fx-font-weight: bold;
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 2, 0, 1, 1);
+    -fx-effect: dropshadow(one-pass-box, rgba(79, 195, 247, 0.4), 3, 0, 2, 2);
+    -fx-font-family: "Digital", monospace;
 }
 
-.brick-preview {
-    -fx-background-color: rgba(60, 35, 75, 0.9);
-    -fx-border-color: #e1b4ff;
+/* ==============================================
+   Brick Preview Panels
+   ============================================== */
+
+.brick-preview, .next-bricks-panel {
+    -fx-background-color: rgba(10, 10, 25, 0.8);
+    -fx-border-color: rgba(255, 255, 255, 0.2);
     -fx-border-width: 2;
-    -fx-padding: 10;
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
+    -fx-padding: 15;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
 }
 
-.next-bricks-panel {
-    -fx-background-color: rgba(60, 35, 75, 0.9);
-    -fx-border-color: #e1b4ff;
-    -fx-border-width: 2;
-    -fx-padding: 10;
-    -fx-alignment: center;
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
-}
+/* ==============================================
+   Controls List
+   ============================================== */
 
 .controls-list {
-    -fx-spacing: 5;
-    -fx-padding: 5;
+    -fx-spacing: 8;
+    -fx-padding: 10;
 }
 
 .control-item {
     -fx-text-fill: #e1f5fe;
-    -fx-font-size: 12px;
+    -fx-font-size: 11px;
     -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 1, 0, 1, 1);
+    -fx-font-family: "Segoe UI", sans-serif;
 }
 
-.menu-button {
-    -fx-background-color: linear-gradient(to bottom, #9c27b0, #7b1fa2);
-    -fx-text-fill: white;
+/* ==============================================
+   Game Over Panel
+   ============================================== */
+
+.game-over-panel {
+    -fx-background-color: rgba(20, 20, 40, 0.95);
+    -fx-background-radius: 25;
+    -fx-border-color: linear-gradient(to bottom, #ff6b6b, #ffd93d);
+    -fx-border-width: 3;
+    -fx-border-radius: 25;
+    -fx-padding: 40;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.6), 30, 0, 0, 10);
+}
+
+.game-over-container {
+    -fx-alignment: center;
+    -fx-spacing: 20;
+}
+
+.game-over-title {
+    -fx-font-size: 25px;
     -fx-font-weight: bold;
-    -fx-padding: 10 20;
-    -fx-border-radius: 5;
-    -fx-background-radius: 5;
-    -fx-border-color: #e1b4ff;
-    -fx-border-width: 1;
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.4), 3, 0, 1, 1);
+    -fx-text-fill: linear-gradient(to bottom, #ff6b6b, #ff8e53);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 107, 107, 0.8), 15, 0, 0, 5);
+    -fx-font-family: "Public Pixel";
+    -fx-alignment: center;
+}
+
+.game-over-subtitle {
+    -fx-padding: 20 0 12 0;
+    -fx-font-size: 19px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffd93d;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 217, 61, 0.7), 10, 0, 0, 3);
+    -fx-font-family: "Public Pixel";
+    -fx-alignment: center;
+}
+
+.game-over-score-title {
+    -fx-padding: 20 0 0 0;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #b3e5fc;
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 2, 0, 1, 1);
+}
+
+.game-over-current-score {
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6bcf7f;
+    -fx-effect: dropshadow(three-pass-box, rgba(107, 207, 127, 0.6), 10, 0, 0, 3);
+    -fx-font-family: "Digital", monospace;
+}
+
+.game-over-high-score-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #e1f5fe;
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 2, 0, 1, 1);
+}
+
+.game-over-high-score {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 2, 0, 1, 1);
+    -fx-font-family: "Digital", monospace;
+}
+
+.game-over-high-score-gold {
+    -fx-text-fill: #ffd700;
+    -fx-effect: dropshadow(one-pass-box, rgba(255, 215, 0, 0.8), 4, 0, 1, 1);
+}
+
+.game-over-high-score-silver {
+    -fx-text-fill: #c0c0c0;
+    -fx-effect: dropshadow(one-pass-box, rgba(192, 192, 192, 0.8), 4, 0, 1, 1);
+}
+
+.game-over-high-score-bronze {
+    -fx-text-fill: #cd7f32;
+    -fx-effect: dropshadow(one-pass-box, rgba(205, 127, 50, 0.8), 4, 0, 1, 1);
+}
+
+/* ==============================================
+   Game Over Buttons
+   ============================================== */
+
+.game-over-button {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 12 20;
+    -fx-border-width: 1.5;
+    -fx-border-color: rgba(255, 255, 255, 0.25);
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
     -fx-cursor: hand;
+    -fx-font-family: "Public Pixel";
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.3), 6, 0, 2, 2);
+    -fx-transition: all 0.3s ease;
 }
 
-.menu-button:hover {
-    -fx-background-color: linear-gradient(to bottom, #ab47bc, #8e24aa);
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.6), 5, 0, 2, 2);
-}
-
-.menu-button:pressed {
-    -fx-background-color: linear-gradient(to bottom, #8e24aa, #6a1b9a);
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.3), 2, 0, 1, 1);
-}
-
-.bonusStyle {
-    -fx-font-size: 24px;
-    -fx-font-weight: bold;
+.game-over-button:hover {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.15));
     -fx-text-fill: #ffeb3b;
-    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.8), 10, 0, 0, 0);
+    -fx-border-color: rgba(255, 235, 59, 0.5);
+    -fx-effect: dropshadow(one-pass-box, rgba(255, 235, 59, 0.4), 10, 0, 3, 3);
+    -fx-scale-x: 1.08;
+    -fx-scale-y: 1.08;
 }
 
-.gameOverStyle {
-    -fx-font-size: 48px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #ff5252;
-    -fx-effect: dropshadow(three-pass-box, rgba(255, 82, 82, 0.8), 15, 0, 0, 0);
+.game-over-button:pressed {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 107, 107, 0.3), rgba(255, 107, 107, 0.15));
+    -fx-text-fill: #ff6b6b;
+    -fx-border-color: rgba(255, 107, 107, 0.4);
+    -fx-scale-x: 0.95;
+    -fx-scale-y: 0.95;
 }
+
+/* ==============================================
+   Countdown & Animations
+   ============================================== */
 
 .countdown-label {
-    -fx-font-size: 90px;
+    -fx-font-size: 100px;
     -fx-font-weight: bold;
     -fx-text-fill: #ffeb3b;
-    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.9), 20, 0, 0, 0);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.9), 25, 0, 0, 5);
     -fx-alignment: center;
     -fx-text-alignment: center;
     -fx-font-family: "Public Pixel";
-    -fx-pref-width: 300px;
-    -fx-pref-height: 600px;
 }
 
-.info-label {
-    -fx-text-fill: #e1f5fe;
-    -fx-font-size: 14px;
-    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.7), 1, 0, 1, 1);
-}
+/* ==============================================
+   Bottom Panel
+   ============================================== */
 
-/* Size constraints */
-.side-panel {
-    -fx-pref-width: 150px;
-    -fx-max-width: 150px;
-}
-
-.gameBoard {
-    -fx-padding: 0;
-    -fx-background-color: transparent;
-    -fx-border-color: #e1b4ff;
-    -fx-border-width: 3;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-background-insets: 0;
-    -fx-border-insets: 0;
-}
-
-.game-grid {
-    -fx-background-color: #000000;
-    -fx-padding: 0;
-    -fx-alignment: center;
-}
-
-.game-stack {
-    -fx-pref-width: 300px;
-    -fx-pref-height: 600px;
-    -fx-max-width: 300px;
-    -fx-max-height: 600px;
-}
-
-.brick-grid {
-    -fx-pref-width: 300px;
-    -fx-pref-height: 600px;
-    -fx-max-width: 300px;
-    -fx-max-height: 600px;
-}
-
-/* Bottom panel styling */
 .bottom-panel {
-    -fx-padding: 10;
-    -fx-background-color: rgba(255, 255, 255, 0.1);
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
-    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-padding: 15;
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-background-radius: 15;
+    -fx-border-radius: 15;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
     -fx-border-width: 1;
+}
+
+/* ==============================================
+   Notification Styles
+   ============================================== */
+
+.bonusStyle {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffeb3b;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.8), 12, 0, 0, 3);
+    -fx-font-family: "Public Pixel";
+}
+
+/* ==============================================
+   Responsive Design Elements
+   ============================================== */
+
+@media (max-width: 800px) {
+    .side-panel {
+        -fx-padding: 10;
+    }
+
+    .main-menu-title {
+        -fx-font-size: 48px;
+    }
+
+    .menu-button {
+        -fx-font-size: 16px;
+        -fx-padding: 12 30;
+    }
+}
+
+/* ==============================================
+   Custom Animations
+   ============================================== */
+
+@keyframes pulse {
+    0% { -fx-scale-x: 1; -fx-scale-y: 1; }
+    50% { -fx-scale-x: 1.05; -fx-scale-y: 1.05; }
+    100% { -fx-scale-x: 1; -fx-scale-y: 1; }
+}
+
+@keyframes glow {
+    0% { -fx-effect: dropshadow(one-pass-box, rgba(255, 235, 59, 0.4), 10, 0, 0, 0); }
+    50% { -fx-effect: dropshadow(one-pass-box, rgba(255, 235, 59, 0.8), 15, 0, 0, 0); }
+    100% { -fx-effect: dropshadow(one-pass-box, rgba(255, 235, 59, 0.4), 10, 0, 0, 0); }
+}
+
+.pulse-animation {
+    -fx-animation: pulse 2s infinite ease-in-out;
+}
+
+.glow-animation {
+    -fx-animation: glow 3s infinite ease-in-out;
 }

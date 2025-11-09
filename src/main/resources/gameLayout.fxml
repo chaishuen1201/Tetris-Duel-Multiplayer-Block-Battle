@@ -69,7 +69,8 @@
                                StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
 
                         <!-- Game over panel -->
-                        <GameOverPanel fx:id="gameOverPanel" visible="false"/>
+                        <GameOverPanel fx:id="gameOverPanel" visible="false" 
+                                       StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
                     </StackPane>
                 </center>
             </BorderPane>
@@ -100,7 +101,7 @@
     </right>
 
     <bottom>
-        <HBox alignment="CENTER" spacing="20" styleClass="bottom-panel">
+        <HBox fx:id="bottomPanel" alignment="CENTER" spacing="20" styleClass="bottom-panel" visible="false">
             <Button text="New Game" onAction="#newGame" styleClass="menu-button"/>
             <Button fx:id="pauseButton" text="Pause" onAction="#pauseGame" styleClass="menu-button"/>
         </HBox>

@@ -53,7 +53,15 @@ public class GameController implements InputEventListener {
             }
         } else {
             if (event.getEventSource() == EventSource.USER) {
-                board.getScore().add(1);
+                // Soft drop: 1 point per cell moved
+                if (board instanceof SimpleBoard) {
+                    SimpleBoard simpleBoard = (SimpleBoard) board;
+                    int cellCount = simpleBoard.getCurrentBrickCellCount();
+                    board.getScore().add(cellCount);
+                } else {
+                    // Fallback: add 1 point if not SimpleBoard
+                    board.getScore().add(1);
+                }
             }
         }
         return new DownData(clearRow, board.getViewData());
@@ -81,7 +89,11 @@ public class GameController implements InputEventListener {
     public ViewData onHardDropEvent(MoveEvent event) {
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
-            simpleBoard.hardDrop();
+            // Hard drop: 2 points per cell dropped
+            int cellsDropped = simpleBoard.hardDrop();
+            int hardDropScore = cellsDropped * 2;
+            board.getScore().add(hardDropScore);
+            
             board.mergeBrickToBackground();
             ClearRow clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
@@ -110,6 +122,8 @@ public class GameController implements InputEventListener {
     @Override
     public void createNewGame() {
         board.newGame();
+        // Re-bind score to ensure it updates after reset
+        viewGuiController.bindScore(board.getScore().scoreProperty());
         viewGuiController.refreshGameBackground(board.getBoardMatrix());
 
         if (board instanceof SimpleBoard) {
@@ -117,6 +131,11 @@ public class GameController implements InputEventListener {
             viewGuiController.updateNextBricks(simpleBoard.getNextBricks());
             viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick());
         }
+    }
+
+    // Expose score property for re-binding when needed
+    public javafx.beans.property.IntegerProperty getScoreProperty() {
+        return board.getScore().scoreProperty();
     }
 }
 

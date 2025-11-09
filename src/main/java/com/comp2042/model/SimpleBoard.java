@@ -167,6 +167,10 @@ public class SimpleBoard implements Board {
             if (newLevel > level.get()) {
                 level.set(newLevel);
             }
+            // Multiply base score by current level (level is updated above)
+            int levelMultipliedScore = clearRow.getScoreBonus() * level.get();
+            // Return new ClearRow with level-multiplied score
+            return new ClearRow(clearRow.getLinesRemoved(), clearRow.getNewMatrix(), levelMultipliedScore);
         }
         return clearRow;
     }
@@ -213,10 +217,30 @@ public class SimpleBoard implements Board {
         return heldBrick;
     }
 
-    public void hardDrop() {
+    public int hardDrop() {
+        int cellsDropped = 0;
         while (moveBrickDown()) {
-            // Keep moving down until it can't move anymore
+            cellsDropped++;
         }
+        return cellsDropped;
+    }
+    
+    // Helper method to count non-zero cells in a brick shape
+    private int countCellsInShape(int[][] shape) {
+        int count = 0;
+        for (int[] row : shape) {
+            for (int cell : row) {
+                if (cell != 0) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+    
+    // Get the number of cells in the current brick shape
+    public int getCurrentBrickCellCount() {
+        return countCellsInShape(brickRotator.getCurrentShape());
     }
 
     public void holdBrick() {
