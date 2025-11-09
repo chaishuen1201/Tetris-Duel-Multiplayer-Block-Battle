@@ -59,6 +59,7 @@ public class GuiController implements Initializable {
     @FXML private Label linesLabel;
     @FXML private Button pauseButton;
     @FXML private MainMenuPanel mainMenuPanel;
+    @FXML private Label countdownLabel;
 
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
@@ -91,6 +92,12 @@ public class GuiController implements Initializable {
         initializeInfoPanel();
 
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
+        
+        // Initialize countdown label
+        if (countdownLabel != null) {
+            countdownLabel.setVisible(false);
+            countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
+        }
 
         // Hide brick panel when main menu is visible
         if (brickPanel != null) {
@@ -360,25 +367,86 @@ public class GuiController implements Initializable {
     public void startGame() {
         if (!gameStarted && mainMenuPanel != null) {
             mainMenuPanel.setVisible(false);
-            gameStarted = true;
             
-            // Make brick panel visible
-            if (brickPanel != null) {
-                brickPanel.setVisible(true);
+            // Start countdown
+            startCountdown();
+        }
+    }
+    
+    private void startCountdown() {
+        if (countdownLabel == null) {
+            // If countdown label doesn't exist, start game immediately
+            actuallyStartGame();
+            return;
+        }
+        
+        // Make countdown label visible and center it
+        countdownLabel.setVisible(true);
+        countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
+        
+        // Center the label in the StackPane
+        if (gameStack != null) {
+            StackPane.setAlignment(countdownLabel, javafx.geometry.Pos.CENTER);
+        }
+        
+        // Ensure label fills the StackPane for proper centering
+        countdownLabel.setMaxWidth(Double.MAX_VALUE);
+        countdownLabel.setMaxHeight(Double.MAX_VALUE);
+        
+        // Show initial countdown number (3)
+        countdownLabel.setText("3");
+        
+        // Create countdown timeline: 3, 2, 1, then start game
+        Timeline countdownTimeline = new Timeline();
+        
+        // Countdown from 3 to 1 (each number shows for 1 second)
+        for (int i = 3; i >= 1; i--) {
+            final int count = i;
+            KeyFrame keyFrame = new KeyFrame(
+                Duration.seconds(3 - count + 1), 
+                e -> {
+                    if (countdownLabel != null && count > 1) {
+                        countdownLabel.setText(String.valueOf(count - 1));
+                    }
+                }
+            );
+            countdownTimeline.getKeyFrames().add(keyFrame);
+        }
+        
+        // After countdown, start the game
+        KeyFrame startGameFrame = new KeyFrame(
+            Duration.seconds(3),
+            e -> {
+                if (countdownLabel != null) {
+                    countdownLabel.setVisible(false);
+                }
+                actuallyStartGame();
             }
-            
-            // Refresh the brick display with stored brick data
-            // The brick data was stored when initGameView was called
-            if (currentBrickData != null) {
-                refreshBrick(currentBrickData);
-            }
-            
-            if (timeLine != null) {
-                timeLine.play();
-            }
-            if (gameBoard != null) {
-                gameBoard.requestFocus();
-            }
+        );
+        countdownTimeline.getKeyFrames().add(startGameFrame);
+        
+        countdownTimeline.play();
+    }
+    
+    private void actuallyStartGame() {
+        gameStarted = true;
+        
+        // Make brick panel visible
+        if (brickPanel != null) {
+            brickPanel.setVisible(true);
+        }
+        
+        // Refresh the brick display with stored brick data
+        // The brick data was stored when initGameView was called
+        if (currentBrickData != null) {
+            refreshBrick(currentBrickData);
+        }
+        
+        if (timeLine != null) {
+            timeLine.play();
+        }
+        if (gameBoard != null) {
+            gameBoard.requestFocus();
         }
     }
 

@@ -168,6 +168,18 @@
     -fx-effect: dropshadow(three-pass-box, rgba(255, 82, 82, 0.8), 15, 0, 0, 0);
 }
 
+.countdown-label {
+    -fx-font-size: 90px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffeb3b;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.9), 20, 0, 0, 0);
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+    -fx-font-family: "Public Pixel";
+    -fx-pref-width: 300px;
+    -fx-pref-height: 600px;
+}
+
 .info-label {
     -fx-text-fill: #e1f5fe;
     -fx-font-size: 14px;

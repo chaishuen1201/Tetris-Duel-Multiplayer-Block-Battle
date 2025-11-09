@@ -64,6 +64,10 @@
                         <!-- Main menu panel -->
                         <MainMenuPanel fx:id="mainMenuPanel"/>
 
+                        <!-- Countdown label -->
+                        <Label fx:id="countdownLabel" visible="false" styleClass="countdown-label" 
+                               StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
+
                         <!-- Game over panel -->
                         <GameOverPanel fx:id="gameOverPanel" visible="false"/>
                     </StackPane>
