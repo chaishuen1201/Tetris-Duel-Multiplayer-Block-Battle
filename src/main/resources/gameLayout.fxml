@@ -52,6 +52,12 @@
                                   prefWidth="300" prefHeight="600"
                                   maxWidth="300" maxHeight="600"/>
 
+                        <!-- Ghost panel for showing where brick will land -->
+                        <GridPane fx:id="ghostPanel" vgap="1" hgap="1" styleClass="brick-grid"
+                                  prefWidth="300" prefHeight="600"
+                                  maxWidth="300" maxHeight="600"
+                                  mouseTransparent="true"/>
+
                         <!-- Brick panel for current falling brick -->
                         <GridPane fx:id="brickPanel" vgap="1" hgap="1" styleClass="brick-grid"
                                   prefWidth="300" prefHeight="600"
@@ -65,11 +71,11 @@
                         <MainMenuPanel fx:id="mainMenuPanel"/>
 
                         <!-- Countdown label -->
-                        <Label fx:id="countdownLabel" visible="false" styleClass="countdown-label" 
+                        <Label fx:id="countdownLabel" visible="false" styleClass="countdown-label"
                                StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
 
                         <!-- Game over panel -->
-                        <GameOverPanel fx:id="gameOverPanel" visible="false" 
+                        <GameOverPanel fx:id="gameOverPanel" visible="false"
                                        StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
                     </StackPane>
                 </center>

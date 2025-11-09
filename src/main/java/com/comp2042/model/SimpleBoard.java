@@ -45,7 +45,7 @@ public class SimpleBoard implements Board {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
         Point newPosition = new Point(currentOffset);
         newPosition.translate(0, 1);
-        boolean conflict = MatrixOperations.intersect(currentMatrix, brickRotator.getCurrentShape(), 
+        boolean conflict = MatrixOperations.intersect(currentMatrix, brickRotator.getCurrentShape(),
                 (int) newPosition.getX(), (int) newPosition.getY());
         if (conflict) {
             return false;
@@ -60,7 +60,7 @@ public class SimpleBoard implements Board {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
         Point newPosition = new Point(currentOffset);
         newPosition.translate(-1, 0);
-        boolean conflict = MatrixOperations.intersect(currentMatrix, brickRotator.getCurrentShape(), 
+        boolean conflict = MatrixOperations.intersect(currentMatrix, brickRotator.getCurrentShape(),
                 (int) newPosition.getX(), (int) newPosition.getY());
         if (conflict) {
             return false;
@@ -75,7 +75,7 @@ public class SimpleBoard implements Board {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
         Point newPosition = new Point(currentOffset);
         newPosition.translate(1, 0);
-        boolean conflict = MatrixOperations.intersect(currentMatrix, brickRotator.getCurrentShape(), 
+        boolean conflict = MatrixOperations.intersect(currentMatrix, brickRotator.getCurrentShape(),
                 (int) newPosition.getX(), (int) newPosition.getY());
         if (conflict) {
             return false;
@@ -90,30 +90,30 @@ public class SimpleBoard implements Board {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
         NextShapeInfo nextShape = brickRotator.getNextShape();
         int[][] rotatedShape = nextShape.getShape();
-        
+
         // Try rotation at current position first
-        if (!MatrixOperations.intersect(currentMatrix, rotatedShape, 
+        if (!MatrixOperations.intersect(currentMatrix, rotatedShape,
                 (int) currentOffset.getX(), (int) currentOffset.getY())) {
             brickRotator.setCurrentShape(nextShape.getPosition());
             return true;
         }
-        
+
         // Wall kick: try different offset positions to find a valid rotation
         // Standard wall kick offsets: left 1, right 1, left 2, right 2, up 1
         int[][] wallKickOffsets = {
-            {-1, 0},  // Try left 1
-            {1, 0},   // Try right 1
-            {-2, 0},  // Try left 2
-            {2, 0},   // Try right 2
-            {0, -1},  // Try up 1
-            {-1, -1}, // Try left 1, up 1
-            {1, -1}   // Try right 1, up 1
+                {-1, 0},  // Try left 1
+                {1, 0},   // Try right 1
+                {-2, 0},  // Try left 2
+                {2, 0},   // Try right 2
+                {0, -1},  // Try up 1
+                {-1, -1}, // Try left 1, up 1
+                {1, -1}   // Try right 1, up 1
         };
-        
+
         for (int[] offset : wallKickOffsets) {
             int newX = (int) currentOffset.getX() + offset[0];
             int newY = (int) currentOffset.getY() + offset[1];
-            
+
             if (!MatrixOperations.intersect(currentMatrix, rotatedShape, newX, newY)) {
                 // Valid rotation found with wall kick
                 currentOffset = new Point(newX, newY);
@@ -121,7 +121,7 @@ public class SimpleBoard implements Board {
                 return true;
             }
         }
-        
+
         // No valid rotation position found
         return false;
     }
@@ -132,7 +132,7 @@ public class SimpleBoard implements Board {
         brickRotator.setBrick(currentBrick);
         currentOffset = new Point(INITIAL_X, INITIAL_Y);
         canHold = true; // Reset hold ability when new brick is created
-        return MatrixOperations.intersect(currentGameMatrix, brickRotator.getCurrentShape(), 
+        return MatrixOperations.intersect(currentGameMatrix, brickRotator.getCurrentShape(),
                 (int) currentOffset.getX(), (int) currentOffset.getY());
     }
 
@@ -143,15 +143,15 @@ public class SimpleBoard implements Board {
 
     @Override
     public ViewData getViewData() {
-        return new ViewData(brickRotator.getCurrentShape(), 
-                (int) currentOffset.getX(), 
-                (int) currentOffset.getY(), 
+        return new ViewData(brickRotator.getCurrentShape(),
+                (int) currentOffset.getX(),
+                (int) currentOffset.getY(),
                 brickGenerator.getNextBrick().getShapeMatrix().get(0));
     }
 
     @Override
     public void mergeBrickToBackground() {
-        currentGameMatrix = MatrixOperations.merge(currentGameMatrix, brickRotator.getCurrentShape(), 
+        currentGameMatrix = MatrixOperations.merge(currentGameMatrix, brickRotator.getCurrentShape(),
                 (int) currentOffset.getX(), (int) currentOffset.getY());
     }
 
@@ -224,7 +224,7 @@ public class SimpleBoard implements Board {
         }
         return cellsDropped;
     }
-    
+
     // Helper method to count non-zero cells in a brick shape
     private int countCellsInShape(int[][] shape) {
         int count = 0;
@@ -237,10 +237,37 @@ public class SimpleBoard implements Board {
         }
         return count;
     }
-    
+
     // Get the number of cells in the current brick shape
     public int getCurrentBrickCellCount() {
         return countCellsInShape(brickRotator.getCurrentShape());
+    }
+
+    // Calculate the ghost position (where the brick will land)
+    public Point getGhostPosition() {
+        if (currentBrick == null) {
+            return new Point(currentOffset);
+        }
+
+        int[][] shape = brickRotator.getCurrentShape();
+        Point ghostPos = new Point(currentOffset);
+
+        // Simulate dropping the brick down until it hits something
+        while (true) {
+            Point testPos = new Point(ghostPos);
+            testPos.translate(0, 1);
+
+            // Check if moving down would cause a collision
+            if (MatrixOperations.intersect(currentGameMatrix, shape,
+                    (int) testPos.getX(), (int) testPos.getY())) {
+                // Found the landing position
+                break;
+            }
+
+            ghostPos = testPos;
+        }
+
+        return ghostPos;
     }
 
     public void holdBrick() {

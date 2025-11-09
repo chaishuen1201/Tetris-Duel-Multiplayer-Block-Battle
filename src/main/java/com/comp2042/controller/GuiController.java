@@ -12,6 +12,7 @@ import com.comp2042.view.GameOverPanel;
 import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.NotificationPanel;
 import com.comp2042.model.HighScoreManager;
+import com.comp2042.model.SimpleBoard;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
@@ -52,6 +53,7 @@ public class GuiController implements Initializable {
     @FXML private GridPane gamePanel;
     @FXML private Group groupNotification;
     @FXML private GridPane brickPanel;
+    @FXML private GridPane ghostPanel;
     @FXML private GameOverPanel gameOverPanel;
     @FXML private VBox nextBricksPanel;
     @FXML private GridPane holdBrickPanel;
@@ -82,7 +84,7 @@ public class GuiController implements Initializable {
         } catch (Exception e) {
             System.out.println("Font not found, using default font");
         }
-        
+
         try {
             Font.loadFont(getClass().getClassLoader().getResource("PublicPixel-rv0pA.ttf").toExternalForm(), 48);
         } catch (Exception e) {
@@ -95,16 +97,19 @@ public class GuiController implements Initializable {
         initializeInfoPanel();
 
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
-        
+
         // Initialize countdown label
         if (countdownLabel != null) {
             countdownLabel.setVisible(false);
             countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
         }
 
-        // Hide brick panel when main menu is visible
+        // Hide brick panel and ghost panel when main menu is visible
         if (brickPanel != null) {
             brickPanel.setVisible(false);
+        }
+        if (ghostPanel != null) {
+            ghostPanel.setVisible(false);
         }
 
         // Set up main menu panel
@@ -169,6 +174,21 @@ public class GuiController implements Initializable {
                 brickPanel.getRowConstraints().add(rc);
             }
             brickPanel.setMouseTransparent(true);
+        }
+
+        if (ghostPanel != null) {
+            ghostPanel.getChildren().clear();
+            ghostPanel.getColumnConstraints().clear();
+            ghostPanel.getRowConstraints().clear();
+            for (int c = 0; c < BOARD_WIDTH; c++) {
+                ColumnConstraints cc = new ColumnConstraints(BRICK_SIZE);
+                ghostPanel.getColumnConstraints().add(cc);
+            }
+            for (int r = 0; r < BOARD_HEIGHT; r++) {
+                RowConstraints rc = new RowConstraints(BRICK_SIZE);
+                ghostPanel.getRowConstraints().add(rc);
+            }
+            ghostPanel.setMouseTransparent(true);
         }
     }
 
@@ -282,10 +302,80 @@ public class GuiController implements Initializable {
         }
 
         if (!isPause.get() && brickPanel != null && brick != null) {
+            // Clear both panels
             brickPanel.getChildren().clear();
+            if (ghostPanel != null) {
+                ghostPanel.getChildren().clear();
+            }
+
             int[][] data = brick.getBrickData();
             int offsetX = brick.getXPosition();
             int offsetY = brick.getYPosition();
+
+            // Draw ghost piece first (behind the actual brick)
+            if (ghostPanel != null && eventListener instanceof GameController) {
+                GameController gameController = (GameController) eventListener;
+                if (gameController.getBoard() instanceof SimpleBoard) {
+                    SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
+                    java.awt.Point ghostPos = simpleBoard.getGhostPosition();
+
+                    int ghostX = (int) ghostPos.getX();
+                    int ghostY = (int) ghostPos.getY();
+
+                    // Only show ghost if it's below the current position
+                    // Individual cell bounds are checked inside the loop
+                    if (ghostY > offsetY) {
+                        for (int i = 0; i < data.length; i++) {
+                            for (int j = 0; j < data[i].length; j++) {
+                                if (data[j][i] != 0) {
+                                    int cellX = ghostX + i;
+                                    int cellY = ghostY + j;
+
+                                    // Only draw if the cell is within the board bounds
+                                    // This allows partial ghost display when brick is at left/right walls
+                                    if (cellX >= 0 && cellY >= 0 && cellX < BOARD_WIDTH && cellY < BOARD_HEIGHT) {
+                                        Rectangle ghostRect = new Rectangle(BRICK_SIZE, BRICK_SIZE);
+
+                                        // Get the brick's color and make it semi-transparent
+                                        javafx.scene.paint.Paint brickColor = getFillColor(data[j][i]);
+                                        if (brickColor instanceof javafx.scene.paint.Color) {
+                                            javafx.scene.paint.Color color = (javafx.scene.paint.Color) brickColor;
+                                            // Create a semi-transparent version (30% opacity)
+                                            javafx.scene.paint.Color ghostColor = new javafx.scene.paint.Color(
+                                                    color.getRed(),
+                                                    color.getGreen(),
+                                                    color.getBlue(),
+                                                    0.3
+                                            );
+                                            ghostRect.setFill(ghostColor);
+                                            // Use a slightly darker stroke for visibility
+                                            javafx.scene.paint.Color strokeColor = new javafx.scene.paint.Color(
+                                                    color.getRed() * 0.7,
+                                                    color.getGreen() * 0.7,
+                                                    color.getBlue() * 0.7,
+                                                    0.5
+                                            );
+                                            ghostRect.setStroke(strokeColor);
+                                            ghostRect.setStrokeWidth(1.5);
+                                        } else {
+                                            // Fallback if color is not a Color object
+                                            ghostRect.setFill(javafx.scene.paint.Color.rgb(255, 255, 255, 0.3));
+                                            ghostRect.setStroke(javafx.scene.paint.Color.rgb(200, 200, 200, 0.5));
+                                            ghostRect.setStrokeWidth(1.5);
+                                        }
+
+                                        ghostRect.setArcHeight(5);
+                                        ghostRect.setArcWidth(5);
+                                        ghostPanel.add(ghostRect, cellX, cellY);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Draw actual brick on top
             for (int i = 0; i < data.length; i++) {
                 for (int j = 0; j < data[i].length; j++) {
                     if (data[j][i] != 0) {
@@ -376,19 +466,19 @@ public class GuiController implements Initializable {
                     // If parsing fails, use 0
                 }
             }
-            
+
             // Add score to high scores
             highScoreManager.addScore(currentScore);
-            
+
             // Update game over panel
             gameOverPanel.setCurrentScore(currentScore);
             gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
-            
+
             // Set button actions
             gameOverPanel.setOnYesAction(() -> {
                 newGame(null);
             });
-            
+
             gameOverPanel.setOnNoAction(() -> {
                 // Go back to main menu and reset the game
                 if (eventListener != null) {
@@ -431,12 +521,16 @@ public class GuiController implements Initializable {
                         }
                     }
                 }
-                // Clear current brick display
+                // Clear current brick display and ghost panel
                 if (brickPanel != null) {
                     brickPanel.getChildren().clear();
                     brickPanel.setVisible(false);
                 }
-                
+                if (ghostPanel != null) {
+                    ghostPanel.getChildren().clear();
+                    ghostPanel.setVisible(false);
+                }
+
                 // Hide game over panel and show main menu
                 if (gameOverPanel != null) gameOverPanel.setVisible(false);
                 if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
@@ -446,7 +540,7 @@ public class GuiController implements Initializable {
                 gameStarted = false;
                 if (timeLine != null) timeLine.stop();
             });
-            
+
             gameOverPanel.setVisible(true);
         }
         isGameOver.set(true);
@@ -476,94 +570,97 @@ public class GuiController implements Initializable {
     public void startGame() {
         if (!gameStarted && mainMenuPanel != null) {
             mainMenuPanel.setVisible(false);
-            
+
             // Start countdown
             startCountdown();
         }
     }
-    
+
     private void startCountdown() {
         if (countdownLabel == null) {
             // If countdown label doesn't exist, start game immediately
             actuallyStartGame();
             return;
         }
-        
+
         // Make countdown label visible and center it
         countdownLabel.setVisible(true);
         countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
-        
+
         // Center the label in the StackPane
         if (gameStack != null) {
             StackPane.setAlignment(countdownLabel, javafx.geometry.Pos.CENTER);
         }
-        
+
         // Ensure label fills the StackPane for proper centering
         countdownLabel.setMaxWidth(Double.MAX_VALUE);
         countdownLabel.setMaxHeight(Double.MAX_VALUE);
-        
+
         // Show initial countdown number (3)
         countdownLabel.setText("3");
-        
+
         // Create countdown timeline: 3, 2, 1, then start game
         Timeline countdownTimeline = new Timeline();
-        
+
         // Countdown from 3 to 1 (each number shows for 1 second)
         for (int i = 3; i >= 1; i--) {
             final int count = i;
             KeyFrame keyFrame = new KeyFrame(
-                Duration.seconds(3 - count + 1), 
-                e -> {
-                    if (countdownLabel != null && count > 1) {
-                        countdownLabel.setText(String.valueOf(count - 1));
+                    Duration.seconds(3 - count + 1),
+                    e -> {
+                        if (countdownLabel != null && count > 1) {
+                            countdownLabel.setText(String.valueOf(count - 1));
+                        }
                     }
-                }
             );
             countdownTimeline.getKeyFrames().add(keyFrame);
         }
-        
+
         // After countdown, start the game
         KeyFrame startGameFrame = new KeyFrame(
-            Duration.seconds(3),
-            e -> {
-                if (countdownLabel != null) {
-                    countdownLabel.setVisible(false);
+                Duration.seconds(3),
+                e -> {
+                    if (countdownLabel != null) {
+                        countdownLabel.setVisible(false);
+                    }
+                    actuallyStartGame();
                 }
-                actuallyStartGame();
-            }
         );
         countdownTimeline.getKeyFrames().add(startGameFrame);
-        
+
         countdownTimeline.play();
     }
-    
+
     private void actuallyStartGame() {
         gameStarted = true;
         isGameOver.set(false);
         isPause.set(false);
-        
+
         // Ensure score binding is active
         if (eventListener instanceof GameController) {
             GameController gameController = (GameController) eventListener;
             bindScore(gameController.getScoreProperty());
         }
-        
-        // Make brick panel visible
+
+        // Make brick panel and ghost panel visible
         if (brickPanel != null) {
             brickPanel.setVisible(true);
         }
-        
+        if (ghostPanel != null) {
+            ghostPanel.setVisible(true);
+        }
+
         // Show bottom panel when game starts
         if (bottomPanel != null) {
             bottomPanel.setVisible(true);
         }
-        
+
         // Refresh the brick display with stored brick data
         // The brick data was stored when initGameView was called
         if (currentBrickData != null) {
             refreshBrick(currentBrickData);
         }
-        
+
         if (timeLine != null) {
             timeLine.play();
         }
@@ -637,5 +734,5 @@ public class GuiController implements Initializable {
         }
     }
 
-    
+
 }

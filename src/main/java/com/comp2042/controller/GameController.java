@@ -93,7 +93,7 @@ public class GameController implements InputEventListener {
             int cellsDropped = simpleBoard.hardDrop();
             int hardDropScore = cellsDropped * 2;
             board.getScore().add(hardDropScore);
-            
+
             board.mergeBrickToBackground();
             ClearRow clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
@@ -136,6 +136,11 @@ public class GameController implements InputEventListener {
     // Expose score property for re-binding when needed
     public javafx.beans.property.IntegerProperty getScoreProperty() {
         return board.getScore().scoreProperty();
+    }
+
+    // Expose board for ghost position calculation
+    public Board getBoard() {
+        return board;
     }
 }
 
