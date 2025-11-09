@@ -31,6 +31,8 @@ import javafx.scene.text.Font;
 import javafx.scene.control.Label;
 import javafx.util.Duration;
 import javafx.scene.control.Button;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -76,6 +78,13 @@ public class GuiController implements Initializable {
     private Rectangle[][] holdBrickRectangles;
     private List<GridPane> nextBrickPanes = new ArrayList<>();
     private HighScoreManager highScoreManager = new HighScoreManager();
+    
+    // Audio players
+    private MediaPlayer countdownSound;
+    private MediaPlayer gameMusic;
+    private MediaPlayer gameOverSound;
+    private MediaPlayer lineClearSound;
+    private MediaPlayer mainMenuMusic;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -84,7 +93,7 @@ public class GuiController implements Initializable {
         } catch (Exception e) {
             System.out.println("Font not found, using default font");
         }
-
+        
         try {
             Font.loadFont(getClass().getClassLoader().getResource("PublicPixel-rv0pA.ttf").toExternalForm(), 48);
         } catch (Exception e) {
@@ -95,9 +104,10 @@ public class GuiController implements Initializable {
         initializeHoldPanel();
         initializeNextBricksPanel();
         initializeInfoPanel();
+        initializeAudio();
 
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
-
+        
         // Initialize countdown label
         if (countdownLabel != null) {
             countdownLabel.setVisible(false);
@@ -123,6 +133,68 @@ public class GuiController implements Initializable {
             gameBoard.requestFocus();
             gameBoard.setOnKeyPressed(this::handleKeyPress);
             gameBoard.setOnKeyReleased(this::handleKeyRelease);
+        }
+        
+        // Start main menu music
+        playMainMenuMusic();
+    }
+    
+    private void initializeAudio() {
+        try {
+            // Countdown sound
+            URL countdownUrl = getClass().getClassLoader().getResource("audio/3-2-1-countdown.mp3");
+            if (countdownUrl != null) {
+                Media countdownMedia = new Media(countdownUrl.toExternalForm());
+                countdownSound = new MediaPlayer(countdownMedia);
+            }
+            
+            // Game music (looping)
+            URL gameMusicUrl = getClass().getClassLoader().getResource("audio/A-Type Music (Korobeiniki).mp3");
+            if (gameMusicUrl != null) {
+                Media gameMusicMedia = new Media(gameMusicUrl.toExternalForm());
+                gameMusic = new MediaPlayer(gameMusicMedia);
+                gameMusic.setCycleCount(MediaPlayer.INDEFINITE);
+            }
+            
+            // Game over sound
+            URL gameOverUrl = getClass().getClassLoader().getResource("audio/Game Over.mp3");
+            if (gameOverUrl != null) {
+                Media gameOverMedia = new Media(gameOverUrl.toExternalForm());
+                gameOverSound = new MediaPlayer(gameOverMedia);
+            }
+            
+            // Line clear sound
+            URL lineClearUrl = getClass().getClassLoader().getResource("audio/Stage Clear.mp3");
+            if (lineClearUrl != null) {
+                Media lineClearMedia = new Media(lineClearUrl.toExternalForm());
+                lineClearSound = new MediaPlayer(lineClearMedia);
+            }
+            
+            // Main menu music (looping)
+            URL mainMenuUrl = getClass().getClassLoader().getResource("audio/tetris-party-deluxe-main-menu-music.mp3");
+            if (mainMenuUrl != null) {
+                Media mainMenuMedia = new Media(mainMenuUrl.toExternalForm());
+                mainMenuMusic = new MediaPlayer(mainMenuMedia);
+                mainMenuMusic.setCycleCount(MediaPlayer.INDEFINITE);
+            }
+        } catch (Exception e) {
+            System.out.println("Error loading audio files: " + e.getMessage());
+        }
+    }
+    
+    private void playMainMenuMusic() {
+        stopAllMusic();
+        if (mainMenuMusic != null) {
+            mainMenuMusic.play();
+        }
+    }
+    
+    private void stopAllMusic() {
+        if (gameMusic != null) {
+            gameMusic.stop();
+        }
+        if (mainMenuMusic != null) {
+            mainMenuMusic.stop();
         }
     }
 
@@ -260,7 +332,24 @@ public class GuiController implements Initializable {
                 case RIGHT, D -> { if (eventListener != null) refreshBrick(eventListener.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER))); }
                 case UP, W -> { if (eventListener != null) refreshBrick(eventListener.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER))); }
                 case DOWN, S -> { if (timeLine != null) timeLine.setRate(SOFT_DROP_RATE); moveDown(new MoveEvent(EventType.DOWN, EventSource.USER)); }
-                case SPACE -> { if (eventListener != null) refreshBrick(eventListener.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER))); }
+                case SPACE -> { 
+                    if (eventListener != null) {
+                        // Hard drop can also clear lines
+                        DownData downData = eventListener.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
+                        if (downData != null) {
+                            if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                                showNotification("+" + downData.getClearRow().getScoreBonus());
+                                // Play line clear sound
+                                if (lineClearSound != null) {
+                                    lineClearSound.stop();
+                                    lineClearSound.seek(Duration.ZERO);
+                                    lineClearSound.play();
+                                }
+                            }
+                            refreshBrick(downData.getViewData());
+                        }
+                    }
+                }
                 case C, SHIFT -> { if (eventListener != null) refreshBrick(eventListener.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER))); }
             }
         }
@@ -307,21 +396,21 @@ public class GuiController implements Initializable {
             if (ghostPanel != null) {
                 ghostPanel.getChildren().clear();
             }
-
+            
             int[][] data = brick.getBrickData();
             int offsetX = brick.getXPosition();
             int offsetY = brick.getYPosition();
-
+            
             // Draw ghost piece first (behind the actual brick)
             if (ghostPanel != null && eventListener instanceof GameController) {
                 GameController gameController = (GameController) eventListener;
                 if (gameController.getBoard() instanceof SimpleBoard) {
                     SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
                     java.awt.Point ghostPos = simpleBoard.getGhostPosition();
-
+                    
                     int ghostX = (int) ghostPos.getX();
                     int ghostY = (int) ghostPos.getY();
-
+                    
                     // Only show ghost if it's below the current position
                     // Individual cell bounds are checked inside the loop
                     if (ghostY > offsetY) {
@@ -330,30 +419,30 @@ public class GuiController implements Initializable {
                                 if (data[j][i] != 0) {
                                     int cellX = ghostX + i;
                                     int cellY = ghostY + j;
-
+                                    
                                     // Only draw if the cell is within the board bounds
                                     // This allows partial ghost display when brick is at left/right walls
                                     if (cellX >= 0 && cellY >= 0 && cellX < BOARD_WIDTH && cellY < BOARD_HEIGHT) {
                                         Rectangle ghostRect = new Rectangle(BRICK_SIZE, BRICK_SIZE);
-
+                                        
                                         // Get the brick's color and make it semi-transparent
                                         javafx.scene.paint.Paint brickColor = getFillColor(data[j][i]);
                                         if (brickColor instanceof javafx.scene.paint.Color) {
                                             javafx.scene.paint.Color color = (javafx.scene.paint.Color) brickColor;
                                             // Create a semi-transparent version (30% opacity)
                                             javafx.scene.paint.Color ghostColor = new javafx.scene.paint.Color(
-                                                    color.getRed(),
-                                                    color.getGreen(),
-                                                    color.getBlue(),
-                                                    0.3
+                                                color.getRed(),
+                                                color.getGreen(),
+                                                color.getBlue(),
+                                                0.3
                                             );
                                             ghostRect.setFill(ghostColor);
                                             // Use a slightly darker stroke for visibility
                                             javafx.scene.paint.Color strokeColor = new javafx.scene.paint.Color(
-                                                    color.getRed() * 0.7,
-                                                    color.getGreen() * 0.7,
-                                                    color.getBlue() * 0.7,
-                                                    0.5
+                                                color.getRed() * 0.7,
+                                                color.getGreen() * 0.7,
+                                                color.getBlue() * 0.7,
+                                                0.5
                                             );
                                             ghostRect.setStroke(strokeColor);
                                             ghostRect.setStrokeWidth(1.5);
@@ -363,7 +452,7 @@ public class GuiController implements Initializable {
                                             ghostRect.setStroke(javafx.scene.paint.Color.rgb(200, 200, 200, 0.5));
                                             ghostRect.setStrokeWidth(1.5);
                                         }
-
+                                        
                                         ghostRect.setArcHeight(5);
                                         ghostRect.setArcWidth(5);
                                         ghostPanel.add(ghostRect, cellX, cellY);
@@ -374,7 +463,7 @@ public class GuiController implements Initializable {
                     }
                 }
             }
-
+            
             // Draw actual brick on top
             for (int i = 0; i < data.length; i++) {
                 for (int j = 0; j < data[i].length; j++) {
@@ -407,8 +496,15 @@ public class GuiController implements Initializable {
         if (eventListener != null) {
             DownData downData = eventListener.onDownEvent(event);
             if (downData != null) {
-                if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0)
+                if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
                     showNotification("+" + downData.getClearRow().getScoreBonus());
+                    // Play line clear sound
+                    if (lineClearSound != null) {
+                        lineClearSound.stop();
+                        lineClearSound.seek(Duration.ZERO);
+                        lineClearSound.play();
+                    }
+                }
                 refreshBrick(downData.getViewData());
             }
         }
@@ -448,6 +544,17 @@ public class GuiController implements Initializable {
 
     public void gameOver() {
         if (timeLine != null) timeLine.stop();
+        
+        // Stop game music and play game over sound
+        if (gameMusic != null) {
+            gameMusic.stop();
+        }
+        if (gameOverSound != null) {
+            gameOverSound.stop();
+            gameOverSound.seek(Duration.ZERO);
+            gameOverSound.play();
+        }
+        
         // Hide bottom panel when game is over
         if (bottomPanel != null) {
             bottomPanel.setVisible(false);
@@ -466,19 +573,19 @@ public class GuiController implements Initializable {
                     // If parsing fails, use 0
                 }
             }
-
+            
             // Add score to high scores
             highScoreManager.addScore(currentScore);
-
+            
             // Update game over panel
             gameOverPanel.setCurrentScore(currentScore);
             gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
-
+            
             // Set button actions
             gameOverPanel.setOnYesAction(() -> {
                 newGame(null);
             });
-
+            
             gameOverPanel.setOnNoAction(() -> {
                 // Go back to main menu and reset the game
                 if (eventListener != null) {
@@ -530,7 +637,7 @@ public class GuiController implements Initializable {
                     ghostPanel.getChildren().clear();
                     ghostPanel.setVisible(false);
                 }
-
+                
                 // Hide game over panel and show main menu
                 if (gameOverPanel != null) gameOverPanel.setVisible(false);
                 if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
@@ -539,8 +646,14 @@ public class GuiController implements Initializable {
                 isGameOver.set(false);
                 gameStarted = false;
                 if (timeLine != null) timeLine.stop();
+                
+                // Stop game over sound and play main menu music
+                if (gameOverSound != null) {
+                    gameOverSound.stop();
+                }
+                playMainMenuMusic();
             });
-
+            
             gameOverPanel.setVisible(true);
         }
         isGameOver.set(true);
@@ -549,6 +662,20 @@ public class GuiController implements Initializable {
     public void newGame(ActionEvent actionEvent) {
         if (timeLine != null) timeLine.stop();
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
+        
+        // Stop game over sound and start game music
+        if (gameOverSound != null) {
+            gameOverSound.stop();
+        }
+        if (mainMenuMusic != null) {
+            mainMenuMusic.stop();
+        }
+        if (gameMusic != null) {
+            gameMusic.stop();
+            gameMusic.seek(Duration.ZERO);
+            gameMusic.play();
+        }
+        
         if (eventListener != null) eventListener.createNewGame();
         if (gameBoard != null) gameBoard.requestFocus();
         if (timeLine != null) timeLine.play();
@@ -570,78 +697,98 @@ public class GuiController implements Initializable {
     public void startGame() {
         if (!gameStarted && mainMenuPanel != null) {
             mainMenuPanel.setVisible(false);
-
+            
             // Start countdown
             startCountdown();
         }
     }
-
+    
     private void startCountdown() {
         if (countdownLabel == null) {
             // If countdown label doesn't exist, start game immediately
             actuallyStartGame();
             return;
         }
-
+        
+        // Stop main menu music during countdown
+        if (mainMenuMusic != null) {
+            mainMenuMusic.stop();
+        }
+        
+        // Play countdown sound
+        if (countdownSound != null) {
+            countdownSound.stop();
+            countdownSound.seek(Duration.ZERO);
+            countdownSound.play();
+        }
+        
         // Make countdown label visible and center it
         countdownLabel.setVisible(true);
         countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
-
+        
         // Center the label in the StackPane
         if (gameStack != null) {
             StackPane.setAlignment(countdownLabel, javafx.geometry.Pos.CENTER);
         }
-
+        
         // Ensure label fills the StackPane for proper centering
         countdownLabel.setMaxWidth(Double.MAX_VALUE);
         countdownLabel.setMaxHeight(Double.MAX_VALUE);
-
+        
         // Show initial countdown number (3)
         countdownLabel.setText("3");
-
+        
         // Create countdown timeline: 3, 2, 1, then start game
         Timeline countdownTimeline = new Timeline();
-
+        
         // Countdown from 3 to 1 (each number shows for 1 second)
         for (int i = 3; i >= 1; i--) {
             final int count = i;
             KeyFrame keyFrame = new KeyFrame(
-                    Duration.seconds(3 - count + 1),
-                    e -> {
-                        if (countdownLabel != null && count > 1) {
-                            countdownLabel.setText(String.valueOf(count - 1));
-                        }
+                Duration.seconds(3 - count + 1), 
+                e -> {
+                    if (countdownLabel != null && count > 1) {
+                        countdownLabel.setText(String.valueOf(count - 1));
                     }
+                }
             );
             countdownTimeline.getKeyFrames().add(keyFrame);
         }
-
+        
         // After countdown, start the game
         KeyFrame startGameFrame = new KeyFrame(
-                Duration.seconds(3),
-                e -> {
-                    if (countdownLabel != null) {
-                        countdownLabel.setVisible(false);
-                    }
-                    actuallyStartGame();
+            Duration.seconds(3),
+            e -> {
+                if (countdownLabel != null) {
+                    countdownLabel.setVisible(false);
                 }
+                actuallyStartGame();
+            }
         );
         countdownTimeline.getKeyFrames().add(startGameFrame);
-
+        
         countdownTimeline.play();
     }
-
+    
     private void actuallyStartGame() {
         gameStarted = true;
         isGameOver.set(false);
         isPause.set(false);
-
+        
+        // Stop main menu music and start game music
+        if (mainMenuMusic != null) {
+            mainMenuMusic.stop();
+        }
+        if (gameMusic != null) {
+            gameMusic.play();
+        }
+        
         // Ensure score binding is active
         if (eventListener instanceof GameController) {
             GameController gameController = (GameController) eventListener;
             bindScore(gameController.getScoreProperty());
         }
-
+        
         // Make brick panel and ghost panel visible
         if (brickPanel != null) {
             brickPanel.setVisible(true);
@@ -649,18 +796,18 @@ public class GuiController implements Initializable {
         if (ghostPanel != null) {
             ghostPanel.setVisible(true);
         }
-
+        
         // Show bottom panel when game starts
         if (bottomPanel != null) {
             bottomPanel.setVisible(true);
         }
-
+        
         // Refresh the brick display with stored brick data
         // The brick data was stored when initGameView was called
         if (currentBrickData != null) {
             refreshBrick(currentBrickData);
         }
-
+        
         if (timeLine != null) {
             timeLine.play();
         }
@@ -676,12 +823,20 @@ public class GuiController implements Initializable {
     public void pauseGame(ActionEvent actionEvent) {
         if (!isPause.get()) {
             if (timeLine != null) timeLine.pause();
+            // Pause game music
+            if (gameMusic != null) {
+                gameMusic.pause();
+            }
             isPause.set(true);
             if (pauseButton != null) {
                 pauseButton.setText("Resume");
             }
         } else {
             if (timeLine != null) { timeLine.play(); updateTimelineRate(); }
+            // Resume game music
+            if (gameMusic != null) {
+                gameMusic.play();
+            }
             isPause.set(false);
             if (pauseButton != null) {
                 pauseButton.setText("Pause");
@@ -734,5 +889,5 @@ public class GuiController implements Initializable {
         }
     }
 
-
+    
 }

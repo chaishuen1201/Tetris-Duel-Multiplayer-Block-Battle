@@ -86,16 +86,17 @@ public class GameController implements InputEventListener {
     }
 
     @Override
-    public ViewData onHardDropEvent(MoveEvent event) {
+    public DownData onHardDropEvent(MoveEvent event) {
+        ClearRow clearRow = null;
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
             // Hard drop: 2 points per cell dropped
             int cellsDropped = simpleBoard.hardDrop();
             int hardDropScore = cellsDropped * 2;
             board.getScore().add(hardDropScore);
-
+            
             board.mergeBrickToBackground();
-            ClearRow clearRow = board.clearRows();
+            clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
                 board.getScore().add(clearRow.getScoreBonus());
             }
@@ -106,7 +107,7 @@ public class GameController implements InputEventListener {
             viewGuiController.updateNextBricks(simpleBoard.getNextBricks());
             viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick());
         }
-        return board.getViewData();
+        return new DownData(clearRow, board.getViewData());
     }
 
     @Override
@@ -137,7 +138,7 @@ public class GameController implements InputEventListener {
     public javafx.beans.property.IntegerProperty getScoreProperty() {
         return board.getScore().scoreProperty();
     }
-
+    
     // Expose board for ghost position calculation
     public Board getBoard() {
         return board;
