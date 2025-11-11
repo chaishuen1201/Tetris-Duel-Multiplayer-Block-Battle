@@ -212,7 +212,7 @@ public class GuiController implements Initializable {
                     isMuted = false;
                     Button muteBtn = settingsPanel.getMuteButton();
                     if (muteBtn != null) {
-                        muteBtn.setText("MUTE");
+                        muteBtn.setText("🔊");
                     }
                 }
             });
@@ -260,12 +260,12 @@ public class GuiController implements Initializable {
         if (isMuted) {
             applyVolumeToAllPlayers(0.0);
             if (muteButton != null) {
-                muteButton.setText("UNMUTE");
+                muteButton.setText("🔇");
             }
         } else {
             applyVolumeToAllPlayers(currentVolume);
             if (muteButton != null) {
-                muteButton.setText("MUTE");
+                muteButton.setText("🔊");
             }
         }
     }

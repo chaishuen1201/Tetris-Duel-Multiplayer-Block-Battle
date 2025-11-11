@@ -47,7 +47,7 @@ public class SettingsPanel extends BorderPane {
         volumeSlider.setShowTickMarks(false);
         volumeSlider.setPrefWidth(250);
 
-        muteButton = new Button("MUTE");
+        muteButton = new Button("🔊");
         muteButton.getStyleClass().add("settings-button");
 
         volumeControlBox.getChildren().addAll(volumeSlider, muteButton);
@@ -56,14 +56,14 @@ public class SettingsPanel extends BorderPane {
         // Ghost piece checkbox section
         VBox ghostPieceBox = new VBox(15);
         ghostPieceBox.setAlignment(Pos.CENTER);
-        
+
         Label ghostPieceLabel = new Label("GHOST PIECE");
         ghostPieceLabel.getStyleClass().add("settings-label");
-        
+
         ghostPieceCheckBox = new CheckBox("Show ghost piece");
         ghostPieceCheckBox.getStyleClass().add("settings-checkbox");
         ghostPieceCheckBox.setSelected(true); // Default to checked
-        
+
         ghostPieceBox.getChildren().addAll(ghostPieceLabel, ghostPieceCheckBox);
 
         // Back button with consistent main menu styling
