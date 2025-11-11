@@ -11,6 +11,7 @@ import com.comp2042.view.ColorStrategy;
 import com.comp2042.view.GameOverPanel;
 import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.NotificationPanel;
+import com.comp2042.view.SettingsPanel;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
 import javafx.animation.KeyFrame;
@@ -57,6 +58,7 @@ public class GuiController implements Initializable {
     @FXML private GridPane brickPanel;
     @FXML private GridPane ghostPanel;
     @FXML private GameOverPanel gameOverPanel;
+    @FXML private SettingsPanel settingsPanel;
     @FXML private VBox nextBricksPanel;
     @FXML private GridPane holdBrickPanel;
     @FXML private Label scoreLabel;
@@ -85,6 +87,10 @@ public class GuiController implements Initializable {
     private MediaPlayer gameOverSound;
     private MediaPlayer lineClearSound;
     private MediaPlayer mainMenuMusic;
+    
+    // Volume control
+    private double currentVolume = 0.5; // Default volume (50%)
+    private boolean isMuted = false;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -125,8 +131,12 @@ public class GuiController implements Initializable {
         // Set up main menu panel
         if (mainMenuPanel != null) {
             mainMenuPanel.getPlayButton().setOnAction(e -> startGame());
+            mainMenuPanel.getSettingsButton().setOnAction(e -> showSettings());
             mainMenuPanel.getQuitButton().setOnAction(e -> quitGame());
         }
+        
+        // Initialize settings panel
+        initializeSettingsPanel();
 
         if (gameBoard != null) {
             gameBoard.setFocusTraversable(true);
@@ -177,8 +187,91 @@ public class GuiController implements Initializable {
                 mainMenuMusic = new MediaPlayer(mainMenuMedia);
                 mainMenuMusic.setCycleCount(MediaPlayer.INDEFINITE);
             }
+            
+            // Apply initial volume to all players
+            applyVolumeToAllPlayers(currentVolume);
         } catch (Exception e) {
             System.out.println("Error loading audio files: " + e.getMessage());
+        }
+    }
+    
+    private void initializeSettingsPanel() {
+        if (settingsPanel != null) {
+            settingsPanel.setVisible(false);
+            
+            // Set up volume slider
+            javafx.scene.control.Slider volumeSlider = settingsPanel.getVolumeSlider();
+            volumeSlider.setValue(currentVolume * 100); // Convert to percentage
+            volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+                currentVolume = newVal.doubleValue() / 100.0;
+                if (!isMuted) {
+                    applyVolumeToAllPlayers(currentVolume);
+                }
+                // If user moves slider while muted, unmute
+                if (isMuted && newVal.doubleValue() != oldVal.doubleValue()) {
+                    isMuted = false;
+                    Button muteBtn = settingsPanel.getMuteButton();
+                    if (muteBtn != null) {
+                        muteBtn.setText("MUTE");
+                    }
+                }
+            });
+            
+            // Set up mute button
+            Button muteButton = settingsPanel.getMuteButton();
+            muteButton.setOnAction(e -> toggleMute());
+            
+            // Set up back button
+            settingsPanel.setOnBackAction(() -> hideSettings());
+        }
+    }
+    
+    private void applyVolumeToAllPlayers(double volume) {
+        if (countdownSound != null) {
+            countdownSound.setVolume(volume);
+        }
+        if (gameMusic != null) {
+            gameMusic.setVolume(volume);
+        }
+        if (gameOverSound != null) {
+            gameOverSound.setVolume(volume);
+        }
+        if (lineClearSound != null) {
+            lineClearSound.setVolume(volume);
+        }
+        if (mainMenuMusic != null) {
+            mainMenuMusic.setVolume(volume);
+        }
+    }
+    
+    private void toggleMute() {
+        isMuted = !isMuted;
+        Button muteButton = settingsPanel != null ? settingsPanel.getMuteButton() : null;
+        
+        if (isMuted) {
+            applyVolumeToAllPlayers(0.0);
+            if (muteButton != null) {
+                muteButton.setText("UNMUTE");
+            }
+        } else {
+            applyVolumeToAllPlayers(currentVolume);
+            if (muteButton != null) {
+                muteButton.setText("MUTE");
+            }
+        }
+    }
+    
+    private void showSettings() {
+        if (settingsPanel != null && mainMenuPanel != null) {
+            mainMenuPanel.setVisible(false);
+            settingsPanel.setVisible(true);
+        }
+    }
+    
+    private void hideSettings() {
+        if (settingsPanel != null && mainMenuPanel != null) {
+            settingsPanel.setVisible(false);
+            mainMenuPanel.setVisible(true);
         }
     }
     

@@ -9,6 +9,7 @@ import javafx.scene.text.Font;
 public class MainMenuPanel extends BorderPane {
 
     final Button playButton;
+    final Button settingsButton;
     final Button quitButton;
 
     public MainMenuPanel() {
@@ -39,16 +40,23 @@ public class MainMenuPanel extends BorderPane {
         playButton = new Button("PLAY");
         playButton.getStyleClass().add("menu-button");
 
+        settingsButton = new Button("SETTINGS");
+        settingsButton.getStyleClass().add("menu-button");
+
         quitButton = new Button("QUIT");
         quitButton.getStyleClass().add("menu-button");
 
-        buttonBox.getChildren().addAll(playButton, quitButton);
+        buttonBox.getChildren().addAll(playButton, settingsButton, quitButton);
         menuBox.getChildren().addAll(titleLabel, buttonBox);
         setCenter(menuBox);
     }
 
     public Button getPlayButton() {
         return playButton;
+    }
+
+    public Button getSettingsButton() {
+        return settingsButton;
     }
 
     public Button getQuitButton() {
