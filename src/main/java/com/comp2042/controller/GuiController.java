@@ -221,6 +221,15 @@ public class GuiController implements Initializable {
             Button muteButton = settingsPanel.getMuteButton();
             muteButton.setOnAction(e -> toggleMute());
             
+            // Set up ghost piece checkbox
+            javafx.scene.control.CheckBox ghostPieceCheckBox = settingsPanel.getGhostPieceCheckBox();
+            ghostPieceCheckBox.setSelected(true); // Default to checked
+            ghostPieceCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                if (ghostPanel != null) {
+                    ghostPanel.setVisible(newVal && gameStarted);
+                }
+            });
+            
             // Set up back button
             settingsPanel.setOnBackAction(() -> hideSettings());
         }
@@ -886,8 +895,11 @@ public class GuiController implements Initializable {
         if (brickPanel != null) {
             brickPanel.setVisible(true);
         }
-        if (ghostPanel != null) {
-            ghostPanel.setVisible(true);
+        if (ghostPanel != null && settingsPanel != null) {
+            // Check if ghost piece checkbox is selected
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            ghostPanel.setVisible(showGhost);
         }
         
         // Show bottom panel when game starts
