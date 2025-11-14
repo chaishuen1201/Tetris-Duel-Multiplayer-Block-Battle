@@ -10,6 +10,7 @@ public class MainMenuPanel extends BorderPane {
 
     final Button playButton;
     final Button settingsButton;
+    final Button multiButton;
     final Button quitButton;
 
     public MainMenuPanel() {
@@ -40,13 +41,16 @@ public class MainMenuPanel extends BorderPane {
         playButton = new Button("PLAY");
         playButton.getStyleClass().add("menu-button");
 
+        multiButton = new Button("MULTIPLAYER");
+        multiButton.getStyleClass().add("menu-button");
+
         settingsButton = new Button("SETTINGS");
         settingsButton.getStyleClass().add("menu-button");
 
         quitButton = new Button("QUIT");
         quitButton.getStyleClass().add("menu-button");
 
-        buttonBox.getChildren().addAll(playButton, settingsButton, quitButton);
+        buttonBox.getChildren().addAll(playButton, multiButton, settingsButton, quitButton);
         menuBox.getChildren().addAll(titleLabel, buttonBox);
         setCenter(menuBox);
     }
@@ -61,5 +65,9 @@ public class MainMenuPanel extends BorderPane {
 
     public Button getQuitButton() {
         return quitButton;
+    }
+
+    public Button getMultiButton() {
+        return multiButton;
     }
 }

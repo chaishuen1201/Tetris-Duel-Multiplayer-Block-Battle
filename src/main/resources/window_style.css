@@ -75,9 +75,9 @@
     -fx-font-family: "Public Pixel";
     -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.3), 8, 0, 2, 2);
     -fx-transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    -fx-min-width: 150;
-    -fx-pref-width: 150;
-    -fx-max-width: 150;
+    -fx-min-width: 200;
+    -fx-pref-width: 200;
+    -fx-max-width: 200;
 }
 
 .menu-button:hover {

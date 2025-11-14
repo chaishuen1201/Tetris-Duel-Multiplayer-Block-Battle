@@ -131,6 +131,9 @@ public class GuiController implements Initializable {
         // Set up main menu panel
         if (mainMenuPanel != null) {
             mainMenuPanel.getPlayButton().setOnAction(e -> startGame());
+            mainMenuPanel.getMultiButton().setOnAction(e -> {
+                // Multiplayer functionality to be implemented
+            });
             mainMenuPanel.getSettingsButton().setOnAction(e -> showSettings());
             mainMenuPanel.getQuitButton().setOnAction(e -> quitGame());
         }
