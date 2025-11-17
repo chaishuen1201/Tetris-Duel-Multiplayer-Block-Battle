@@ -1,0 +1,465 @@
+@startuml
+!define RECTANGLE class
+
+package "com.comp2042" {
+    class Main {
+        - String FXML_RESOURCE
+        - String WINDOW_TITLE
+        - int WINDOW_WIDTH
+        - int WINDOW_HEIGHT
+        + void start(Stage primaryStage)
+        + void main(String[] args)
+    }
+}
+
+package "com.comp2042.controller" {
+    class GameController {
+        - Board board
+        - GuiController viewGuiController
+        - int playerNumber
+        + GameController(GuiController c)
+        + GameController(GuiController c, int playerNumber)
+        + DownData onDownEvent(MoveEvent event)
+        + ViewData onLeftEvent(MoveEvent event)
+        + ViewData onRightEvent(MoveEvent event)
+        + ViewData onRotateEvent(MoveEvent event)
+        + DownData onHardDropEvent(MoveEvent event)
+        + ViewData onHoldEvent(MoveEvent event)
+        + void createNewGame()
+        + IntegerProperty getScoreProperty()
+        + Board getBoard()
+        + int getPlayerNumber()
+        - int calculateGarbageToSend(int linesCleared)
+        + SimpleBoard getSimpleBoard()
+    }
+    
+    class GuiController {
+        - int BRICK_SIZE
+        - int GRID_GAP
+        - int BOARD_WIDTH
+        - int BOARD_HEIGHT
+        - ViewData currentBrickData
+        - boolean isMultiplayerMode
+        - GameController gameController1
+        - GameController gameController2
+        - HighScoreManager highScoreManager
+        # void initialize(URL location, ResourceBundle resources)
+        + void initGameView(int[][] boardMatrix, ViewData brick, int playerNumber)
+        + void refreshGameBackground(int[][] board, int playerNumber)
+        + void refreshBrick(ViewData brick, int playerNumber)
+        + void setEventListener(InputEventListener eventListener, int playerNumber)
+        + void bindScore(IntegerProperty integerProperty, int playerNumber)
+        + void gameOver(int playerNumber)
+        + void newGame(int playerNumber)
+        + void sendGarbageToOpponent(int fromPlayer, int garbageLines)
+        + void updateNextBricks(List<Brick> nextBricks, int playerNumber)
+        + void updateHoldBrick(Brick heldBrick, int playerNumber)
+    }
+}
+
+package "com.comp2042.model" {
+    interface Board {
+        + boolean moveBrickDown()
+        + boolean moveBrickLeft()
+        + boolean moveBrickRight()
+        + boolean rotateLeftBrick()
+        + boolean createNewBrick()
+        + int[][] getBoardMatrix()
+        + ViewData getViewData()
+        + void mergeBrickToBackground()
+        + ClearRow clearRows()
+        + Score getScore()
+        + void newGame()
+    }
+    
+    class SimpleBoard {
+        - int width
+        - int height
+        - BrickGenerator brickGenerator
+        - BrickRotator brickRotator
+        - int[][] currentGameMatrix
+        - Point currentOffset
+        - Score score
+        - IntegerProperty level
+        - IntegerProperty lines
+        - Brick heldBrick
+        - boolean canHold
+        - Brick currentBrick
+        - GarbageQueue garbageQueue
+        + SimpleBoard(int width, int height)
+        + boolean moveBrickDown()
+        + boolean moveBrickLeft()
+        + boolean moveBrickRight()
+        + boolean rotateLeftBrick()
+        + boolean createNewBrick()
+        + int[][] getBoardMatrix()
+        + ViewData getViewData()
+        + void mergeBrickToBackground()
+        + ClearRow clearRows()
+        + Score getScore()
+        + void newGame()
+        + IntegerProperty levelProperty()
+        + IntegerProperty linesProperty()
+        + List<Brick> getNextBricks()
+        + Brick getHeldBrick()
+        + int hardDrop()
+        + int getCurrentBrickCellCount()
+        + Point getGhostPosition()
+        + void holdBrick()
+        + void addGarbageToQueue(int numLines)
+        + boolean processGarbageQueue()
+        - int removeGarbageRowsFromBoard(int numRowsToRemove)
+        + int counterGarbage(int linesCleared)
+        + int getPendingGarbageCount()
+        + GarbageQueue getGarbageQueue()
+    }
+    
+    class Score {
+        - IntegerProperty score
+        + IntegerProperty scoreProperty()
+        + void add(int points)
+        + void reset()
+    }
+    
+    class ViewData {
+        - int[][] brickData
+        - int xPosition
+        - int yPosition
+        - int[][] nextBrickData
+        + ViewData(int[][] brickData, int xPosition, int yPosition, int[][] nextBrickData)
+        + int[][] getBrickData()
+        + int getXPosition()
+        + int getYPosition()
+        + int[][] getNextBrickData()
+    }
+    
+    class ClearRow {
+        - int linesRemoved
+        - int[][] newMatrix
+        - int scoreBonus
+        + ClearRow(int linesRemoved, int[][] newMatrix, int scoreBonus)
+        + int getLinesRemoved()
+        + int[][] getNewMatrix()
+        + int getScoreBonus()
+    }
+    
+    class DownData {
+        - ClearRow clearRow
+        - ViewData viewData
+        + DownData(ClearRow clearRow, ViewData viewData)
+        + ClearRow getClearRow()
+        + ViewData getViewData()
+    }
+    
+    class NextShapeInfo {
+        - int[][] shape
+        - int position
+        + NextShapeInfo(int[][] shape, int position)
+        + int[][] getShape()
+        + int getPosition()
+    }
+    
+    class GarbageQueue {
+        - Deque<int[]> queue
+        - int boardWidth
+        - Random random
+        + GarbageQueue(int boardWidth)
+        + void addGarbage(int numLines)
+        + int[] pollGarbageLine()
+        + int size()
+        + boolean isEmpty()
+        + int removeGarbage(int numLines)
+        + void clear()
+        - int[] generateGarbageLine()
+    }
+    
+    class HighScoreManager {
+        - List<Integer> highScores
+        + HighScoreManager()
+        + void addScore(int score)
+        + List<Integer> getTopScores(int count)
+        + List<Integer> getTop3Scores()
+    }
+}
+
+package "com.comp2042.logic.bricks" {
+    interface Brick {
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    interface BrickGenerator {
+        + Brick getBrick()
+        + Brick getNextBrick()
+    }
+    
+    class RandomBrickGenerator {
+        - List<Brick> brickList
+        - Deque<Brick> nextBricks
+        + RandomBrickGenerator()
+        + Brick getBrick()
+        + Brick getNextBrick()
+        + List<Brick> getNextBricks(int count)
+    }
+    
+    class IBrick {
+        - List<int[][]> brickMatrix
+        + IBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    class JBrick {
+        - List<int[][]> brickMatrix
+        + JBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    class LBrick {
+        - List<int[][]> brickMatrix
+        + LBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    class OBrick {
+        - List<int[][]> brickMatrix
+        + OBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    class SBrick {
+        - List<int[][]> brickMatrix
+        + SBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    class TBrick {
+        - List<int[][]> brickMatrix
+        + TBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+    
+    class ZBrick {
+        - List<int[][]> brickMatrix
+        + ZBrick()
+        + List<int[][]> getShapeMatrix()
+    }
+}
+
+package "com.comp2042.view" {
+    interface GameView {
+        + void initGameView(int[][] boardMatrix, ViewData brick)
+        + void refreshGameBackground(int[][] board)
+        + void refreshBrick(ViewData brick)
+        + void setEventListener(InputEventListener eventListener)
+        + void bindScore(IntegerProperty integerProperty)
+        + void gameOver()
+        + void newGame()
+    }
+    
+    class GameOverPanel {
+        - Label currentScoreLabel
+        - Label highScore1Label
+        - Label highScore2Label
+        - Label highScore3Label
+        - Button yesButton
+        - Button noButton
+        - Runnable onYesAction
+        - Runnable onNoAction
+        + GameOverPanel()
+        + void setCurrentScore(int score)
+        + void setHighScores(List<Integer> scores)
+        + void setOnYesAction(Runnable action)
+        + void setOnNoAction(Runnable action)
+    }
+    
+    class MainMenuPanel {
+        - Button playButton
+        - Button settingsButton
+        - Button multiButton
+        - Button quitButton
+        + MainMenuPanel()
+        + Button getPlayButton()
+        + Button getSettingsButton()
+        + Button getQuitButton()
+        + Button getMultiButton()
+    }
+    
+    class PausePanel {
+        - Button resumeButton
+        - Button restartButton
+        - Button settingsButton
+        - Button quitButton
+        - Runnable onResumeAction
+        - Runnable onRestartAction
+        - Runnable onSettingsAction
+        - Runnable onQuitAction
+        + PausePanel()
+        + void setOnResumeAction(Runnable action)
+        + void setOnRestartAction(Runnable action)
+        + void setOnSettingsAction(Runnable action)
+        + void setOnQuitAction(Runnable action)
+    }
+    
+    class SettingsPanel {
+        - Slider volumeSlider
+        - Button muteButton
+        - CheckBox ghostPieceCheckBox
+        - Button backButton
+        - Runnable onBackAction
+        + SettingsPanel()
+        + Slider getVolumeSlider()
+        + Button getMuteButton()
+        + CheckBox getGhostPieceCheckBox()
+        + Button getBackButton()
+        + void setOnBackAction(Runnable action)
+    }
+    
+    class WinningPanel {
+        - Label winnerLabel
+        - Label messageLabel
+        - Button restartButton
+        - Button mainMenuButton
+        - Runnable onRestartAction
+        - Runnable onMainMenuAction
+        + WinningPanel()
+        + void setWinner(int winnerPlayerNumber)
+        + void setMessage(String message)
+        + void setOnRestartAction(Runnable action)
+        + void setOnMainMenuAction(Runnable action)
+    }
+    
+    class NotificationPanel {
+        + NotificationPanel(String text)
+        + void showScore(ObservableList<Node> list)
+    }
+    
+    class ColorStrategy {
+        + static Paint getColorForBrickType(int brickType)
+    }
+}
+
+package "com.comp2042.event" {
+    interface InputEventListener {
+        + DownData onDownEvent(MoveEvent event)
+        + ViewData onLeftEvent(MoveEvent event)
+        + ViewData onRightEvent(MoveEvent event)
+        + ViewData onRotateEvent(MoveEvent event)
+        + DownData onHardDropEvent(MoveEvent event)
+        + ViewData onHoldEvent(MoveEvent event)
+        + void createNewGame()
+    }
+    
+    class MoveEvent {
+        - EventType eventType
+        - EventSource eventSource
+        + MoveEvent(EventType eventType, EventSource eventSource)
+        + EventType getEventType()
+        + EventSource getEventSource()
+    }
+    
+    enum EventType {
+        DOWN
+        LEFT
+        RIGHT
+        ROTATE
+        HARD_DROP
+        HOLD
+    }
+    
+    enum EventSource {
+        USER
+        THREAD
+    }
+}
+
+package "com.comp2042.util" {
+    class BrickRotator {
+        - Brick brick
+        - int currentShape
+        + NextShapeInfo getNextShape()
+        + int[][] getCurrentShape()
+        + void setCurrentShape(int currentShape)
+        + void setBrick(Brick brick)
+        + Brick getBrick()
+    }
+    
+    class MatrixOperations {
+        + static boolean intersect(int[][] matrix, int[][] brick, int x, int y)
+        + static int[][] copy(int[][] original)
+        + static int[][] merge(int[][] filledFields, int[][] brick, int x, int y)
+        + static ClearRow checkRemoving(int[][] matrix)
+        + static List<int[][]> deepCopyList(List<int[][]> list)
+        - static boolean checkOutOfBound(int[][] matrix, int targetX, int targetY)
+    }
+}
+
+' Relationships
+Main --> GameController : creates
+Main --> GuiController : creates
+
+GameController ..|> InputEventListener : implements
+GameController --> Board : uses
+GameController --> GuiController : uses
+GameController --> DownData : creates
+GameController --> ViewData : returns
+
+GuiController ..|> Initializable : implements
+GuiController --> GameController : uses
+GuiController --> GameView : (implements conceptually)
+GuiController --> HighScoreManager : uses
+GuiController --> GameOverPanel : uses
+GuiController --> PausePanel : uses
+GuiController --> MainMenuPanel : uses
+GuiController --> SettingsPanel : uses
+GuiController --> WinningPanel : uses
+GuiController --> NotificationPanel : uses
+GuiController --> ColorStrategy : uses
+
+SimpleBoard ..|> Board : implements
+SimpleBoard --> BrickGenerator : uses
+SimpleBoard --> BrickRotator : uses
+SimpleBoard --> Score : uses
+SimpleBoard --> GarbageQueue : uses
+SimpleBoard --> ViewData : creates
+SimpleBoard --> ClearRow : creates
+SimpleBoard --> NextShapeInfo : uses
+SimpleBoard --> Brick : uses
+
+RandomBrickGenerator ..|> BrickGenerator : implements
+RandomBrickGenerator --> Brick : creates
+RandomBrickGenerator --> IBrick : creates
+RandomBrickGenerator --> JBrick : creates
+RandomBrickGenerator --> LBrick : creates
+RandomBrickGenerator --> OBrick : creates
+RandomBrickGenerator --> SBrick : creates
+RandomBrickGenerator --> TBrick : creates
+RandomBrickGenerator --> ZBrick : creates
+
+IBrick ..|> Brick : implements
+JBrick ..|> Brick : implements
+LBrick ..|> Brick : implements
+OBrick ..|> Brick : implements
+SBrick ..|> Brick : implements
+TBrick ..|> Brick : implements
+ZBrick ..|> Brick : implements
+
+BrickRotator --> Brick : uses
+BrickRotator --> NextShapeInfo : creates
+
+MatrixOperations --> ClearRow : creates
+
+DownData --> ClearRow : contains
+DownData --> ViewData : contains
+
+MoveEvent --> EventType : uses
+MoveEvent --> EventSource : uses
+
+GameOverPanel --> HighScoreManager : (displays data from)
+MainMenuPanel --> BorderPane : extends
+PausePanel --> BorderPane : extends
+SettingsPanel --> BorderPane : extends
+WinningPanel --> BorderPane : extends
+GameOverPanel --> BorderPane : extends
+NotificationPanel --> BorderPane : extends
+
+@enduml
+

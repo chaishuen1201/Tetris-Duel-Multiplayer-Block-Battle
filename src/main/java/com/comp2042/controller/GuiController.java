@@ -34,6 +34,8 @@ import javafx.util.Duration;
 import javafx.scene.control.Button;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import javafx.scene.Parent;
+import javafx.application.Platform;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -68,6 +70,27 @@ public class GuiController implements Initializable {
     @FXML private MainMenuPanel mainMenuPanel;
     @FXML private Label countdownLabel;
     @FXML private HBox bottomPanel;
+
+    // Multiplayer fields
+    private HBox multiplayerContainer;
+    private boolean isMultiplayerMode = false;
+    private GridPane gamePanel1, gamePanel2;
+    private GridPane brickPanel1, brickPanel2;
+    private GridPane ghostPanel1, ghostPanel2;
+    private StackPane gameStack1, gameStack2;
+    private Rectangle[][] displayMatrix1, displayMatrix2;
+    
+    // Multiplayer side panels
+    private VBox leftPanelPlayer1, rightPanelPlayer2;
+    private GridPane holdBrickPanel1, holdBrickPanel2;
+    private VBox nextBricksPanel1, nextBricksPanel2;
+    private Rectangle[][] holdBrickRectangles1, holdBrickRectangles2;
+    private List<GridPane> nextBrickPanes1 = new ArrayList<>();
+    private List<GridPane> nextBrickPanes2 = new ArrayList<>();
+    private Label scoreLabel1, scoreLabel2;
+    
+    // Store original panels to restore later
+    private VBox originalLeftPanel, originalRightPanel;
 
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
@@ -131,9 +154,7 @@ public class GuiController implements Initializable {
         // Set up main menu panel
         if (mainMenuPanel != null) {
             mainMenuPanel.getPlayButton().setOnAction(e -> startGame());
-            mainMenuPanel.getMultiButton().setOnAction(e -> {
-                // Multiplayer functionality to be implemented
-            });
+            mainMenuPanel.getMultiButton().setOnAction(e -> showMultiplayer());
             mainMenuPanel.getSettingsButton().setOnAction(e -> showSettings());
             mainMenuPanel.getQuitButton().setOnAction(e -> quitGame());
         }
@@ -284,6 +305,446 @@ public class GuiController implements Initializable {
         if (settingsPanel != null && mainMenuPanel != null) {
             settingsPanel.setVisible(false);
             mainMenuPanel.setVisible(true);
+        }
+    }
+    
+    private void showMultiplayer() {
+        if (mainMenuPanel != null) {
+            mainMenuPanel.setVisible(false);
+        }
+        
+        isMultiplayerMode = true;
+        
+        // Create multiplayer container if it doesn't exist
+        if (multiplayerContainer == null) {
+            initializeMultiplayerPanels();
+        }
+        
+        // Get root BorderPane to hide original left and right panels
+        BorderPane rootPane = getRootBorderPane();
+        if (rootPane != null) {
+            // Store original panels if not already stored
+            if (originalLeftPanel == null && rootPane.getLeft() instanceof VBox) {
+                originalLeftPanel = (VBox) rootPane.getLeft();
+            }
+            if (originalRightPanel == null && rootPane.getRight() instanceof VBox) {
+                originalRightPanel = (VBox) rootPane.getRight();
+            }
+            
+            // Hide original left and right panels
+            if (rootPane.getLeft() != null) {
+                rootPane.getLeft().setVisible(false);
+                rootPane.getLeft().setManaged(false);
+            }
+            if (rootPane.getRight() != null) {
+                rootPane.getRight().setVisible(false);
+                rootPane.getRight().setManaged(false);
+            }
+        }
+        
+        // Hide single player game board
+        if (gameBoard != null) {
+            gameBoard.setVisible(false);
+            gameBoard.setManaged(false); // Remove from layout calculations
+        }
+        
+        // Hide original single player panels
+        if (holdBrickPanel != null) {
+            holdBrickPanel.setVisible(false);
+        }
+        if (nextBricksPanel != null) {
+            nextBricksPanel.setVisible(false);
+        }
+        if (scoreLabel != null) {
+            scoreLabel.setVisible(false);
+        }
+        if (levelLabel != null) {
+            levelLabel.setVisible(false);
+        }
+        if (linesLabel != null) {
+            linesLabel.setVisible(false);
+        }
+        
+        // Show multiplayer container in the center area
+        if (gameBoard != null && gameBoard.getParent() != null) {
+            Parent parent = gameBoard.getParent();
+            if (parent instanceof VBox) {
+                VBox centerVBox = (VBox) parent;
+                // Ensure VBox alignment is CENTER for vertical centering
+                centerVBox.setAlignment(javafx.geometry.Pos.CENTER);
+                // Ensure VBox fills available space both horizontally and vertically
+                centerVBox.setFillWidth(true);
+                // Add multiplayer container if not already added
+                if (!centerVBox.getChildren().contains(multiplayerContainer)) {
+                    centerVBox.getChildren().add(multiplayerContainer);
+                }
+                multiplayerContainer.setVisible(true);
+                multiplayerContainer.setManaged(true);
+                // Request immediate layout update
+                centerVBox.requestLayout();
+            }
+        }
+    }
+    
+    private BorderPane getRootBorderPane() {
+        // Get root BorderPane from scene (FXML root is BorderPane)
+        if (gameBoard != null && gameBoard.getScene() != null) {
+            javafx.scene.Node root = gameBoard.getScene().getRoot();
+            if (root instanceof BorderPane) {
+                return (BorderPane) root;
+            }
+        }
+        // Fallback: traverse up from gameBoard
+        if (gameBoard != null) {
+            Parent node = gameBoard.getParent();
+            while (node != null) {
+                if (node instanceof BorderPane && node.getParent() == null) {
+                    // This is likely the root
+                    return (BorderPane) node;
+                }
+                if (node.getParent() == null && node instanceof BorderPane) {
+                    return (BorderPane) node;
+                }
+                node = node.getParent();
+            }
+        }
+        return null;
+    }
+    
+    private VBox createPlayerSidePanel(int playerNumber, int targetHeight, double scale) {
+        VBox playerPanel = new VBox((int)(20 * scale)); // Scale spacing
+        playerPanel.getStyleClass().add("side-panel");
+        // Scale side panel width proportionally
+        int sidePanelWidth = (int)(150 * scale); // Scale from base 150px
+        playerPanel.setPrefWidth(sidePanelWidth);
+        playerPanel.setMaxWidth(sidePanelWidth);
+        
+        // Calculate component sizes to match target height
+        // Hold label: ~25px * scale
+        // Hold panel: scaled
+        // Spacing: 20px * scale
+        // Next label: ~25px * scale
+        // Next bricks: scaled to fill remaining space
+        
+        // Hold brick panel (no player label here - it's on the game field)
+        VBox holdBox = new VBox();
+        holdBox.getStyleClass().add("info-box");
+        Label holdLabel = new Label("HOLD");
+        holdLabel.getStyleClass().add("panel-title");
+        
+        GridPane holdPanel = new GridPane();
+        holdPanel.setVgap(1);
+        holdPanel.setHgap(1);
+        holdPanel.getStyleClass().add("brick-preview");
+        // Scale hold panel proportionally
+        int holdPanelSize = (int)(100 * scale);
+        holdPanel.setPrefWidth(holdPanelSize);
+        holdPanel.setPrefHeight(holdPanelSize);
+        holdPanel.setMaxWidth(holdPanelSize);
+        holdPanel.setMaxHeight(holdPanelSize);
+        
+        Rectangle[][] holdRectangles = new Rectangle[4][4];
+        int brickSize = (int)((BRICK_SIZE - 10) * scale); // Scale brick size
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                Rectangle rect = new Rectangle(brickSize, brickSize);
+                rect.setFill(Color.TRANSPARENT);
+                rect.setStroke(Color.gray(0.3));
+                holdRectangles[i][j] = rect;
+                holdPanel.add(rect, j, i);
+            }
+        }
+        
+        // Store reference based on player number
+        if (playerNumber == 1) {
+            holdBrickPanel1 = holdPanel;
+            holdBrickRectangles1 = holdRectangles;
+        } else {
+            holdBrickPanel2 = holdPanel;
+            holdBrickRectangles2 = holdRectangles;
+        }
+        
+        holdBox.getChildren().addAll(holdLabel, holdPanel);
+        
+        // Score panel
+        VBox scoreBox = new VBox();
+        scoreBox.getStyleClass().add("info-box");
+        Label scoreTitleLabel = new Label("SCORE");
+        scoreTitleLabel.getStyleClass().add("panel-title");
+        
+        Label scoreValueLabel = new Label("0");
+        scoreValueLabel.getStyleClass().add("score-display");
+        
+        // Store reference based on player number
+        if (playerNumber == 1) {
+            scoreLabel1 = scoreValueLabel;
+        } else {
+            scoreLabel2 = scoreValueLabel;
+        }
+        
+        scoreBox.getChildren().addAll(scoreTitleLabel, scoreValueLabel);
+        
+        // Next bricks panel - only show 1 brick
+        VBox nextBox = new VBox();
+        nextBox.getStyleClass().add("info-box");
+        Label nextLabel = new Label("NEXT");
+        nextLabel.getStyleClass().add("panel-title");
+        
+        VBox nextBricksContainer = new VBox((int)(10 * scale)); // Scale spacing
+        nextBricksContainer.getStyleClass().add("next-bricks-panel");
+        // Calculate next bricks container size - only need space for 1 brick now
+        int nextBrickSize = (int)(80 * scale);
+        int nextBricksWidth = (int)(120 * scale);
+        int nextBricksHeight = nextBrickSize; // Only need height for 1 brick
+        
+        nextBricksContainer.setPrefWidth(nextBricksWidth);
+        nextBricksContainer.setPrefHeight(nextBricksHeight);
+        nextBricksContainer.setMaxWidth(nextBricksWidth);
+        nextBricksContainer.setMaxHeight(nextBricksHeight);
+        
+        // Create only 1 next brick preview
+        List<GridPane> nextPanes = new ArrayList<>();
+        GridPane pane = new GridPane();
+        pane.setVgap(1);
+        pane.setHgap(1);
+        pane.setPrefSize(nextBrickSize, nextBrickSize);
+        for (int r = 0; r < 4; r++) {
+            for (int c = 0; c < 4; c++) {
+                Rectangle rect = new Rectangle(brickSize, brickSize);
+                rect.setFill(Color.TRANSPARENT);
+                pane.add(rect, c, r);
+            }
+        }
+        nextPanes.add(pane);
+        nextBricksContainer.getChildren().add(pane);
+        
+        // Store reference based on player number
+        if (playerNumber == 1) {
+            nextBricksPanel1 = nextBricksContainer;
+            nextBrickPanes1 = nextPanes;
+        } else {
+            nextBricksPanel2 = nextBricksContainer;
+            nextBrickPanes2 = nextPanes;
+        }
+        
+        nextBox.getChildren().addAll(nextLabel, nextBricksContainer);
+        
+        // Add all components to player panel: Hold, Score, Next
+        playerPanel.getChildren().addAll(holdBox, scoreBox, nextBox);
+        
+        return playerPanel;
+    }
+    
+    private void initializeMultiplayerPanels() {
+        // Use larger scale factor to make everything bigger
+        // Increased from 0.75 to 0.85 for larger display
+        double scale = 0.85;
+        
+        // Calculate game board dimensions based on scale
+        int scaledBrickSize = (int)(BRICK_SIZE * scale);
+        int scaledPanelWidth = (int)(GAME_PANEL_WIDTH * scale);
+        int scaledPanelHeight = (int)(GAME_PANEL_HEIGHT * scale); // ~510px at 0.85 scale
+        
+        // Calculate side panel dimensions to match game board height
+        // Side panel needs to match the scaled game board height
+        int targetSidePanelHeight = scaledPanelHeight; // Match game board height
+        
+        multiplayerContainer = new HBox(30);
+        multiplayerContainer.setAlignment(javafx.geometry.Pos.CENTER);
+        multiplayerContainer.getStyleClass().add("multiplayer-container");
+        // Initially set to not managed so it doesn't affect layout until shown
+        multiplayerContainer.setManaged(false);
+        multiplayerContainer.setVisible(false);
+        
+        // Create Player 1 container (side panel + game field)
+        VBox player1Container = createPlayerContainer(1, scaledBrickSize, scaledPanelWidth, scaledPanelHeight, scale);
+        
+        // Create VS label
+        Label vsLabel = new Label("VS");
+        vsLabel.getStyleClass().add("vs-label");
+        
+        // Create Player 2 container (game field + side panel)
+        VBox player2Container = createPlayerContainer(2, scaledBrickSize, scaledPanelWidth, scaledPanelHeight, scale);
+        
+        multiplayerContainer.getChildren().addAll(player1Container, vsLabel, player2Container);
+    }
+    
+    private VBox createPlayerContainer(int playerNumber, int brickSize, int panelWidth, int panelHeight, double scale) {
+        // Outer VBox container with player label at top
+        VBox playerContainer = new VBox(10);
+        playerContainer.setAlignment(javafx.geometry.Pos.CENTER);
+        playerContainer.getStyleClass().add("player-container");
+        
+        // Player label at the top, centered above entire container
+        Label playerLabel = new Label("PLAYER " + playerNumber);
+        playerLabel.getStyleClass().add("player-title");
+        playerLabel.setAlignment(javafx.geometry.Pos.CENTER);
+        playerLabel.setMaxWidth(Double.MAX_VALUE); // Allow label to span full width for centering
+        
+        // Inner HBox containing side panel and game field
+        HBox contentContainer = new HBox(15);
+        contentContainer.setAlignment(javafx.geometry.Pos.CENTER);
+        
+        // Create side panel (Hold + Next) - scale to match game board height
+        VBox sidePanel = createPlayerSidePanel(playerNumber, panelHeight, scale);
+        
+        // Create game field (without player label)
+        VBox gameField = createPlayerGameField(playerNumber, brickSize, panelWidth, panelHeight);
+        
+        // For Player 1: side panel on left, game field on right
+        // For Player 2: game field on left, side panel on right
+        if (playerNumber == 1) {
+            contentContainer.getChildren().addAll(sidePanel, gameField);
+            // Store reference to Player 1 side panel
+            leftPanelPlayer1 = sidePanel;
+        } else {
+            contentContainer.getChildren().addAll(gameField, sidePanel);
+            // Store reference to Player 2 side panel
+            rightPanelPlayer2 = sidePanel;
+        }
+        
+        // Add player label at top, then content container
+        playerContainer.getChildren().addAll(playerLabel, contentContainer);
+        
+        return playerContainer;
+    }
+    
+    private VBox createPlayerGameField(int playerNumber, int brickSize, int panelWidth, int panelHeight) {
+        // Game field container - no player label here, it's at the top of player container
+        VBox gameFieldContainer = new VBox();
+        gameFieldContainer.setAlignment(javafx.geometry.Pos.CENTER);
+        gameFieldContainer.getStyleClass().add("player-field");
+        
+        // Game field container - match exact height, adjust width proportionally
+        BorderPane gameFieldBoard = new BorderPane();
+        gameFieldBoard.getStyleClass().add("gameBoard");
+        // Set exact height to match side panel, width scales proportionally
+        gameFieldBoard.setPrefHeight(panelHeight);
+        gameFieldBoard.setMaxHeight(panelHeight);
+        gameFieldBoard.setMinHeight(panelHeight);
+        gameFieldBoard.setPrefWidth(panelWidth);
+        gameFieldBoard.setMaxWidth(panelWidth);
+        gameFieldBoard.setMinWidth(panelWidth);
+        
+        StackPane gameFieldStack = new StackPane();
+        // Match exact dimensions - fill the entire gameFieldBoard
+        gameFieldStack.setPrefSize(panelWidth, panelHeight);
+        gameFieldStack.setMaxSize(panelWidth, panelHeight);
+        gameFieldStack.setMinSize(panelWidth, panelHeight);
+        
+        // Initialize display matrix for this player
+        Rectangle[][] matrix;
+        if (playerNumber == 1) {
+            if (displayMatrix1 == null) {
+                displayMatrix1 = new Rectangle[BOARD_HEIGHT][BOARD_WIDTH];
+            }
+            matrix = displayMatrix1;
+        } else {
+            if (displayMatrix2 == null) {
+                displayMatrix2 = new Rectangle[BOARD_HEIGHT][BOARD_WIDTH];
+            }
+            matrix = displayMatrix2;
+        }
+        
+        // Create game panel - set exact dimensions
+        GridPane gameFieldPanel = new GridPane();
+        gameFieldPanel.setHgap(GRID_GAP);
+        gameFieldPanel.setVgap(GRID_GAP);
+        gameFieldPanel.setPrefSize(panelWidth, panelHeight);
+        gameFieldPanel.setMaxSize(panelWidth, panelHeight);
+        gameFieldPanel.setMinSize(panelWidth, panelHeight);
+        initializeGameFieldPanel(gameFieldPanel, brickSize, matrix);
+        
+        // Create brick panel - set exact dimensions
+        GridPane gameFieldBrickPanel = new GridPane();
+        gameFieldBrickPanel.setHgap(GRID_GAP);
+        gameFieldBrickPanel.setVgap(GRID_GAP);
+        gameFieldBrickPanel.setPrefSize(panelWidth, panelHeight);
+        gameFieldBrickPanel.setMaxSize(panelWidth, panelHeight);
+        gameFieldBrickPanel.setMinSize(panelWidth, panelHeight);
+        gameFieldBrickPanel.setMouseTransparent(true);
+        initializeBrickPanel(gameFieldBrickPanel, brickSize);
+        
+        // Create ghost panel - set exact dimensions
+        GridPane gameFieldGhostPanel = new GridPane();
+        gameFieldGhostPanel.setHgap(GRID_GAP);
+        gameFieldGhostPanel.setVgap(GRID_GAP);
+        gameFieldGhostPanel.setPrefSize(panelWidth, panelHeight);
+        gameFieldGhostPanel.setMaxSize(panelWidth, panelHeight);
+        gameFieldGhostPanel.setMinSize(panelWidth, panelHeight);
+        gameFieldGhostPanel.setMouseTransparent(true);
+        initializeBrickPanel(gameFieldGhostPanel, brickSize);
+        
+        // Store references based on player number
+        if (playerNumber == 1) {
+            gamePanel1 = gameFieldPanel;
+            brickPanel1 = gameFieldBrickPanel;
+            ghostPanel1 = gameFieldGhostPanel;
+            gameStack1 = gameFieldStack;
+        } else {
+            gamePanel2 = gameFieldPanel;
+            brickPanel2 = gameFieldBrickPanel;
+            ghostPanel2 = gameFieldGhostPanel;
+            gameStack2 = gameFieldStack;
+        }
+        
+        // Add panels to stack (layered)
+        gameFieldStack.getChildren().addAll(gameFieldPanel, gameFieldGhostPanel, gameFieldBrickPanel);
+        
+        gameFieldBoard.setCenter(gameFieldStack);
+        // Add only game field board (no player label - it's at the top of player container)
+        gameFieldContainer.getChildren().add(gameFieldBoard);
+        
+        return gameFieldContainer;
+    }
+    
+    private void initializeGameFieldPanel(GridPane panel, int brickSize, Rectangle[][] matrix) {
+        panel.getChildren().clear();
+        panel.getColumnConstraints().clear();
+        panel.getRowConstraints().clear();
+        
+        for (int c = 0; c < BOARD_WIDTH; c++) {
+            ColumnConstraints cc = new ColumnConstraints(brickSize);
+            cc.setPrefWidth(brickSize);
+            cc.setMinWidth(brickSize);
+            cc.setMaxWidth(brickSize);
+            panel.getColumnConstraints().add(cc);
+        }
+        
+        for (int r = 0; r < BOARD_HEIGHT; r++) {
+            RowConstraints rc = new RowConstraints(brickSize);
+            rc.setPrefHeight(brickSize);
+            rc.setMinHeight(brickSize);
+            rc.setMaxHeight(brickSize);
+            panel.getRowConstraints().add(rc);
+        }
+        
+        // Initialize rectangles in the matrix
+        for (int i = 0; i < BOARD_HEIGHT; i++) {
+            for (int j = 0; j < BOARD_WIDTH; j++) {
+                Rectangle rect = new Rectangle(brickSize, brickSize);
+                rect.setFill(Color.TRANSPARENT);
+                rect.setStroke(Color.gray(0.2));
+                rect.setStrokeWidth(0.5);
+                matrix[i][j] = rect;
+                panel.add(rect, j, i);
+            }
+        }
+    }
+    
+    private void initializeBrickPanel(GridPane panel, int brickSize) {
+        panel.getChildren().clear();
+        panel.getColumnConstraints().clear();
+        panel.getRowConstraints().clear();
+        
+        for (int c = 0; c < BOARD_WIDTH; c++) {
+            ColumnConstraints cc = new ColumnConstraints(brickSize);
+            panel.getColumnConstraints().add(cc);
+        }
+        
+        for (int r = 0; r < BOARD_HEIGHT; r++) {
+            RowConstraints rc = new RowConstraints(brickSize);
+            panel.getRowConstraints().add(rc);
         }
     }
     

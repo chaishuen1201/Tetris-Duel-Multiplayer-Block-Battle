@@ -235,6 +235,7 @@
     -fx-border-color: rgba(255, 255, 255, 0.15);
     -fx-border-width: 1;
     -fx-border-radius: 20;
+    -fx-fill-height: true;
 }
 
 .gameBoard {
@@ -487,6 +488,46 @@
     -fx-text-fill: #ffeb3b;
     -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.8), 12, 0, 0, 3);
     -fx-font-family: "Public Pixel";
+}
+
+/* ==============================================
+   Multiplayer Panel
+   ============================================== */
+
+.multiplayer-container {
+    -fx-alignment: center;
+    -fx-spacing: 30;
+    -fx-padding: 20;
+}
+
+.player-container {
+    -fx-alignment: center;
+    -fx-spacing: 10;
+}
+
+.player-field {
+    -fx-alignment: center;
+}
+
+.player-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffeb3b;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.9), 15, 0, 0, 3);
+    -fx-font-family: "Public Pixel";
+    -fx-padding: 5 0 10 0;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.vs-label {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ff0000;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 0, 0, 0.9), 20, 0, 0, 5);
+    -fx-font-family: "Public Pixel";
+    -fx-padding: 0 20;
+    -fx-alignment: center;
 }
 
 /* ==============================================
