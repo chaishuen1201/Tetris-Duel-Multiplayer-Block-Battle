@@ -22,7 +22,7 @@ public class Main extends Application {
         GuiController guiController = fxmlLoader.getController();
 
         primaryStage.setTitle(WINDOW_TITLE);
-        Scene scene = new Scene(root, 1210, 700);
+        Scene scene = new Scene(root, 1210, 710);
         primaryStage.setScene(scene);
         primaryStage.show();
         

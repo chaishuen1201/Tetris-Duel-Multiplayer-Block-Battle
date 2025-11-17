@@ -2,6 +2,7 @@
 
 <?import com.comp2042.view.GameOverPanel?>
 <?import com.comp2042.view.MainMenuPanel?>
+<?import com.comp2042.view.PausePanel?>
 <?import com.comp2042.view.SettingsPanel?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
@@ -78,6 +79,10 @@
                         <!-- Game over panel -->
                         <GameOverPanel fx:id="gameOverPanel" visible="false" 
                                        StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
+
+                        <!-- Pause panel -->
+                        <PausePanel fx:id="pausePanel" visible="false" 
+                                    StackPane.alignment="CENTER"/>
 
                         <!-- Settings panel -->
                         <SettingsPanel fx:id="settingsPanel" visible="false" 

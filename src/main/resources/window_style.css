@@ -415,6 +415,62 @@
 }
 
 /* ==============================================
+   PAUSE PANEL STYLES
+   ============================================== */
+
+.pause-panel {
+    -fx-background-color: rgba(20, 20, 40, 0.95);
+    -fx-background-radius: 25;
+    -fx-border-color: linear-gradient(to bottom, #4a90e2, #7b68ee);
+    -fx-border-width: 3;
+    -fx-border-radius: 25;
+    -fx-padding: 40;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.6), 30, 0, 0, 10);
+}
+
+.pause-container {
+    -fx-alignment: center;
+    -fx-spacing: 20;
+}
+
+.pause-title {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: linear-gradient(to bottom, #4a90e2, #7b68ee);
+    -fx-effect: dropshadow(three-pass-box, rgba(74, 144, 226, 0.8), 15, 0, 0, 5);
+    -fx-font-family: "Public Pixel";
+    -fx-alignment: center;
+    -fx-padding: 0 0 20 0;
+}
+
+.pause-button {
+    -fx-background-color: rgba(74, 144, 226, 0.3);
+    -fx-background-radius: 10;
+    -fx-border-color: #4a90e2;
+    -fx-border-width: 2;
+    -fx-border-radius: 10;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Public Pixel";
+    -fx-padding: 12 30;
+    -fx-pref-width: 250;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.5), 5, 0, 2, 2);
+}
+
+.pause-button:hover {
+    -fx-background-color: rgba(74, 144, 226, 0.5);
+    -fx-border-color: #7b68ee;
+    -fx-effect: dropshadow(one-pass-box, rgba(123, 104, 238, 0.8), 8, 0, 3, 3);
+}
+
+.pause-button:pressed {
+    -fx-background-color: rgba(74, 144, 226, 0.7);
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.3), 3, 0, 1, 1);
+}
+
+/* ==============================================
    Game Over Buttons
    ============================================== */
 
