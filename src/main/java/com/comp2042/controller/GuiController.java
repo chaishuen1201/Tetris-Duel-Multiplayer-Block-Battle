@@ -89,6 +89,20 @@ public class GuiController implements Initializable {
     private List<GridPane> nextBrickPanes2 = new ArrayList<>();
     private Label scoreLabel1, scoreLabel2;
     
+    // Multiplayer game controllers and timelines
+    private GameController gameController1, gameController2;
+    private Timeline timeLine1, timeLine2;
+    private InputEventListener eventListener1, eventListener2;
+    private ViewData currentBrickData1, currentBrickData2;
+    private BooleanProperty isGameOver1 = new SimpleBooleanProperty(false);
+    private BooleanProperty isGameOver2 = new SimpleBooleanProperty(false);
+    private boolean isHardDropProcessing1 = false;
+    private boolean isHardDropProcessing2 = false;
+    
+    // Store scene filter handlers to avoid duplicates
+    private javafx.event.EventHandler<KeyEvent> sceneKeyPressedHandler;
+    private javafx.event.EventHandler<KeyEvent> sceneKeyReleasedHandler;
+    
     // Store original panels to restore later
     private VBox originalLeftPanel, originalRightPanel;
 
@@ -384,6 +398,107 @@ public class GuiController implements Initializable {
                 centerVBox.requestLayout();
             }
         }
+        
+        // Initialize and start multiplayer game
+        startMultiplayerGame();
+        
+        // Attach keyboard handlers to the scene for multiplayer mode after game starts
+        Platform.runLater(() -> {
+            attachKeyboardHandlersToScene();
+        });
+    }
+    
+    private void attachKeyboardHandlersToScene() {
+        // Get the scene from any node (preferably gameBoard or multiplayerContainer)
+        javafx.scene.Scene scene = null;
+        if (gameBoard != null && gameBoard.getScene() != null) {
+            scene = gameBoard.getScene();
+        } else if (multiplayerContainer != null && multiplayerContainer.getScene() != null) {
+            scene = multiplayerContainer.getScene();
+        }
+        
+        if (scene != null && isMultiplayerMode) {
+            // Remove node handlers from gameBoard in multiplayer mode to avoid duplicate processing
+            if (gameBoard != null) {
+                gameBoard.setOnKeyPressed(null);
+                gameBoard.setOnKeyReleased(null);
+            }
+            
+            // Add handlers as filters so they work regardless of focus
+            // Use lambda to wrap the handler and check multiplayer mode
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+                if (isMultiplayerMode && !e.isConsumed()) {
+                    handleKeyPress(e);
+                }
+            });
+            scene.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+                if (isMultiplayerMode && !e.isConsumed()) {
+                    handleKeyRelease(e);
+                }
+            });
+        }
+    }
+    
+    private void startMultiplayerGame() {
+        // Create game controllers for both players
+        gameController1 = new GameController(this, 1);
+        gameController2 = new GameController(this, 2);
+        
+        // Reset game over states
+        isGameOver1.set(false);
+        isGameOver2.set(false);
+        
+        // Reset hard drop processing flags
+        isHardDropProcessing1 = false;
+        isHardDropProcessing2 = false;
+        
+        // Start the game
+        gameStarted = true;
+        isPause.set(false);
+        
+        // Start both timelines
+        if (timeLine1 != null) {
+            timeLine1.play();
+        }
+        if (timeLine2 != null) {
+            timeLine2.play();
+        }
+        
+        // Start game music
+        if (gameMusic != null) {
+            if (mainMenuMusic != null) {
+                mainMenuMusic.stop();
+            }
+            gameMusic.play();
+        }
+        
+        // Make brick panels and ghost panels visible
+        if (brickPanel1 != null) {
+            brickPanel1.setVisible(true);
+        }
+        if (brickPanel2 != null) {
+            brickPanel2.setVisible(true);
+        }
+        if (ghostPanel1 != null && settingsPanel != null) {
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            ghostPanel1.setVisible(showGhost);
+        }
+        if (ghostPanel2 != null && settingsPanel != null) {
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            ghostPanel2.setVisible(showGhost);
+        }
+        
+        // Make sure keyboard handlers are attached to scene
+        Platform.runLater(() -> {
+            attachKeyboardHandlersToScene();
+            // Request focus on a visible component
+            if (multiplayerContainer != null) {
+                multiplayerContainer.setFocusTraversable(true);
+                multiplayerContainer.requestFocus();
+            }
+        });
     }
     
     private BorderPane getRootBorderPane() {
@@ -883,6 +998,17 @@ public class GuiController implements Initializable {
     }
 
     private void handleKeyPress(KeyEvent keyEvent) {
+        // Handle multiplayer mode first
+        if (isMultiplayerMode) {
+            if (!gameStarted) {
+                // In multiplayer, game starts immediately, so we shouldn't get here
+                return;
+            }
+            handleMultiplayerKeyPress(keyEvent);
+            return;
+        }
+        
+        // Single player mode
         if (!gameStarted) {
             // If game hasn't started, Enter key can start it
             if (keyEvent.getCode() == KeyCode.ENTER) {
@@ -923,22 +1049,209 @@ public class GuiController implements Initializable {
         if (keyEvent.getCode() == KeyCode.P) pauseGame(null);
         keyEvent.consume();
     }
+    
+    private void handleMultiplayerKeyPress(KeyEvent keyEvent) {
+        if (!isMultiplayerMode || !gameStarted) {
+            return;
+        }
+        
+        if (isPause.get()) {
+            // Only allow pause/unpause in pause state
+            if (keyEvent.getCode() == KeyCode.P) {
+                pauseGame(null);
+                keyEvent.consume();
+            }
+            return;
+        }
+        
+        // Player 1 controls: L (left), R (right), Y (rotate), A (left), W (rotate), S (down), D (right), Space (hard drop)
+        // Player 2 controls: Left, Right, Up (rotate), Down, Enter (hard drop)
+        
+        boolean consumed = false;
+        
+        // Player 1 controls
+        if (!isGameOver1.get() && eventListener1 != null) {
+            switch (keyEvent.getCode()) {
+                case L, A -> {
+                    refreshBrick(eventListener1.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)), 1);
+                    consumed = true;
+                }
+                case R, D -> {
+                    refreshBrick(eventListener1.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)), 1);
+                    consumed = true;
+                }
+                case Y, W -> {
+                    refreshBrick(eventListener1.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)), 1);
+                    consumed = true;
+                }
+                case S -> {
+                    if (timeLine1 != null) timeLine1.setRate(SOFT_DROP_RATE);
+                    moveDown(new MoveEvent(EventType.DOWN, EventSource.USER), 1);
+                    consumed = true;
+                }
+                case SPACE -> {
+                    // Prevent multiple hard drops from being processed simultaneously
+                    if (!isHardDropProcessing1) {
+                        isHardDropProcessing1 = true;
+                        consumed = true;
+                        keyEvent.consume(); // Consume immediately to prevent duplicate processing
+                        
+                        DownData downData = eventListener1.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
+                        if (downData != null) {
+                            if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                                if (lineClearSound != null) {
+                                    lineClearSound.stop();
+                                    lineClearSound.seek(Duration.ZERO);
+                                    lineClearSound.play();
+                                }
+                            }
+                            refreshBrick(downData.getViewData(), 1);
+                        }
+                        // Reset flag after a delay to allow next hard drop (but prevent rapid-fire)
+                        Timeline resetTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
+                            isHardDropProcessing1 = false;
+                        }));
+                        resetTimeline.setCycleCount(1);
+                        resetTimeline.play();
+                    } else {
+                        // If already processing, just consume the event
+                        consumed = true;
+                        keyEvent.consume();
+                    }
+                }
+                case C -> {
+                    refreshBrick(eventListener1.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)), 1);
+                    consumed = true;
+                }
+            }
+        }
+        
+        // Player 2 controls: Arrow keys and Enter
+        // These are separate keys from Player 1, so both players can control simultaneously
+        if (!isGameOver2.get() && eventListener2 != null) {
+            switch (keyEvent.getCode()) {
+                case LEFT -> {
+                    refreshBrick(eventListener2.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)), 2);
+                    consumed = true;
+                }
+                case RIGHT -> {
+                    refreshBrick(eventListener2.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)), 2);
+                    consumed = true;
+                }
+                case UP -> {
+                    refreshBrick(eventListener2.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)), 2);
+                    consumed = true;
+                }
+                case DOWN -> {
+                    if (timeLine2 != null) {
+                        timeLine2.setRate(SOFT_DROP_RATE);
+                    }
+                    moveDown(new MoveEvent(EventType.DOWN, EventSource.USER), 2);
+                    consumed = true;
+                }
+                case ENTER -> {
+                    // Prevent multiple hard drops from being processed simultaneously
+                    if (!isHardDropProcessing2) {
+                        isHardDropProcessing2 = true;
+                        consumed = true;
+                        keyEvent.consume(); // Consume immediately to prevent duplicate processing
+                        
+                        DownData downData = eventListener2.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
+                        if (downData != null) {
+                            if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                                if (lineClearSound != null) {
+                                    lineClearSound.stop();
+                                    lineClearSound.seek(Duration.ZERO);
+                                    lineClearSound.play();
+                                }
+                            }
+                            refreshBrick(downData.getViewData(), 2);
+                        }
+                        // Reset flag after a delay to allow next hard drop (but prevent rapid-fire)
+                        Timeline resetTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
+                            isHardDropProcessing2 = false;
+                        }));
+                        resetTimeline.setCycleCount(1);
+                        resetTimeline.play();
+                    } else {
+                        // If already processing, just consume the event
+                        consumed = true;
+                        keyEvent.consume();
+                    }
+                }
+                case CONTROL -> {
+                    // Right Ctrl for Player 2 hold
+                    // Note: JavaFX doesn't easily distinguish left vs right control
+                    // Both left and right control will trigger this, but typically
+                    // players will use the right control key as specified
+                    refreshBrick(eventListener2.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)), 2);
+                    consumed = true;
+                }
+            }
+        }
+        
+        // Global controls
+        if (keyEvent.getCode() == KeyCode.P) {
+            pauseGame(null);
+            consumed = true;
+        }
+        
+        if (consumed) {
+            keyEvent.consume();
+        }
+    }
 
     private void handleKeyRelease(KeyEvent keyEvent) {
-        if (keyEvent.getCode() == KeyCode.DOWN || keyEvent.getCode() == KeyCode.S) updateTimelineRate();
+        if (isMultiplayerMode) {
+            // Player 1: S key releases soft drop
+            if (keyEvent.getCode() == KeyCode.S) {
+                updateTimelineRate(1);
+            }
+            // Player 2: DOWN arrow key releases soft drop
+            else if (keyEvent.getCode() == KeyCode.DOWN) {
+                updateTimelineRate(2);
+            }
+        } else {
+            if (keyEvent.getCode() == KeyCode.DOWN || keyEvent.getCode() == KeyCode.S) {
+                updateTimelineRate();
+            }
+        }
     }
 
     public void initGameView(int[][] boardMatrix, ViewData brick) {
-        refreshBrick(brick);
-        refreshGameBackground(boardMatrix);
+        initGameView(boardMatrix, brick, 0);
+    }
+    
+    public void initGameView(int[][] boardMatrix, ViewData brick, int playerNumber) {
+        if (isMultiplayerMode && playerNumber > 0) {
+            // Initialize multiplayer game view
+            refreshBrick(brick, playerNumber);
+            refreshGameBackground(boardMatrix, playerNumber);
+            
+            if (playerNumber == 1) {
+                if (timeLine1 != null) timeLine1.stop();
+                timeLine1 = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD), 1)));
+                timeLine1.setCycleCount(Timeline.INDEFINITE);
+                updateTimelineRate(1);
+            } else if (playerNumber == 2) {
+                if (timeLine2 != null) timeLine2.stop();
+                timeLine2 = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD), 2)));
+                timeLine2.setCycleCount(Timeline.INDEFINITE);
+                updateTimelineRate(2);
+            }
+        } else {
+            // Single player game view
+            refreshBrick(brick);
+            refreshGameBackground(boardMatrix);
 
-        if (timeLine != null) timeLine.stop();
-        timeLine = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD))));
-        timeLine.setCycleCount(Timeline.INDEFINITE);
+            if (timeLine != null) timeLine.stop();
+            timeLine = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD))));
+            timeLine.setCycleCount(Timeline.INDEFINITE);
 
-        updateTimelineRate();
+            updateTimelineRate();
 
-        if (gameBoard != null) gameBoard.requestFocus();
+            if (gameBoard != null) gameBoard.requestFocus();
+        }
     }
 
     private javafx.scene.paint.Paint getFillColor(int brickType) {
@@ -946,21 +1259,48 @@ public class GuiController implements Initializable {
     }
 
     private void refreshBrick(ViewData brick) {
+        refreshBrick(brick, 0);
+    }
+    
+    private void refreshBrick(ViewData brick, int playerNumber) {
         // Always store the current brick data
         if (brick != null) {
-            currentBrickData = brick;
+            if (playerNumber == 1) {
+                currentBrickData1 = brick;
+            } else if (playerNumber == 2) {
+                currentBrickData2 = brick;
+            } else {
+                currentBrickData = brick;
+            }
         }
 
         // Don't show brick if game hasn't started (menu is visible)
-        if (!gameStarted) {
+        if (!gameStarted && playerNumber == 0) {
+            return;
+        }
+        if (isMultiplayerMode && !gameStarted) {
             return;
         }
 
-        if (!isPause.get() && brickPanel != null && brick != null) {
+        GridPane currentBrickPanel = brickPanel;
+        GridPane currentGhostPanel = ghostPanel;
+        InputEventListener currentEventListener = eventListener;
+        int scaledBrickSize = BRICK_SIZE;
+        
+        if (isMultiplayerMode && playerNumber > 0) {
+            currentBrickPanel = (playerNumber == 1) ? brickPanel1 : brickPanel2;
+            currentGhostPanel = (playerNumber == 1) ? ghostPanel1 : ghostPanel2;
+            currentEventListener = (playerNumber == 1) ? eventListener1 : eventListener2;
+            // For multiplayer, use scaled brick size
+            double scale = 0.85;
+            scaledBrickSize = (int)(BRICK_SIZE * scale);
+        }
+
+        if (!isPause.get() && currentBrickPanel != null && brick != null) {
             // Clear both panels
-            brickPanel.getChildren().clear();
-            if (ghostPanel != null) {
-                ghostPanel.getChildren().clear();
+            currentBrickPanel.getChildren().clear();
+            if (currentGhostPanel != null) {
+                currentGhostPanel.getChildren().clear();
             }
             
             int[][] data = brick.getBrickData();
@@ -968,8 +1308,8 @@ public class GuiController implements Initializable {
             int offsetY = brick.getYPosition();
             
             // Draw ghost piece first (behind the actual brick)
-            if (ghostPanel != null && eventListener instanceof GameController) {
-                GameController gameController = (GameController) eventListener;
+            if (currentGhostPanel != null && currentEventListener instanceof GameController) {
+                GameController gameController = (GameController) currentEventListener;
                 if (gameController.getBoard() instanceof SimpleBoard) {
                     SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
                     java.awt.Point ghostPos = simpleBoard.getGhostPosition();
@@ -989,7 +1329,7 @@ public class GuiController implements Initializable {
                                     // Only draw if the cell is within the board bounds
                                     // This allows partial ghost display when brick is at left/right walls
                                     if (cellX >= 0 && cellY >= 0 && cellX < BOARD_WIDTH && cellY < BOARD_HEIGHT) {
-                                        Rectangle ghostRect = new Rectangle(BRICK_SIZE, BRICK_SIZE);
+                                        Rectangle ghostRect = new Rectangle(scaledBrickSize, scaledBrickSize);
                                         
                                         // Get the brick's color and make it semi-transparent
                                         javafx.scene.paint.Paint brickColor = getFillColor(data[j][i]);
@@ -1021,7 +1361,7 @@ public class GuiController implements Initializable {
                                         
                                         ghostRect.setArcHeight(5);
                                         ghostRect.setArcWidth(5);
-                                        ghostPanel.add(ghostRect, cellX, cellY);
+                                        currentGhostPanel.add(ghostRect, cellX, cellY);
                                     }
                                 }
                             }
@@ -1034,11 +1374,11 @@ public class GuiController implements Initializable {
             for (int i = 0; i < data.length; i++) {
                 for (int j = 0; j < data[i].length; j++) {
                     if (data[j][i] != 0) {
-                        Rectangle rect = new Rectangle(BRICK_SIZE, BRICK_SIZE);
+                        Rectangle rect = new Rectangle(scaledBrickSize, scaledBrickSize);
                         rect.setFill(getFillColor(data[j][i]));
                         rect.setArcHeight(5);
                         rect.setArcWidth(5);
-                        brickPanel.add(rect, offsetX + i, offsetY + j);
+                        currentBrickPanel.add(rect, offsetX + i, offsetY + j);
                     }
                 }
             }
@@ -1046,35 +1386,77 @@ public class GuiController implements Initializable {
     }
 
     public void refreshGameBackground(int[][] board) {
-        if (displayMatrix != null) {
-            for (int i = 0; i < Math.min(BOARD_HEIGHT, board.length); i++) {
-                for (int j = 0; j < Math.min(BOARD_WIDTH, board[i].length); j++) {
-                    if (displayMatrix[i][j] != null) displayMatrix[i][j].setFill(getFillColor(board[i][j]));
+        refreshGameBackground(board, 0);
+    }
+    
+    public void refreshGameBackground(int[][] board, int playerNumber) {
+        if (isMultiplayerMode && playerNumber > 0) {
+            Rectangle[][] matrix = (playerNumber == 1) ? displayMatrix1 : displayMatrix2;
+            if (matrix != null) {
+                for (int i = 0; i < Math.min(BOARD_HEIGHT, board.length); i++) {
+                    for (int j = 0; j < Math.min(BOARD_WIDTH, board[i].length); j++) {
+                        if (matrix[i][j] != null) matrix[i][j].setFill(getFillColor(board[i][j]));
+                    }
+                }
+            }
+        } else {
+            if (displayMatrix != null) {
+                for (int i = 0; i < Math.min(BOARD_HEIGHT, board.length); i++) {
+                    for (int j = 0; j < Math.min(BOARD_WIDTH, board[i].length); j++) {
+                        if (displayMatrix[i][j] != null) displayMatrix[i][j].setFill(getFillColor(board[i][j]));
+                    }
                 }
             }
         }
     }
 
     private void moveDown(MoveEvent event) {
-        if (!gameStarted || isPause.get() || isGameOver.get()) {
-            return;
-        }
-        if (eventListener != null) {
-            DownData downData = eventListener.onDownEvent(event);
-            if (downData != null) {
-                if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                    showNotification("+" + downData.getClearRow().getScoreBonus());
-                    // Play line clear sound
-                    if (lineClearSound != null) {
-                        lineClearSound.stop();
-                        lineClearSound.seek(Duration.ZERO);
-                        lineClearSound.play();
-                    }
-                }
-                refreshBrick(downData.getViewData());
+        moveDown(event, 0);
+    }
+    
+    private void moveDown(MoveEvent event, int playerNumber) {
+        if (isMultiplayerMode && playerNumber > 0) {
+            BooleanProperty isGameOverProp = (playerNumber == 1) ? isGameOver1 : isGameOver2;
+            InputEventListener listener = (playerNumber == 1) ? eventListener1 : eventListener2;
+            
+            if (!gameStarted || isPause.get() || isGameOverProp.get()) {
+                return;
             }
+            if (listener != null) {
+                DownData downData = listener.onDownEvent(event);
+                if (downData != null) {
+                    if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                        // Play line clear sound
+                        if (lineClearSound != null) {
+                            lineClearSound.stop();
+                            lineClearSound.seek(Duration.ZERO);
+                            lineClearSound.play();
+                        }
+                    }
+                    refreshBrick(downData.getViewData(), playerNumber);
+                }
+            }
+        } else {
+            if (!gameStarted || isPause.get() || isGameOver.get()) {
+                return;
+            }
+            if (eventListener != null) {
+                DownData downData = eventListener.onDownEvent(event);
+                if (downData != null) {
+                    if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                        showNotification("+" + downData.getClearRow().getScoreBonus());
+                        // Play line clear sound
+                        if (lineClearSound != null) {
+                            lineClearSound.stop();
+                            lineClearSound.seek(Duration.ZERO);
+                            lineClearSound.play();
+                        }
+                    }
+                    refreshBrick(downData.getViewData());
+                }
+            }
+            if (gameBoard != null) gameBoard.requestFocus();
         }
-        if (gameBoard != null) gameBoard.requestFocus();
     }
 
     private void showNotification(String message) {
@@ -1085,18 +1467,50 @@ public class GuiController implements Initializable {
         }
     }
 
-    public void setEventListener(InputEventListener listener) { this.eventListener = listener; }
+    public void setEventListener(InputEventListener listener) { 
+        this.eventListener = listener; 
+    }
+    
+    public void setEventListener(InputEventListener listener, int playerNumber) {
+        if (playerNumber == 1) {
+            this.eventListener1 = listener;
+        } else if (playerNumber == 2) {
+            this.eventListener2 = listener;
+        } else {
+            this.eventListener = listener;
+        }
+    }
 
     public void bindScore(IntegerProperty score) {
-        if (scoreLabel != null && score != null) {
-            // Unbind first to avoid binding conflicts
-            scoreLabel.textProperty().unbind();
-            scoreLabel.textProperty().bind(score.asString("Score: %d"));
+        bindScore(score, 0);
+    }
+    
+    public void bindScore(IntegerProperty score, int playerNumber) {
+        if (playerNumber == 1) {
+            if (scoreLabel1 != null && score != null) {
+                scoreLabel1.textProperty().unbind();
+                scoreLabel1.textProperty().bind(score.asString("%d"));
+            }
+        } else if (playerNumber == 2) {
+            if (scoreLabel2 != null && score != null) {
+                scoreLabel2.textProperty().unbind();
+                scoreLabel2.textProperty().bind(score.asString("%d"));
+            }
+        } else {
+            if (scoreLabel != null && score != null) {
+                scoreLabel.textProperty().unbind();
+                scoreLabel.textProperty().bind(score.asString("Score: %d"));
+            }
         }
     }
 
     public void bindLevel(IntegerProperty level) {
-        if (levelLabel != null && level != null) {
+        bindLevel(level, 0);
+    }
+    
+    public void bindLevel(IntegerProperty level, int playerNumber) {
+        // For multiplayer, level binding is not used in side panels, but we keep the method for compatibility
+        if (playerNumber == 0 && levelLabel != null && level != null) {
             levelLabel.textProperty().bind(level.asString("Level: %d"));
             level.addListener((obs, oldVal, newVal) -> { currentLevel = newVal.intValue(); updateTimelineRate(); });
             currentLevel = level.get();
@@ -1105,10 +1519,48 @@ public class GuiController implements Initializable {
     }
 
     public void bindLines(IntegerProperty lines) {
-        if (linesLabel != null && lines != null) linesLabel.textProperty().bind(lines.asString("Lines: %d"));
+        bindLines(lines, 0);
+    }
+    
+    public void bindLines(IntegerProperty lines, int playerNumber) {
+        // For multiplayer, lines binding is not used in side panels, but we keep the method for compatibility
+        if (playerNumber == 0 && linesLabel != null && lines != null) {
+            linesLabel.textProperty().bind(lines.asString("Lines: %d"));
+        }
     }
 
     public void gameOver() {
+        gameOver(0);
+    }
+    
+    public void gameOver(int playerNumber) {
+        if (isMultiplayerMode && playerNumber > 0) {
+            // Handle multiplayer game over
+            if (playerNumber == 1) {
+                if (timeLine1 != null) timeLine1.stop();
+                isGameOver1.set(true);
+            } else if (playerNumber == 2) {
+                if (timeLine2 != null) timeLine2.stop();
+                isGameOver2.set(true);
+            }
+            
+            // If both players are game over, show game over screen
+            if (isGameOver1.get() && isGameOver2.get()) {
+                // Stop game music and play game over sound
+                if (gameMusic != null) {
+                    gameMusic.stop();
+                }
+                if (gameOverSound != null) {
+                    gameOverSound.stop();
+                    gameOverSound.seek(Duration.ZERO);
+                    gameOverSound.play();
+                }
+                // Could show a multiplayer game over screen here
+            }
+            return;
+        }
+        
+        // Single player game over
         if (timeLine != null) timeLine.stop();
         
         // Stop game music and play game over sound
@@ -1390,34 +1842,80 @@ public class GuiController implements Initializable {
     }
 
     public void pauseGame(ActionEvent actionEvent) {
-        if (!isPause.get()) {
-            if (timeLine != null) timeLine.pause();
-            // Pause game music
-            if (gameMusic != null) {
-                gameMusic.pause();
-            }
-            isPause.set(true);
-            if (pauseButton != null) {
-                pauseButton.setText("Resume");
+        if (isMultiplayerMode) {
+            if (!isPause.get()) {
+                if (timeLine1 != null) timeLine1.pause();
+                if (timeLine2 != null) timeLine2.pause();
+                // Pause game music
+                if (gameMusic != null) {
+                    gameMusic.pause();
+                }
+                isPause.set(true);
+                if (pauseButton != null) {
+                    pauseButton.setText("Resume");
+                }
+            } else {
+                if (timeLine1 != null) { timeLine1.play(); updateTimelineRate(1); }
+                if (timeLine2 != null) { timeLine2.play(); updateTimelineRate(2); }
+                // Resume game music
+                if (gameMusic != null) {
+                    gameMusic.play();
+                }
+                isPause.set(false);
+                if (pauseButton != null) {
+                    pauseButton.setText("Pause");
+                }
             }
         } else {
-            if (timeLine != null) { timeLine.play(); updateTimelineRate(); }
-            // Resume game music
-            if (gameMusic != null) {
-                gameMusic.play();
-            }
-            isPause.set(false);
-            if (pauseButton != null) {
-                pauseButton.setText("Pause");
+            if (!isPause.get()) {
+                if (timeLine != null) timeLine.pause();
+                // Pause game music
+                if (gameMusic != null) {
+                    gameMusic.pause();
+                }
+                isPause.set(true);
+                if (pauseButton != null) {
+                    pauseButton.setText("Resume");
+                }
+            } else {
+                if (timeLine != null) { timeLine.play(); updateTimelineRate(); }
+                // Resume game music
+                if (gameMusic != null) {
+                    gameMusic.play();
+                }
+                isPause.set(false);
+                if (pauseButton != null) {
+                    pauseButton.setText("Pause");
+                }
             }
         }
         if (gameBoard != null) gameBoard.requestFocus();
     }
 
     public void updateNextBricks(List<Brick> nextBricks) {
-        if (nextBrickPanes == null) return;
-        for (int i = 0; i < nextBrickPanes.size(); i++) {
-            GridPane pane = nextBrickPanes.get(i);
+        updateNextBricks(nextBricks, 0);
+    }
+    
+    public void updateNextBricks(List<Brick> nextBricks, int playerNumber) {
+        List<GridPane> panes;
+        int brickSize;
+        
+        if (isMultiplayerMode && playerNumber > 0) {
+            panes = (playerNumber == 1) ? nextBrickPanes1 : nextBrickPanes2;
+            double scale = 0.85;
+            brickSize = (int)((BRICK_SIZE - 10) * scale);
+        } else {
+            panes = nextBrickPanes;
+            brickSize = BRICK_SIZE - 10;
+        }
+        
+        if (panes == null || panes.isEmpty()) return;
+        
+        // For multiplayer, only show the first brick (next brick)
+        int maxBricks = (isMultiplayerMode && playerNumber > 0) ? 1 : panes.size();
+        
+        for (int i = 0; i < Math.min(maxBricks, panes.size()); i++) {
+            GridPane pane = panes.get(i);
             if (pane == null) continue;
             pane.getChildren().clear();
             if (i < nextBricks.size()) {
@@ -1425,7 +1923,7 @@ public class GuiController implements Initializable {
                 for (int r = 0; r < shape.length; r++) {
                     for (int c = 0; c < shape[r].length; c++) {
                         if (shape[r][c] != 0) {
-                            Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
+                            Rectangle rect = new Rectangle(brickSize, brickSize);
                             rect.setFill(getFillColor(shape[r][c]));
                             rect.setArcHeight(5);
                             rect.setArcWidth(5);
@@ -1438,23 +1936,51 @@ public class GuiController implements Initializable {
     }
 
     public void updateHoldBrick(Brick heldBrick) {
-        if (holdBrickRectangles == null) return;
+        updateHoldBrick(heldBrick, 0);
+    }
+    
+    public void updateHoldBrick(Brick heldBrick, int playerNumber) {
+        Rectangle[][] rectangles;
+        
+        if (isMultiplayerMode && playerNumber > 0) {
+            rectangles = (playerNumber == 1) ? holdBrickRectangles1 : holdBrickRectangles2;
+        } else {
+            rectangles = holdBrickRectangles;
+        }
+        
+        if (rectangles == null) return;
         for (int i = 0; i < 4; i++)
             for (int j = 0; j < 4; j++)
-                if (holdBrickRectangles[i][j] != null) holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                if (rectangles[i][j] != null) rectangles[i][j].setFill(Color.TRANSPARENT);
         if (heldBrick != null) {
             int[][] shape = heldBrick.getShapeMatrix().get(0);
             for (int i = 0; i < shape.length; i++)
                 for (int j = 0; j < shape[i].length; j++)
-                    if (shape[i][j] != 0 && holdBrickRectangles[i][j] != null)
-                        holdBrickRectangles[i][j].setFill(getFillColor(shape[i][j]));
+                    if (shape[i][j] != 0 && rectangles[i][j] != null)
+                        rectangles[i][j].setFill(getFillColor(shape[i][j]));
         }
     }
 
     private void updateTimelineRate() {
-        if (timeLine != null) {
-            double rate = 1.0 + (Math.max(1, currentLevel) - 1) * 0.25;
-            timeLine.setRate(rate);
+        updateTimelineRate(0);
+    }
+    
+    private void updateTimelineRate(int playerNumber) {
+        if (isMultiplayerMode && playerNumber > 0) {
+            Timeline timeline = (playerNumber == 1) ? timeLine1 : timeLine2;
+            GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
+            
+            if (timeline != null && controller != null && controller.getBoard() instanceof SimpleBoard) {
+                SimpleBoard board = (SimpleBoard) controller.getBoard();
+                int level = board.levelProperty().get();
+                double rate = 1.0 + (Math.max(1, level) - 1) * 0.25;
+                timeline.setRate(rate);
+            }
+        } else {
+            if (timeLine != null) {
+                double rate = 1.0 + (Math.max(1, currentLevel) - 1) * 0.25;
+                timeLine.setRate(rate);
+            }
         }
     }
 

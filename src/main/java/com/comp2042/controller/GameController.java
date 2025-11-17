@@ -13,20 +13,26 @@ public class GameController implements InputEventListener {
 
     private final Board board;
     private final GuiController viewGuiController;
+    private final int playerNumber; // 1 for player 1, 2 for player 2, 0 for single player
 
     public GameController(GuiController c) {
+        this(c, 0); // Default to single player (0)
+    }
+
+    public GameController(GuiController c, int playerNumber) {
         this.viewGuiController = c;
+        this.playerNumber = playerNumber;
         this.board = new SimpleBoard(20, 10);
         board.createNewBrick();
-        viewGuiController.setEventListener(this);
-        viewGuiController.initGameView(board.getBoardMatrix(), board.getViewData());
-        viewGuiController.bindScore(board.getScore().scoreProperty());
+        viewGuiController.setEventListener(this, playerNumber);
+        viewGuiController.initGameView(board.getBoardMatrix(), board.getViewData(), playerNumber);
+        viewGuiController.bindScore(board.getScore().scoreProperty(), playerNumber);
 
         // Cast to SimpleBoard for the additional properties
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
-            viewGuiController.bindLevel(simpleBoard.levelProperty());
-            viewGuiController.bindLines(simpleBoard.linesProperty());
+            viewGuiController.bindLevel(simpleBoard.levelProperty(), playerNumber);
+            viewGuiController.bindLines(simpleBoard.linesProperty(), playerNumber);
         }
     }
 
@@ -41,15 +47,15 @@ public class GameController implements InputEventListener {
                 board.getScore().add(clearRow.getScoreBonus());
             }
             if (board.createNewBrick()) {
-                viewGuiController.gameOver();
+                viewGuiController.gameOver(playerNumber);
             }
-            viewGuiController.refreshGameBackground(board.getBoardMatrix());
+            viewGuiController.refreshGameBackground(board.getBoardMatrix(), playerNumber);
 
             // Update next bricks and hold after creating new brick
             if (board instanceof SimpleBoard) {
                 SimpleBoard simpleBoard = (SimpleBoard) board;
-                viewGuiController.updateNextBricks(simpleBoard.getNextBricks());
-                viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick());
+                viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+                viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
             }
         } else {
             if (event.getEventSource() == EventSource.USER) {
@@ -101,11 +107,11 @@ public class GameController implements InputEventListener {
                 board.getScore().add(clearRow.getScoreBonus());
             }
             if (board.createNewBrick()) {
-                viewGuiController.gameOver();
+                viewGuiController.gameOver(playerNumber);
             }
-            viewGuiController.refreshGameBackground(board.getBoardMatrix());
-            viewGuiController.updateNextBricks(simpleBoard.getNextBricks());
-            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick());
+            viewGuiController.refreshGameBackground(board.getBoardMatrix(), playerNumber);
+            viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
         }
         return new DownData(clearRow, board.getViewData());
     }
@@ -115,7 +121,7 @@ public class GameController implements InputEventListener {
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
             simpleBoard.holdBrick();
-            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick());
+            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
         }
         return board.getViewData();
     }
@@ -124,13 +130,13 @@ public class GameController implements InputEventListener {
     public void createNewGame() {
         board.newGame();
         // Re-bind score to ensure it updates after reset
-        viewGuiController.bindScore(board.getScore().scoreProperty());
-        viewGuiController.refreshGameBackground(board.getBoardMatrix());
+        viewGuiController.bindScore(board.getScore().scoreProperty(), playerNumber);
+        viewGuiController.refreshGameBackground(board.getBoardMatrix(), playerNumber);
 
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
-            viewGuiController.updateNextBricks(simpleBoard.getNextBricks());
-            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick());
+            viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
         }
     }
 
@@ -142,6 +148,11 @@ public class GameController implements InputEventListener {
     // Expose board for ghost position calculation
     public Board getBoard() {
         return board;
+    }
+    
+    // Get player number
+    public int getPlayerNumber() {
+        return playerNumber;
     }
 }
 
