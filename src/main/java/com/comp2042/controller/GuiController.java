@@ -93,6 +93,7 @@ public class GuiController implements Initializable {
     private List<GridPane> nextBrickPanes1 = new ArrayList<>();
     private List<GridPane> nextBrickPanes2 = new ArrayList<>();
     private Label scoreLabel1, scoreLabel2;
+    private Label levelLabel1, levelLabel2;
     
     // Multiplayer game controllers and timelines
     private GameController gameController1, gameController2;
@@ -669,6 +670,24 @@ public class GuiController implements Initializable {
         
         scoreBox.getChildren().addAll(scoreTitleLabel, scoreValueLabel);
         
+        // Level panel
+        VBox levelBox = new VBox();
+        levelBox.getStyleClass().add("info-box");
+        Label levelTitleLabel = new Label("LEVEL");
+        levelTitleLabel.getStyleClass().add("panel-title");
+        
+        Label levelValueLabel = new Label("1");
+        levelValueLabel.getStyleClass().add("info-display");
+        
+        // Store reference based on player number
+        if (playerNumber == 1) {
+            levelLabel1 = levelValueLabel;
+        } else {
+            levelLabel2 = levelValueLabel;
+        }
+        
+        levelBox.getChildren().addAll(levelTitleLabel, levelValueLabel);
+        
         // Next bricks panel - only show 1 brick
         VBox nextBox = new VBox();
         nextBox.getStyleClass().add("info-box");
@@ -714,8 +733,8 @@ public class GuiController implements Initializable {
         
         nextBox.getChildren().addAll(nextLabel, nextBricksContainer);
         
-        // Add all components to player panel: Hold, Score, Next
-        playerPanel.getChildren().addAll(holdBox, scoreBox, nextBox);
+        // Add all components to player panel: Hold, Score, Level, Next
+        playerPanel.getChildren().addAll(holdBox, scoreBox, levelBox, nextBox);
         
         return playerPanel;
     }
@@ -1585,26 +1604,40 @@ public class GuiController implements Initializable {
     }
     
     public void bindLevel(IntegerProperty level, int playerNumber) {
-        // For multiplayer, level binding is not used in side panels, but we keep the method for compatibility
-        if (playerNumber == 0 && levelLabel != null && level != null) {
-            levelLabel.textProperty().unbind();
-            levelLabel.textProperty().bind(level.asString("Level: %d"));
-            
-            // Remove old listener if it exists to avoid duplicates
-            if (levelChangeListener != null) {
-                // Try to remove from the previous level property if we can find it
-                // Since we don't have a reference to the old property, we'll just create a new listener
-                // The old listener will become unreachable and be garbage collected
+        if (playerNumber == 1) {
+            // Player 1 multiplayer
+            if (levelLabel1 != null && level != null) {
+                levelLabel1.textProperty().unbind();
+                levelLabel1.textProperty().bind(level.asString("%d"));
             }
-            
-            // Create and store new listener
-            levelChangeListener = (obs, oldVal, newVal) -> {
-                currentLevel = newVal.intValue();
+        } else if (playerNumber == 2) {
+            // Player 2 multiplayer
+            if (levelLabel2 != null && level != null) {
+                levelLabel2.textProperty().unbind();
+                levelLabel2.textProperty().bind(level.asString("%d"));
+            }
+        } else {
+            // Single player (playerNumber == 0)
+            if (levelLabel != null && level != null) {
+                levelLabel.textProperty().unbind();
+                levelLabel.textProperty().bind(level.asString("Level: %d"));
+                
+                // Remove old listener if it exists to avoid duplicates
+                if (levelChangeListener != null) {
+                    // Try to remove from the previous level property if we can find it
+                    // Since we don't have a reference to the old property, we'll just create a new listener
+                    // The old listener will become unreachable and be garbage collected
+                }
+                
+                // Create and store new listener
+                levelChangeListener = (obs, oldVal, newVal) -> {
+                    currentLevel = newVal.intValue();
+                    updateTimelineRate();
+                };
+                level.addListener(levelChangeListener);
+                currentLevel = level.get();
                 updateTimelineRate();
-            };
-            level.addListener(levelChangeListener);
-            currentLevel = level.get();
-            updateTimelineRate();
+            }
         }
     }
 
