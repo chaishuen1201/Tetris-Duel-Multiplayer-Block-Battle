@@ -471,6 +471,60 @@
 }
 
 /* ==============================================
+   Ready Panel Styles
+   ============================================== */
+
+.ready-panel {
+    -fx-background-color: rgba(0, 0, 0, 0.85);
+    -fx-background-radius: 20;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-width: 2;
+    -fx-border-radius: 20;
+    -fx-padding: 40;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 30, 0, 0, 10);
+}
+
+.ready-container {
+    -fx-alignment: center;
+    -fx-spacing: 30;
+}
+
+.ready-title {
+    -fx-font-size: 48px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffd93d;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 217, 61, 0.8), 20, 0, 0, 5);
+}
+
+.ready-instruction {
+    -fx-font-size: 24px;
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 10, 0, 0, 3);
+}
+
+.ready-confirmed {
+    -fx-text-fill: #6bcf7f;
+    -fx-font-weight: bold;
+}
+
+.ready-player-box {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 15;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 2;
+    -fx-border-radius: 15;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.3), 10, 0, 0, 3);
+}
+
+.ready-player-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffd93d;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 217, 61, 0.6), 15, 0, 0, 3);
+}
+
+/* ==============================================
    Game Over Buttons
    ============================================== */
 

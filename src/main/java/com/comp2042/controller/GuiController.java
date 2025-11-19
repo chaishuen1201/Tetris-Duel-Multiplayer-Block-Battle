@@ -79,6 +79,10 @@ public class GuiController implements Initializable {
     private PausePanel multiplayerPausePanel; // Separate pause panel for multiplayer
     private javafx.scene.layout.StackPane multiplayerPauseOverlay; // Overlay for multiplayer pause panel
     private javafx.scene.layout.StackPane multiplayerWrapper; // Wrapper StackPane to overlay pause panel on multiplayer container
+    private javafx.scene.layout.StackPane multiplayerReadyOverlay; // Overlay for ready panel
+    private BorderPane readyPanel; // Ready panel for multiplayer
+    private boolean player1Ready = false;
+    private boolean player2Ready = false;
     private GridPane gamePanel1, gamePanel2;
     private GridPane brickPanel1, brickPanel2;
     private GridPane ghostPanel1, ghostPanel2;
@@ -448,13 +452,167 @@ public class GuiController implements Initializable {
             }
         }
         
-        // Initialize and start multiplayer game
-        startMultiplayerGame();
+        // Show ready panel instead of starting game immediately
+        showReadyPanel();
         
-        // Attach keyboard handlers to the scene for multiplayer mode after game starts
+        // Attach keyboard handlers to the scene for ready state
         Platform.runLater(() -> {
             attachKeyboardHandlersToScene();
         });
+    }
+    
+    private void showReadyPanel() {
+        // Reset ready states
+        player1Ready = false;
+        player2Ready = false;
+        
+        // Create ready panel if it doesn't exist
+        if (readyPanel == null) {
+            readyPanel = new BorderPane();
+            readyPanel.getStyleClass().add("ready-panel");
+            
+            VBox mainContainer = new VBox(30);
+            mainContainer.getStyleClass().add("ready-container");
+            mainContainer.setAlignment(javafx.geometry.Pos.CENTER);
+            
+            // Title
+            Label titleLabel = new Label("GET READY!");
+            titleLabel.getStyleClass().add("ready-title");
+            
+            // Create two separate boxes for each player
+            HBox playersContainer = new HBox(40);
+            playersContainer.setAlignment(javafx.geometry.Pos.CENTER);
+            
+            // Player 1 box
+            VBox player1Box = new VBox(15);
+            player1Box.getStyleClass().add("ready-player-box");
+            player1Box.setAlignment(javafx.geometry.Pos.CENTER);
+            player1Box.setMinWidth(300);
+            player1Box.setMinHeight(150);
+            
+            Label player1Title = new Label("PLAYER 1");
+            player1Title.getStyleClass().add("ready-player-title");
+            
+            Label player1Label = new Label("Press SPACE to ready");
+            player1Label.getStyleClass().add("ready-instruction");
+            player1Label.setId("player1ReadyLabel");
+            
+            player1Box.getChildren().addAll(player1Title, player1Label);
+            
+            // Player 2 box
+            VBox player2Box = new VBox(15);
+            player2Box.getStyleClass().add("ready-player-box");
+            player2Box.setAlignment(javafx.geometry.Pos.CENTER);
+            player2Box.setMinWidth(300);
+            player2Box.setMinHeight(150);
+            
+            Label player2Title = new Label("PLAYER 2");
+            player2Title.getStyleClass().add("ready-player-title");
+            
+            Label player2Label = new Label("Press ENTER to ready");
+            player2Label.getStyleClass().add("ready-instruction");
+            player2Label.setId("player2ReadyLabel");
+            
+            player2Box.getChildren().addAll(player2Title, player2Label);
+            
+            playersContainer.getChildren().addAll(player1Box, player2Box);
+            
+            mainContainer.getChildren().addAll(titleLabel, playersContainer);
+            readyPanel.setCenter(mainContainer);
+        }
+        
+        // Create ready overlay if it doesn't exist
+        if (multiplayerReadyOverlay == null) {
+            multiplayerReadyOverlay = new javafx.scene.layout.StackPane();
+            multiplayerReadyOverlay.setAlignment(javafx.geometry.Pos.CENTER);
+            multiplayerReadyOverlay.setMaxWidth(Double.MAX_VALUE);
+            multiplayerReadyOverlay.setMaxHeight(Double.MAX_VALUE);
+            multiplayerReadyOverlay.setPickOnBounds(true);
+            multiplayerReadyOverlay.setMouseTransparent(false);
+            
+            readyPanel.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
+            multiplayerReadyOverlay.getChildren().add(readyPanel);
+        }
+        
+        // Add ready overlay to wrapper if it exists, otherwise add to centerVBox
+        if (multiplayerWrapper != null) {
+            // Check if ready overlay is already in wrapper
+            if (!multiplayerWrapper.getChildren().contains(multiplayerReadyOverlay)) {
+                multiplayerWrapper.getChildren().add(multiplayerReadyOverlay);
+            }
+            multiplayerReadyOverlay.setVisible(true);
+            multiplayerReadyOverlay.setManaged(true);
+        } else {
+            // Fallback: add to centerVBox if wrapper doesn't exist yet
+            BorderPane rootPane = getRootBorderPane();
+            if (rootPane != null && rootPane.getCenter() instanceof VBox) {
+                VBox centerVBox = (VBox) rootPane.getCenter();
+                if (!centerVBox.getChildren().contains(multiplayerReadyOverlay)) {
+                    centerVBox.getChildren().add(multiplayerReadyOverlay);
+                }
+                multiplayerReadyOverlay.setVisible(true);
+                multiplayerReadyOverlay.setManaged(true);
+            }
+        }
+        
+        // Update ready labels
+        updateReadyLabels();
+    }
+    
+    private void updateReadyLabels() {
+        if (readyPanel == null) return;
+        
+        javafx.scene.Node center = readyPanel.getCenter();
+        if (center instanceof VBox) {
+            VBox mainContainer = (VBox) center;
+            for (javafx.scene.Node node : mainContainer.getChildren()) {
+                if (node instanceof HBox) {
+                    HBox playersContainer = (HBox) node;
+                    for (javafx.scene.Node playerBoxNode : playersContainer.getChildren()) {
+                        if (playerBoxNode instanceof VBox) {
+                            VBox playerBox = (VBox) playerBoxNode;
+                            for (javafx.scene.Node labelNode : playerBox.getChildren()) {
+                                if (labelNode instanceof Label) {
+                                    Label label = (Label) labelNode;
+                                    if ("player1ReadyLabel".equals(label.getId())) {
+                                        if (player1Ready) {
+                                            label.setText("✓ READY");
+                                            if (!label.getStyleClass().contains("ready-confirmed")) {
+                                                label.getStyleClass().add("ready-confirmed");
+                                            }
+                                        } else {
+                                            label.setText("Press SPACE to ready");
+                                            label.getStyleClass().remove("ready-confirmed");
+                                        }
+                                    } else if ("player2ReadyLabel".equals(label.getId())) {
+                                        if (player2Ready) {
+                                            label.setText("✓ READY");
+                                            if (!label.getStyleClass().contains("ready-confirmed")) {
+                                                label.getStyleClass().add("ready-confirmed");
+                                            }
+                                        } else {
+                                            label.setText("Press ENTER to ready");
+                                            label.getStyleClass().remove("ready-confirmed");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private void checkBothReady() {
+        if (player1Ready && player2Ready) {
+            // Both players are ready, start the game
+            if (multiplayerReadyOverlay != null) {
+                multiplayerReadyOverlay.setVisible(false);
+                multiplayerReadyOverlay.setManaged(false);
+            }
+            startMultiplayerGame();
+        }
     }
     
     private void attachKeyboardHandlersToScene() {
@@ -511,6 +669,12 @@ public class GuiController implements Initializable {
     }
     
     private void startMultiplayerGame() {
+        // Hide ready panel if still visible
+        if (multiplayerReadyOverlay != null) {
+            multiplayerReadyOverlay.setVisible(false);
+            multiplayerReadyOverlay.setManaged(false);
+        }
+        
         // Create game controllers for both players
         gameController1 = new GameController(this, 1);
         gameController2 = new GameController(this, 2);
@@ -522,6 +686,10 @@ public class GuiController implements Initializable {
         // Reset hard drop processing flags
         isHardDropProcessing1 = false;
         isHardDropProcessing2 = false;
+        
+        // Reset ready states
+        player1Ready = false;
+        player2Ready = false;
         
         // Start the game
         gameStarted = true;
@@ -1097,7 +1265,20 @@ public class GuiController implements Initializable {
         // Handle multiplayer mode
         if (isMultiplayerMode) {
             if (!gameStarted) {
-                // In multiplayer, game starts immediately, so we shouldn't get here
+                // Handle ready state
+                if (keyEvent.getCode() == KeyCode.SPACE && !player1Ready) {
+                    player1Ready = true;
+                    updateReadyLabels();
+                    checkBothReady();
+                    keyEvent.consume();
+                    return;
+                } else if (keyEvent.getCode() == KeyCode.ENTER && !player2Ready) {
+                    player2Ready = true;
+                    updateReadyLabels();
+                    checkBothReady();
+                    keyEvent.consume();
+                    return;
+                }
                 return;
             }
             handleMultiplayerKeyPress(keyEvent);
