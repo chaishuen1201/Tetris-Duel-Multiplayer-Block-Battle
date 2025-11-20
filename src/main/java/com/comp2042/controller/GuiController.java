@@ -695,6 +695,19 @@ public class GuiController implements Initializable {
         gameStarted = true;
         isPause.set(false);
         
+        // Hide pause panel if visible
+        if (multiplayerPauseOverlay != null) {
+            multiplayerPauseOverlay.setVisible(false);
+            multiplayerPauseOverlay.setManaged(false);
+            multiplayerPauseOverlay.setMouseTransparent(true);
+        }
+        if (pausePanel != null) {
+            pausePanel.setVisible(false);
+        }
+        if (pauseButton != null) {
+            pauseButton.setText("Pause");
+        }
+        
         // Start both timelines
         if (timeLine1 != null) {
             timeLine1.play();
@@ -1255,9 +1268,19 @@ public class GuiController implements Initializable {
     }
 
     private void handleKeyPress(KeyEvent keyEvent) {
-        // Handle P key for pause first (works in all states and modes)
+        // Handle P key for pause (only when game is playing)
         if (keyEvent.getCode() == KeyCode.P) {
-            pauseGame(null);
+            // Only allow pause when game is started and not game over
+            if (gameStarted && !isGameOver.get()) {
+                if (isMultiplayerMode) {
+                    // For multiplayer, also check that neither player has lost
+                    if (!isGameOver1.get() && !isGameOver2.get()) {
+                        pauseGame(null);
+                    }
+                } else {
+                    pauseGame(null);
+                }
+            }
             keyEvent.consume();
             return;
         }
@@ -1860,6 +1883,16 @@ public class GuiController implements Initializable {
                     gameOverSound.seek(Duration.ZERO);
                     gameOverSound.play();
                 }
+                // Hide pause panel if visible
+                if (multiplayerPauseOverlay != null) {
+                    multiplayerPauseOverlay.setVisible(false);
+                    multiplayerPauseOverlay.setManaged(false);
+                    multiplayerPauseOverlay.setMouseTransparent(true);
+                }
+                if (pausePanel != null) {
+                    pausePanel.setVisible(false);
+                }
+                isPause.set(false);
                 // Could show a multiplayer game over screen here
             }
             return;
@@ -1882,6 +1915,16 @@ public class GuiController implements Initializable {
         if (bottomPanel != null) {
             bottomPanel.setVisible(false);
         }
+        // Hide pause panel if visible
+        if (pausePanel != null) {
+            pausePanel.setVisible(false);
+        }
+        if (multiplayerPauseOverlay != null) {
+            multiplayerPauseOverlay.setVisible(false);
+            multiplayerPauseOverlay.setManaged(false);
+            multiplayerPauseOverlay.setMouseTransparent(true);
+        }
+        isPause.set(false);
         if (gameOverPanel != null) {
             // Get current score from scoreLabel
             int currentScore = 0;
@@ -2038,6 +2081,20 @@ public class GuiController implements Initializable {
         if (pausePanel != null) {
             pausePanel.setVisible(false);
         }
+        
+        // Make game panel and brick panel visible for new game
+        if (gamePanel != null) {
+            gamePanel.setVisible(true);
+        }
+        if (brickPanel != null) {
+            brickPanel.setVisible(true);
+        }
+        if (ghostPanel != null && settingsPanel != null) {
+            // Check if ghost piece checkbox is selected
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            ghostPanel.setVisible(showGhost);
+        }
     }
 
     public void startGame() {
@@ -2059,6 +2116,21 @@ public class GuiController implements Initializable {
         // Stop main menu music during countdown
         if (mainMenuMusic != null) {
             mainMenuMusic.stop();
+        }
+        
+        // Make game panel visible during countdown so grid is visible
+        if (gamePanel != null) {
+            gamePanel.setVisible(true);
+        }
+        // Make brick panel and ghost panel visible during countdown
+        if (brickPanel != null) {
+            brickPanel.setVisible(true);
+        }
+        if (ghostPanel != null && settingsPanel != null) {
+            // Check if ghost piece checkbox is selected
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            ghostPanel.setVisible(showGhost);
         }
         
         // Play countdown sound
@@ -2140,7 +2212,10 @@ public class GuiController implements Initializable {
             }
         }
         
-        // Make brick panel and ghost panel visible
+        // Make game panel, brick panel and ghost panel visible
+        if (gamePanel != null) {
+            gamePanel.setVisible(true);
+        }
         if (brickPanel != null) {
             brickPanel.setVisible(true);
         }
@@ -2181,6 +2256,22 @@ public class GuiController implements Initializable {
     }
 
     public void pauseGame(ActionEvent actionEvent) {
+        // Only allow pause/resume when game is actually playing
+        if (!gameStarted) {
+            return; // Game hasn't started, don't allow pause
+        }
+        
+        // Check if game is over - if so, don't allow pause
+        if (isMultiplayerMode) {
+            if (isGameOver1.get() || isGameOver2.get()) {
+                return; // Game is over, don't allow pause
+            }
+        } else {
+            if (isGameOver.get()) {
+                return; // Game is over, don't allow pause
+            }
+        }
+        
         if (isMultiplayerMode) {
             if (!isPause.get()) {
                 // Pause the game
@@ -2370,6 +2461,65 @@ public class GuiController implements Initializable {
                 pauseButton.setText("Pause");
             }
             
+            // For single player mode, clear the game board display
+            if (!isMultiplayerMode) {
+                // Reset the game board state
+                if (eventListener != null) {
+                    eventListener.createNewGame();
+                }
+                // Clear the game board display
+                if (displayMatrix != null) {
+                    for (int i = 0; i < displayMatrix.length; i++) {
+                        for (int j = 0; j < displayMatrix[i].length; j++) {
+                            if (displayMatrix[i][j] != null) {
+                                displayMatrix[i][j].setFill(getFillColor(0));
+                            }
+                        }
+                    }
+                }
+                // Clear next bricks display
+                if (nextBrickPanes != null) {
+                    for (GridPane pane : nextBrickPanes) {
+                        if (pane != null) {
+                            pane.getChildren().clear();
+                            // Re-initialize empty cells
+                            for (int r = 0; r < 4; r++) {
+                                for (int c = 0; c < 4; c++) {
+                                    Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
+                                    rect.setFill(Color.TRANSPARENT);
+                                    pane.add(rect, c, r);
+                                }
+                            }
+                        }
+                    }
+                }
+                // Clear hold brick display
+                if (holdBrickRectangles != null) {
+                    for (int i = 0; i < holdBrickRectangles.length; i++) {
+                        for (int j = 0; j < holdBrickRectangles[i].length; j++) {
+                            if (holdBrickRectangles[i][j] != null) {
+                                holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                            }
+                        }
+                    }
+                }
+                // Clear current brick display and ghost panel
+                if (brickPanel != null) {
+                    brickPanel.getChildren().clear();
+                    brickPanel.setVisible(false);
+                }
+                if (ghostPanel != null) {
+                    ghostPanel.getChildren().clear();
+                    ghostPanel.setVisible(false);
+                }
+                // Hide game panel (background grid) but keep gameBoard visible for main menu
+                if (gamePanel != null) {
+                    gamePanel.setVisible(false);
+                }
+                // Keep gameBoard visible so main menu can be shown
+                // The main menu panel is inside gameBoard's StackPane
+            }
+            
             // If multiplayer, restore single player view
             if (isMultiplayerMode) {
                 isMultiplayerMode = false;
@@ -2480,12 +2630,22 @@ public class GuiController implements Initializable {
                 mainMenuPanel.setVisible(true);
             }
             
+            // Ensure gameBoard is visible for single player mode (main menu is inside it)
+            if (!isMultiplayerMode && gameBoard != null) {
+                gameBoard.setVisible(true);
+                gameBoard.setManaged(true);
+            }
+            
             // Hide game board panels
             if (brickPanel != null) {
                 brickPanel.setVisible(false);
             }
             if (ghostPanel != null) {
                 ghostPanel.setVisible(false);
+            }
+            // Hide game panel (background grid) for single player mode
+            if (!isMultiplayerMode && gamePanel != null) {
+                gamePanel.setVisible(false);
             }
         });
     }
