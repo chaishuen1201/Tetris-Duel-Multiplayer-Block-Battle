@@ -45,6 +45,14 @@ public class GameController implements InputEventListener {
             clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
                 board.getScore().add(clearRow.getScoreBonus());
+                
+                // Send garbage to opponent in multiplayer mode
+                if (playerNumber > 0) {
+                    int garbageToSend = calculateGarbageToSend(clearRow.getLinesRemoved());
+                    if (garbageToSend > 0) {
+                        viewGuiController.sendGarbageToOpponent(playerNumber, garbageToSend);
+                    }
+                }
             }
             if (board.createNewBrick()) {
                 viewGuiController.gameOver(playerNumber);
@@ -105,6 +113,14 @@ public class GameController implements InputEventListener {
             clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
                 board.getScore().add(clearRow.getScoreBonus());
+                
+                // Send garbage to opponent in multiplayer mode
+                if (playerNumber > 0) {
+                    int garbageToSend = calculateGarbageToSend(clearRow.getLinesRemoved());
+                    if (garbageToSend > 0) {
+                        viewGuiController.sendGarbageToOpponent(playerNumber, garbageToSend);
+                    }
+                }
             }
             if (board.createNewBrick()) {
                 viewGuiController.gameOver(playerNumber);
@@ -153,6 +169,36 @@ public class GameController implements InputEventListener {
     // Get player number
     public int getPlayerNumber() {
         return playerNumber;
+    }
+    
+    /**
+     * Calculates how many garbage lines to send based on lines cleared.
+     * Rules:
+     * - Single (1 line): 0 garbage lines
+     * - Double (2 lines): 1 garbage line
+     * - Triple (3 lines): 2 garbage lines
+     * - Tetris (4 lines): 4 garbage lines
+     */
+    private int calculateGarbageToSend(int linesCleared) {
+        switch (linesCleared) {
+            case 1:
+                return 0; // Single line clear doesn't send garbage
+            case 2:
+                return 1; // Double sends 1 garbage line
+            case 3:
+                return 2; // Triple sends 2 garbage lines
+            case 4:
+                return 4; // Tetris sends 4 garbage lines
+            default:
+                return 0;
+        }
+    }
+    
+    /**
+     * Gets the board instance (for garbage processing).
+     */
+    public SimpleBoard getSimpleBoard() {
+        return board instanceof SimpleBoard ? (SimpleBoard) board : null;
     }
 }
 

@@ -16,6 +16,7 @@ import com.comp2042.view.SettingsPanel;
 import com.comp2042.view.WinningPanel;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
+import com.comp2042.util.MatrixOperations;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
@@ -106,6 +107,7 @@ public class GuiController implements Initializable {
     // Multiplayer game controllers and timelines
     private GameController gameController1, gameController2;
     private Timeline timeLine1, timeLine2;
+    private Timeline garbageProcessTimeline1, garbageProcessTimeline2; // Timelines for processing garbage queues
     private InputEventListener eventListener1, eventListener2;
     private ViewData currentBrickData1, currentBrickData2;
     private BooleanProperty isGameOver1 = new SimpleBooleanProperty(false);
@@ -920,6 +922,9 @@ public class GuiController implements Initializable {
             timeLine2.play();
         }
         
+        // Start garbage processing timelines
+        startGarbageProcessingTimelines();
+        
         // Start game music
         if (gameMusic != null) {
             if (mainMenuMusic != null) {
@@ -1205,21 +1210,44 @@ public class GuiController implements Initializable {
         gameFieldContainer.getStyleClass().add("player-field");
         
         // Game field container - match exact height, adjust width proportionally
+        // BorderPane needs to be larger than grid to accommodate the 4px border
+        // In JavaFX, CSS borders are drawn inside the node bounds, so we need to add border width
         BorderPane gameFieldBoard = new BorderPane();
         gameFieldBoard.getStyleClass().add("gameBoard");
-        // Set exact height to match side panel, width scales proportionally
-        gameFieldBoard.setPrefHeight(panelHeight);
-        gameFieldBoard.setMaxHeight(panelHeight);
-        gameFieldBoard.setMinHeight(panelHeight);
-        gameFieldBoard.setPrefWidth(panelWidth);
-        gameFieldBoard.setMaxWidth(panelWidth);
-        gameFieldBoard.setMinWidth(panelWidth);
+        // Set size to accommodate border: add 8px (4px border on each side) to both dimensions
+        int borderWidth = 8; // 4px border on each side
+        gameFieldBoard.setPrefHeight(panelHeight + borderWidth);
+        gameFieldBoard.setMaxHeight(panelHeight + borderWidth);
+        gameFieldBoard.setMinHeight(panelHeight + borderWidth);
+        gameFieldBoard.setPrefWidth(panelWidth + borderWidth);
+        gameFieldBoard.setMaxWidth(panelWidth + borderWidth);
+        gameFieldBoard.setMinWidth(panelWidth + borderWidth);
+        
+        // Use a simple Pane with exact pixel positioning to eliminate any gaps
+        Pane borderWrapper = new Pane();
+        borderWrapper.setPrefSize(panelWidth + borderWidth, panelHeight + borderWidth);
+        borderWrapper.setMaxSize(panelWidth + borderWidth, panelHeight + borderWidth);
+        borderWrapper.setMinSize(panelWidth + borderWidth, panelHeight + borderWidth);
+        // Remove any default padding
+        borderWrapper.setPadding(javafx.geometry.Insets.EMPTY);
         
         StackPane gameFieldStack = new StackPane();
-        // Match exact dimensions - fill the entire gameFieldBoard
+        // Set exact size to match grid dimensions
         gameFieldStack.setPrefSize(panelWidth, panelHeight);
         gameFieldStack.setMaxSize(panelWidth, panelHeight);
         gameFieldStack.setMinSize(panelWidth, panelHeight);
+        // Remove any default padding/alignment that might cause gaps
+        gameFieldStack.setPadding(javafx.geometry.Insets.EMPTY);
+        gameFieldStack.setAlignment(javafx.geometry.Pos.TOP_LEFT);
+        
+        // Position the StackPane exactly at the border offset using layoutX/Y
+        // Use 3px top offset instead of 4px to extend grid down and eliminate bottom gap
+        int borderOffset = 4; // Border width from CSS
+        gameFieldStack.setLayoutX(borderOffset);
+        gameFieldStack.setLayoutY(borderOffset - 1); // Start 1px higher to extend down and close bottom gap
+        // Enable pixel snapping for crisp rendering
+        borderWrapper.setSnapToPixel(true);
+        gameFieldStack.setSnapToPixel(true);
         
         // Initialize display matrix for this player
         Rectangle[][] matrix;
@@ -1280,7 +1308,9 @@ public class GuiController implements Initializable {
         // Add panels to stack (layered)
         gameFieldStack.getChildren().addAll(gameFieldPanel, gameFieldGhostPanel, gameFieldBrickPanel);
         
-        gameFieldBoard.setCenter(gameFieldStack);
+        // Add StackPane to wrapper and set wrapper as center
+        borderWrapper.getChildren().add(gameFieldStack);
+        gameFieldBoard.setCenter(borderWrapper);
         // Add only game field board (no player label - it's at the top of player container)
         gameFieldContainer.getChildren().add(gameFieldBoard);
         
@@ -2060,6 +2090,137 @@ public class GuiController implements Initializable {
             linesLabel.textProperty().bind(lines.asString("Lines: %d"));
         }
     }
+    
+    /**
+     * Sends garbage to the opponent's queue when lines are cleared in multiplayer mode.
+     * @param fromPlayerNumber The player number who cleared lines (1 or 2)
+     * @param numGarbageLines Number of garbage lines to send
+     */
+    public void sendGarbageToOpponent(int fromPlayerNumber, int numGarbageLines) {
+        if (!isMultiplayerMode || numGarbageLines <= 0) {
+            return;
+        }
+        
+        // Determine opponent's player number
+        int opponentNumber = (fromPlayerNumber == 1) ? 2 : 1;
+        
+        // Get the opponent's game controller
+        GameController opponentController = (opponentNumber == 1) ? gameController1 : gameController2;
+        
+        if (opponentController != null) {
+            SimpleBoard opponentBoard = opponentController.getSimpleBoard();
+            if (opponentBoard != null) {
+                opponentBoard.addGarbageToQueue(numGarbageLines);
+                // Process garbage immediately instead of waiting for timeline
+                // This ensures garbage appears right away
+                Platform.runLater(() -> {
+                    if (opponentBoard.getPendingGarbageCount() > 0) {
+                        processGarbageQueue(opponentNumber);
+                    }
+                });
+            }
+        }
+    }
+    
+    /**
+     * Processes garbage queue for a player, adding pending garbage lines to the board.
+     * This should be called periodically or after certain game events.
+     * @param playerNumber The player number (1 or 2)
+     */
+    private void processGarbageQueue(int playerNumber) {
+        if (!isMultiplayerMode || playerNumber <= 0) {
+            return;
+        }
+        
+        BooleanProperty isGameOverProp = (playerNumber == 1) ? isGameOver1 : isGameOver2;
+        if (isGameOverProp.get() || isPause.get()) {
+            return;
+        }
+        
+        GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
+        if (controller == null) {
+            return;
+        }
+        
+        SimpleBoard board = controller.getSimpleBoard();
+        if (board == null) {
+            return;
+        }
+        
+        // Only process if there's pending garbage
+        if (board.getPendingGarbageCount() > 0) {
+            // Process one garbage line at a time to give player time to react
+            boolean potentialGameOver = board.processGarbageQueue();
+            
+            // Refresh the display
+            refreshGameBackground(board.getBoardMatrix(), playerNumber);
+            
+            // Check if game over after adding garbage
+            if (potentialGameOver) {
+                // Get current view data to check brick position
+                ViewData viewData = board.getViewData();
+                if (viewData != null) {
+                    // Check if the current brick position is blocked
+                    if (MatrixOperations.intersect(board.getBoardMatrix(), 
+                            viewData.getBrickData(), 
+                            viewData.getXPosition(), 
+                            viewData.getYPosition())) {
+                        gameOver(playerNumber);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Starts garbage processing timelines for both players in multiplayer mode.
+     * Garbage lines appear gradually (one every 2 seconds) to give players time to react.
+     */
+    private void startGarbageProcessingTimelines() {
+        if (!isMultiplayerMode) {
+            return;
+        }
+        
+        // Stop existing timelines if any
+        if (garbageProcessTimeline1 != null) {
+            garbageProcessTimeline1.stop();
+        }
+        if (garbageProcessTimeline2 != null) {
+            garbageProcessTimeline2.stop();
+        }
+        
+        // Create timeline for player 1 - process garbage every 2 seconds
+        garbageProcessTimeline1 = new Timeline(new KeyFrame(Duration.seconds(2), ae -> {
+            if (!isPause.get() && !isGameOver1.get()) {
+                processGarbageQueue(1);
+            }
+        }));
+        garbageProcessTimeline1.setCycleCount(Timeline.INDEFINITE);
+        
+        // Create timeline for player 2 - process garbage every 2 seconds
+        garbageProcessTimeline2 = new Timeline(new KeyFrame(Duration.seconds(2), ae -> {
+            if (!isPause.get() && !isGameOver2.get()) {
+                processGarbageQueue(2);
+            }
+        }));
+        garbageProcessTimeline2.setCycleCount(Timeline.INDEFINITE);
+        
+        // Start both timelines
+        garbageProcessTimeline1.play();
+        garbageProcessTimeline2.play();
+    }
+    
+    /**
+     * Stops garbage processing timelines.
+     */
+    private void stopGarbageProcessingTimelines() {
+        if (garbageProcessTimeline1 != null) {
+            garbageProcessTimeline1.stop();
+        }
+        if (garbageProcessTimeline2 != null) {
+            garbageProcessTimeline2.stop();
+        }
+    }
 
     public void gameOver() {
         gameOver(0);
@@ -2080,6 +2241,9 @@ public class GuiController implements Initializable {
                 if (timeLine1 != null) timeLine1.stop();
             }
             
+            // Stop garbage processing timelines
+            stopGarbageProcessingTimelines();
+            
             // Hide pause panel if visible
             if (multiplayerPauseOverlay != null) {
                 multiplayerPauseOverlay.setVisible(false);
@@ -2097,11 +2261,14 @@ public class GuiController implements Initializable {
             }
             
             // If only one player is game over, show winning panel for the other player
+            // Also set the winning player's game over flag to prevent further input
             if (isGameOver1.get() && !isGameOver2.get()) {
-                // Player 1 lost, Player 2 wins
+                // Player 1 lost, Player 2 wins - stop Player 2 from controlling
+                isGameOver2.set(true);
                 showWinningPanel(2);
             } else if (isGameOver2.get() && !isGameOver1.get()) {
-                // Player 2 lost, Player 1 wins
+                // Player 2 lost, Player 1 wins - stop Player 1 from controlling
+                isGameOver1.set(true);
                 showWinningPanel(1);
             } else if (isGameOver1.get() && isGameOver2.get()) {
                 // Both players are game over
@@ -2537,6 +2704,13 @@ public class GuiController implements Initializable {
                 if (pauseButton != null) {
                     pauseButton.setText("Resume");
                 }
+                // Pause garbage processing timelines
+                if (garbageProcessTimeline1 != null) {
+                    garbageProcessTimeline1.pause();
+                }
+                if (garbageProcessTimeline2 != null) {
+                    garbageProcessTimeline2.pause();
+                }
                 // Show pause panel for multiplayer
                 if (multiplayerPauseOverlay != null && multiplayerPausePanel != null) {
                     multiplayerPauseOverlay.setVisible(true);
@@ -2554,6 +2728,13 @@ public class GuiController implements Initializable {
                 isPause.set(false);
                 if (pauseButton != null) {
                     pauseButton.setText("Pause");
+                }
+                // Resume garbage processing timelines
+                if (garbageProcessTimeline1 != null) {
+                    garbageProcessTimeline1.play();
+                }
+                if (garbageProcessTimeline2 != null) {
+                    garbageProcessTimeline2.play();
                 }
                 // Hide pause panel for multiplayer
                 if (multiplayerPauseOverlay != null) {
@@ -2789,12 +2970,15 @@ public class GuiController implements Initializable {
                 isMultiplayerMode = false;
                 
                 // Clear multiplayer controllers and listeners
+                stopGarbageProcessingTimelines();
                 gameController1 = null;
                 gameController2 = null;
                 eventListener1 = null;
                 eventListener2 = null;
                 timeLine1 = null;
                 timeLine2 = null;
+                garbageProcessTimeline1 = null;
+                garbageProcessTimeline2 = null;
                 
                 // Hide multiplayer container and wrapper
                 if (multiplayerContainer != null) {

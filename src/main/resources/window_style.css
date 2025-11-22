@@ -44,7 +44,7 @@
 }
 
 .main-menu-title {
-    -fx-font-size: 34px;
+    -fx-font-size: 32px;
     -fx-font-weight: bold;
     -fx-text-fill: linear-gradient(to bottom, #ff6b6b, #ffd93d, #6bcf7f);
     -fx-effect: dropshadow(three-pass-box, rgba(255, 107, 107, 0.6), 20, 0, 0, 5);
@@ -689,7 +689,7 @@
     }
 
     .main-menu-title {
-        -fx-font-size: 48px;
+        -fx-font-size: 32px;
     }
 
     .menu-button {

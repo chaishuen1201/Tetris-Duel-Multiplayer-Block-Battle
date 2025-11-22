@@ -30,6 +30,7 @@ public class SimpleBoard implements Board {
     private Brick heldBrick;
     private boolean canHold = true;
     private Brick currentBrick;
+    private GarbageQueue garbageQueue;
 
     public SimpleBoard(int width, int height) {
         this.width = width;
@@ -38,6 +39,7 @@ public class SimpleBoard implements Board {
         this.brickGenerator = new RandomBrickGenerator();
         this.brickRotator = new BrickRotator();
         this.score = new Score();
+        this.garbageQueue = new GarbageQueue(width);
     }
 
     @Override
@@ -160,6 +162,17 @@ public class SimpleBoard implements Board {
         ClearRow clearRow = MatrixOperations.checkRemoving(currentGameMatrix);
         currentGameMatrix = clearRow.getNewMatrix();
         if (clearRow.getLinesRemoved() > 0) {
+            // IMPORTANT: Only remove garbage from THIS player's own board and queue
+            // Each player has their own isolated garbageQueue instance
+            
+            // Remove garbage rows from THIS board (from bottom upward)
+            // Each cleared line removes one garbage row from the bottom of THIS board
+            removeGarbageRowsFromBoard(clearRow.getLinesRemoved());
+            
+            // Counter incoming garbage in THIS player's queue only
+            // This only affects this board's own garbageQueue, not the opponent's
+            counterGarbage(clearRow.getLinesRemoved());
+            
             int newLines = lines.get() + clearRow.getLinesRemoved();
             lines.set(newLines);
             // Update level based on lines cleared
@@ -188,6 +201,9 @@ public class SimpleBoard implements Board {
         lines.set(0);
         heldBrick = null;
         canHold = true;
+        if (garbageQueue != null) {
+            garbageQueue.clear();
+        }
         createNewBrick();
     }
 
@@ -290,6 +306,152 @@ public class SimpleBoard implements Board {
             currentOffset = new Point(INITIAL_X, INITIAL_Y);
         }
         canHold = false;
+    }
+    
+    /**
+     * Adds garbage lines to the queue.
+     * @param numLines Number of garbage lines to add
+     */
+    public void addGarbageToQueue(int numLines) {
+        if (garbageQueue != null && numLines > 0) {
+            garbageQueue.addGarbage(numLines);
+        }
+    }
+    
+    /**
+     * Processes pending garbage from the queue and adds it to the bottom of the board.
+     * Returns true if garbage was added, false otherwise.
+     * 
+     * The matrix is structured as [width][height] = [20][10].
+     * Looking at checkRemoving and how the matrix is accessed:
+     * - matrix.length = 20 (width)
+     * - matrix[i].length = 10 (height)
+     * - matrix[i] represents a row (i from 0 to 19)
+     * - matrix[i][j] represents column j in row i (j from 0 to 9)
+     * So we have 20 rows and 10 columns, which matches BOARD_HEIGHT=20 and BOARD_WIDTH=10.
+     * The bottom row is at index width-1 = 19.
+     */
+    public boolean processGarbageQueue() {
+        if (garbageQueue == null || garbageQueue.isEmpty()) {
+            return false;
+        }
+        
+        int[] garbageLine = garbageQueue.pollGarbageLine();
+        if (garbageLine == null) {
+            return false;
+        }
+        
+        // The matrix is [width][height] = [20][10]
+        // matrix[i] is a row (i from 0 to 19), matrix[i][j] is column j in row i (j from 0 to 9)
+        // We need to shift all rows up: move row i+1 to row i
+        for (int row = 0; row < width - 1; row++) {
+            System.arraycopy(currentGameMatrix[row + 1], 0, currentGameMatrix[row], 0, height);
+        }
+        
+        // Add the garbage line at the bottom row (width - 1 = 19, which is the last row)
+        System.arraycopy(garbageLine, 0, currentGameMatrix[width - 1], 0, height);
+        
+        // Check if game over (if new brick can't be placed)
+        if (MatrixOperations.intersect(currentGameMatrix, brickRotator.getCurrentShape(), 
+                (int) currentOffset.getX(), (int) currentOffset.getY())) {
+            return true; // Indicates potential game over
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Removes garbage rows from THIS player's board (from bottom upward).
+     * Each cleared line removes one garbage row from the bottom of THIS player's board.
+     * A garbage row is a row where all non-zero cells are type 8 (garbage blocks).
+     * 
+     * IMPORTANT: This method only operates on this board's own currentGameMatrix.
+     * It cannot affect any other player's board since each SimpleBoard has its own matrix instance.
+     * 
+     * @param numRowsToRemove Number of garbage rows to remove from THIS board
+     * @return Number of garbage rows actually removed from THIS board
+     */
+    private int removeGarbageRowsFromBoard(int numRowsToRemove) {
+        if (numRowsToRemove <= 0) {
+            return 0;
+        }
+        
+        int removed = 0;
+        // Start from the bottom row and work upward
+        // The matrix is [width][height] = [20][10], where matrix[i] is a row
+        // Bottom row is at index width - 1 = 19
+        // This currentGameMatrix is instance-specific to this board
+        int currentRow = width - 1;
+        
+        while (currentRow >= 0 && removed < numRowsToRemove) {
+            // Check if this row is a garbage row (all non-zero cells are type 8)
+            boolean isGarbageRow = true;
+            boolean hasAnyBlocks = false;
+            
+            for (int col = 0; col < height; col++) {
+                int cellValue = currentGameMatrix[currentRow][col];
+                if (cellValue != 0) {
+                    hasAnyBlocks = true;
+                    // If any cell is not garbage (type 8), it's not a pure garbage row
+                    if (cellValue != 8) {
+                        isGarbageRow = false;
+                        break;
+                    }
+                }
+            }
+            
+            // Only remove if it's a garbage row (has blocks and they're all type 8)
+            // This only affects this board's own matrix, never the opponent's
+            if (isGarbageRow && hasAnyBlocks) {
+                // Shift all rows above this one down by one position
+                for (int r = currentRow; r < width - 1; r++) {
+                    System.arraycopy(currentGameMatrix[r + 1], 0, currentGameMatrix[r], 0, height);
+                }
+                // Clear the top row (add empty row at the top)
+                for (int col = 0; col < height; col++) {
+                    currentGameMatrix[width - 1][col] = 0;
+                }
+                removed++;
+                // Don't change currentRow - check the same position again since rows shifted down
+            } else {
+                // Not a garbage row, move up to check the next row
+                currentRow--;
+            }
+        }
+        
+        return removed;
+    }
+    
+    /**
+     * Counters incoming garbage by removing lines from THIS player's queue when THIS player clears lines.
+     * This method only affects the garbage queue of the board instance it's called on.
+     * Each player has their own isolated garbageQueue, so this will never affect the opponent's queue.
+     * 
+     * @param linesCleared Number of lines cleared by THIS player
+     * @return Number of garbage lines that were countered from THIS player's queue
+     */
+    public int counterGarbage(int linesCleared) {
+        if (garbageQueue == null || linesCleared <= 0) {
+            return 0;
+        }
+        
+        // Each line cleared counters one garbage line from THIS player's own queue
+        // This garbageQueue is instance-specific and cannot affect other players' queues
+        return garbageQueue.removeGarbage(linesCleared);
+    }
+    
+    /**
+     * Gets the number of pending garbage lines.
+     */
+    public int getPendingGarbageCount() {
+        return garbageQueue != null ? garbageQueue.size() : 0;
+    }
+    
+    /**
+     * Gets the garbage queue (for external access if needed).
+     */
+    public GarbageQueue getGarbageQueue() {
+        return garbageQueue;
     }
 }
 
