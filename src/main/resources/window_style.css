@@ -525,6 +525,45 @@
 }
 
 /* ==============================================
+   Winning Panel Styles
+   ============================================== */
+
+.winning-panel {
+    -fx-background-color: rgba(0, 0, 0, 0.85);
+    -fx-background-radius: 20;
+    -fx-border-color: rgba(255, 215, 0, 0.5);
+    -fx-border-width: 3;
+    -fx-border-radius: 20;
+    -fx-padding: 40;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 215, 0, 0.6), 30, 0, 0, 10);
+}
+
+.winning-container {
+    -fx-alignment: center;
+    -fx-spacing: 25;
+}
+
+.winning-title {
+    -fx-font-size: 56px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffd700;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 215, 0, 0.9), 25, 0, 0, 5);
+}
+
+.winning-player-label {
+    -fx-font-size: 42px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffeb3b;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.8), 20, 0, 0, 4);
+}
+
+.winning-message {
+    -fx-font-size: 20px;
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 10, 0, 0, 3);
+}
+
+/* ==============================================
    Game Over Buttons
    ============================================== */
 

@@ -13,6 +13,7 @@ import com.comp2042.view.PausePanel;
 import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.NotificationPanel;
 import com.comp2042.view.SettingsPanel;
+import com.comp2042.view.WinningPanel;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
 import javafx.animation.KeyFrame;
@@ -81,7 +82,9 @@ public class GuiController implements Initializable {
     private javafx.scene.layout.StackPane multiplayerSettingsOverlay; // Overlay for multiplayer settings panel
     private javafx.scene.layout.StackPane multiplayerWrapper; // Wrapper StackPane to overlay pause panel on multiplayer container
     private javafx.scene.layout.StackPane multiplayerReadyOverlay; // Overlay for ready panel
+    private javafx.scene.layout.StackPane multiplayerWinningOverlay; // Overlay for winning panel
     private BorderPane readyPanel; // Ready panel for multiplayer
+    private com.comp2042.view.WinningPanel multiplayerWinningPanel; // Winning panel for multiplayer
     private boolean player1Ready = false;
     private boolean player2Ready = false;
     private GridPane gamePanel1, gamePanel2;
@@ -136,6 +139,7 @@ public class GuiController implements Initializable {
     private MediaPlayer gameOverSound;
     private MediaPlayer lineClearSound;
     private MediaPlayer mainMenuMusic;
+    private MediaPlayer winnerSound;
     
     // Volume control
     private double currentVolume = 0.5; // Default volume (50%)
@@ -244,6 +248,13 @@ public class GuiController implements Initializable {
                 mainMenuMusic.setCycleCount(MediaPlayer.INDEFINITE);
             }
             
+            // Winner sound
+            URL winnerUrl = getClass().getClassLoader().getResource("audio/winners_W9Cpenj.mp3");
+            if (winnerUrl != null) {
+                Media winnerMedia = new Media(winnerUrl.toExternalForm());
+                winnerSound = new MediaPlayer(winnerMedia);
+            }
+            
             // Apply initial volume to all players
             applyVolumeToAllPlayers(currentVolume);
         } catch (Exception e) {
@@ -314,6 +325,9 @@ public class GuiController implements Initializable {
         }
         if (mainMenuMusic != null) {
             mainMenuMusic.setVolume(volume);
+        }
+        if (winnerSound != null) {
+            winnerSound.setVolume(volume);
         }
     }
     
@@ -411,6 +425,36 @@ public class GuiController implements Initializable {
                     }
                 }
             }
+        }
+    }
+    
+    private void showWinningPanel(int winnerPlayerNumber) {
+        if (multiplayerWinningOverlay != null && multiplayerWinningPanel != null) {
+            // Set the winner
+            multiplayerWinningPanel.setWinner(winnerPlayerNumber);
+            // Show winning overlay
+            multiplayerWinningOverlay.setVisible(true);
+            multiplayerWinningOverlay.setManaged(true);
+            multiplayerWinningOverlay.setMouseTransparent(false);
+            // Bring winning overlay to front
+            if (multiplayerWrapper != null && multiplayerWrapper.getChildren().contains(multiplayerWinningOverlay)) {
+                multiplayerWrapper.getChildren().remove(multiplayerWinningOverlay);
+                multiplayerWrapper.getChildren().add(multiplayerWinningOverlay);
+            }
+            // Play winner sound
+            if (winnerSound != null) {
+                winnerSound.stop();
+                winnerSound.seek(Duration.ZERO);
+                winnerSound.play();
+            }
+        }
+    }
+    
+    private void hideWinningPanel() {
+        if (multiplayerWinningOverlay != null) {
+            multiplayerWinningOverlay.setVisible(false);
+            multiplayerWinningOverlay.setManaged(false);
+            multiplayerWinningOverlay.setMouseTransparent(true);
         }
     }
     
@@ -576,6 +620,24 @@ public class GuiController implements Initializable {
                     // Add settings overlay to wrapper (on top of pause overlay)
                     // Note: settingsPanel will be moved here dynamically when needed
                     multiplayerWrapper.getChildren().add(multiplayerSettingsOverlay);
+                    
+                    // Create winning panel overlay for multiplayer mode
+                    multiplayerWinningOverlay = new javafx.scene.layout.StackPane();
+                    multiplayerWinningOverlay.setAlignment(javafx.geometry.Pos.CENTER);
+                    multiplayerWinningOverlay.setMaxWidth(Double.MAX_VALUE);
+                    multiplayerWinningOverlay.setMaxHeight(Double.MAX_VALUE);
+                    multiplayerWinningOverlay.setPickOnBounds(true);
+                    multiplayerWinningOverlay.setMouseTransparent(false);
+                    
+                    // Create winning panel
+                    multiplayerWinningPanel = new WinningPanel();
+                    multiplayerWinningPanel.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
+                    multiplayerWinningOverlay.getChildren().add(multiplayerWinningPanel);
+                    multiplayerWinningOverlay.setVisible(false);
+                    multiplayerWinningOverlay.setManaged(false);
+                    
+                    // Add winning overlay to wrapper (on top of settings overlay)
+                    multiplayerWrapper.getChildren().add(multiplayerWinningOverlay);
                     
                     // Add wrapper to center VBox
                     centerVBox.getChildren().add(multiplayerWrapper);
@@ -821,6 +883,9 @@ public class GuiController implements Initializable {
         // Reset game over states
         isGameOver1.set(false);
         isGameOver2.set(false);
+        
+        // Hide winning panel if visible
+        hideWinningPanel();
         
         // Reset hard drop processing flags
         isHardDropProcessing1 = false;
@@ -2006,32 +2071,52 @@ public class GuiController implements Initializable {
             if (playerNumber == 1) {
                 if (timeLine1 != null) timeLine1.stop();
                 isGameOver1.set(true);
+                // Stop the other player's game as well (but don't mark them as game over so winning panel shows)
+                if (timeLine2 != null) timeLine2.stop();
             } else if (playerNumber == 2) {
                 if (timeLine2 != null) timeLine2.stop();
                 isGameOver2.set(true);
+                // Stop the other player's game as well (but don't mark them as game over so winning panel shows)
+                if (timeLine1 != null) timeLine1.stop();
             }
             
-            // If both players are game over, show game over screen
-            if (isGameOver1.get() && isGameOver2.get()) {
-                // Stop game music and play game over sound
-                if (gameMusic != null) {
-                    gameMusic.stop();
+            // Hide pause panel if visible
+            if (multiplayerPauseOverlay != null) {
+                multiplayerPauseOverlay.setVisible(false);
+                multiplayerPauseOverlay.setManaged(false);
+                multiplayerPauseOverlay.setMouseTransparent(true);
+            }
+            if (pausePanel != null) {
+                pausePanel.setVisible(false);
+            }
+            isPause.set(false);
+            
+            // Stop game music when game ends in multiplayer mode
+            if (gameMusic != null) {
+                gameMusic.stop();
+            }
+            
+            // If only one player is game over, show winning panel for the other player
+            if (isGameOver1.get() && !isGameOver2.get()) {
+                // Player 1 lost, Player 2 wins
+                showWinningPanel(2);
+            } else if (isGameOver2.get() && !isGameOver1.get()) {
+                // Player 2 lost, Player 1 wins
+                showWinningPanel(1);
+            } else if (isGameOver1.get() && isGameOver2.get()) {
+                // Both players are game over
+                // Hide winning panel if visible
+                if (multiplayerWinningOverlay != null) {
+                    multiplayerWinningOverlay.setVisible(false);
+                    multiplayerWinningOverlay.setManaged(false);
+                    multiplayerWinningOverlay.setMouseTransparent(true);
                 }
+                // Play game over sound (game music already stopped above)
                 if (gameOverSound != null) {
                     gameOverSound.stop();
                     gameOverSound.seek(Duration.ZERO);
                     gameOverSound.play();
                 }
-                // Hide pause panel if visible
-                if (multiplayerPauseOverlay != null) {
-                    multiplayerPauseOverlay.setVisible(false);
-                    multiplayerPauseOverlay.setManaged(false);
-                    multiplayerPauseOverlay.setMouseTransparent(true);
-                }
-                if (pausePanel != null) {
-                    pausePanel.setVisible(false);
-                }
-                isPause.set(false);
                 // Could show a multiplayer game over screen here
             }
             return;
@@ -2559,6 +2644,10 @@ public class GuiController implements Initializable {
                 // Reset game over states
                 isGameOver1.set(false);
                 isGameOver2.set(false);
+                
+                // Hide winning panel if visible
+                hideWinningPanel();
+                
                 // Restart timelines
                 if (timeLine1 != null) {
                     timeLine1.stop();
@@ -2608,6 +2697,9 @@ public class GuiController implements Initializable {
             isGameOver1.set(false);
             isGameOver2.set(false);
             gameStarted = false;
+            
+            // Hide winning panel if visible
+            hideWinningPanel();
             
             // Hide game over panel if visible
             if (gameOverPanel != null) {
@@ -2718,6 +2810,9 @@ public class GuiController implements Initializable {
                     multiplayerPauseOverlay.setManaged(false);
                     multiplayerPauseOverlay.setMouseTransparent(true);
                 }
+                
+                // Hide winning panel if visible
+                hideWinningPanel();
                 
                 // Hide and clear settings overlay
                 if (multiplayerSettingsOverlay != null) {
