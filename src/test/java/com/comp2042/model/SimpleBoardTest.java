@@ -21,7 +21,7 @@ class SimpleBoardTest {
         int[][] matrix = board.getBoardMatrix();
         assertEquals(BOARD_WIDTH, matrix.length);
         assertEquals(BOARD_HEIGHT, matrix[0].length);
-        
+
         // Board should be empty initially
         for (int i = 0; i < BOARD_WIDTH; i++) {
             for (int j = 0; j < BOARD_HEIGHT; j++) {
@@ -34,7 +34,7 @@ class SimpleBoardTest {
     void testCreateNewBrick() {
         boolean gameOver = board.createNewBrick();
         assertFalse(gameOver, "New game should not be over");
-        
+
         ViewData viewData = board.getViewData();
         assertNotNull(viewData);
         assertNotNull(viewData.getBrickData());
@@ -80,17 +80,17 @@ class SimpleBoardTest {
         // Add some score
         board.getScore().add(100);
         assertEquals(100, board.getScore().scoreProperty().get());
-        
+
         // Create a brick and move it
         board.createNewBrick();
         board.moveBrickDown();
-        
+
         // Start new game
         board.newGame();
-        
+
         // Score should be reset
         assertEquals(0, board.getScore().scoreProperty().get());
-        
+
         // Board should be empty
         int[][] matrix = board.getBoardMatrix();
         for (int i = 0; i < BOARD_WIDTH; i++) {
@@ -104,7 +104,7 @@ class SimpleBoardTest {
     void testGetViewData() {
         board.createNewBrick();
         ViewData viewData = board.getViewData();
-        
+
         assertNotNull(viewData);
         assertNotNull(viewData.getBrickData());
         assertNotNull(viewData.getNextBrickData());
@@ -112,4 +112,3 @@ class SimpleBoardTest {
         assertTrue(viewData.getYPosition() >= 0);
     }
 }
-

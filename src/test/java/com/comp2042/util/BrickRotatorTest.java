@@ -41,10 +41,10 @@ class BrickRotatorTest {
     void testSetCurrentShape() {
         NextShapeInfo nextShape = rotator.getNextShape();
         int position = nextShape.getPosition();
-        
+
         rotator.setCurrentShape(position);
         int[][] currentShape = rotator.getCurrentShape();
-        
+
         assertArrayEquals(nextShape.getShape(), currentShape);
     }
 
@@ -53,7 +53,7 @@ class BrickRotatorTest {
         BrickGenerator generator = new RandomBrickGenerator();
         Brick newBrick = generator.getBrick();
         rotator.setBrick(newBrick);
-        
+
         int[][] shape = rotator.getCurrentShape();
         assertNotNull(shape);
     }
@@ -62,13 +62,12 @@ class BrickRotatorTest {
     void testRotationCycle() {
         int[][] initialShape = rotator.getCurrentShape();
         NextShapeInfo nextShape = rotator.getNextShape();
-        
+
         rotator.setCurrentShape(nextShape.getPosition());
         int[][] rotatedShape = rotator.getCurrentShape();
-        
+
         // Shapes should be different after rotation
-        assertNotEquals(initialShape.length, rotatedShape.length, 
+        assertNotEquals(initialShape.length, rotatedShape.length,
                 "Shape dimensions might change after rotation");
     }
 }
-

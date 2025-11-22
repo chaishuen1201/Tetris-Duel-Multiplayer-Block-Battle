@@ -9,10 +9,12 @@ public class PausePanel extends BorderPane {
 
     private Button resumeButton;
     private Button restartButton;
+    private Button settingsButton;
     private Button quitButton;
     
     private Runnable onResumeAction;
     private Runnable onRestartAction;
+    private Runnable onSettingsAction;
     private Runnable onQuitAction;
 
     public PausePanel() {
@@ -48,6 +50,15 @@ public class PausePanel extends BorderPane {
             }
         });
         
+        // Settings button
+        settingsButton = new Button("SETTINGS");
+        settingsButton.getStyleClass().add("pause-button");
+        settingsButton.setOnAction(e -> {
+            if (onSettingsAction != null) {
+                onSettingsAction.run();
+            }
+        });
+        
         // Quit to main menu button
         quitButton = new Button("QUIT");
         quitButton.getStyleClass().add("pause-button");
@@ -62,6 +73,7 @@ public class PausePanel extends BorderPane {
             pauseLabel,
             resumeButton,
             restartButton,
+            settingsButton,
             quitButton
         );
         
@@ -74,6 +86,10 @@ public class PausePanel extends BorderPane {
     
     public void setOnRestartAction(Runnable action) {
         this.onRestartAction = action;
+    }
+    
+    public void setOnSettingsAction(Runnable action) {
+        this.onSettingsAction = action;
     }
     
     public void setOnQuitAction(Runnable action) {

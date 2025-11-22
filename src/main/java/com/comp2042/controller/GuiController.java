@@ -78,6 +78,7 @@ public class GuiController implements Initializable {
     private boolean isMultiplayerMode = false;
     private PausePanel multiplayerPausePanel; // Separate pause panel for multiplayer
     private javafx.scene.layout.StackPane multiplayerPauseOverlay; // Overlay for multiplayer pause panel
+    private javafx.scene.layout.StackPane multiplayerSettingsOverlay; // Overlay for multiplayer settings panel
     private javafx.scene.layout.StackPane multiplayerWrapper; // Wrapper StackPane to overlay pause panel on multiplayer container
     private javafx.scene.layout.StackPane multiplayerReadyOverlay; // Overlay for ready panel
     private BorderPane readyPanel; // Ready panel for multiplayer
@@ -280,8 +281,16 @@ public class GuiController implements Initializable {
             javafx.scene.control.CheckBox ghostPieceCheckBox = settingsPanel.getGhostPieceCheckBox();
             ghostPieceCheckBox.setSelected(true); // Default to checked
             ghostPieceCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                // Update ghost panel for single player
                 if (ghostPanel != null) {
                     ghostPanel.setVisible(newVal && gameStarted);
+                }
+                // Update ghost panels for multiplayer
+                if (ghostPanel1 != null) {
+                    ghostPanel1.setVisible(newVal && gameStarted);
+                }
+                if (ghostPanel2 != null) {
+                    ghostPanel2.setVisible(newVal && gameStarted);
                 }
             });
             
@@ -332,10 +341,126 @@ public class GuiController implements Initializable {
         }
     }
     
+    private void showSettingsFromPause() {
+        if (settingsPanel != null) {
+            if (isMultiplayerMode) {
+                // Hide pause overlay for multiplayer
+                if (multiplayerPauseOverlay != null) {
+                    multiplayerPauseOverlay.setVisible(false);
+                    multiplayerPauseOverlay.setManaged(false);
+                    multiplayerPauseOverlay.setMouseTransparent(true);
+                }
+                // Move settings panel from gameStack to multiplayer overlay if needed
+                if (multiplayerSettingsOverlay != null) {
+                    // Remove from gameStack if it's there
+                    if (gameStack != null && gameStack.getChildren().contains(settingsPanel)) {
+                        gameStack.getChildren().remove(settingsPanel);
+                    }
+                    // Add to multiplayer overlay if not already there
+                    if (!multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
+                        settingsPanel.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
+                        multiplayerSettingsOverlay.getChildren().add(settingsPanel);
+                    }
+                    // Make sure settings panel is visible and managed
+                    settingsPanel.setVisible(true);
+                    settingsPanel.setManaged(true);
+                    // Show settings overlay for multiplayer (this should be on top of pause overlay)
+                    multiplayerSettingsOverlay.setVisible(true);
+                    multiplayerSettingsOverlay.setManaged(true);
+                    multiplayerSettingsOverlay.setMouseTransparent(false);
+                    // Ensure settings overlay is on top by bringing it to front
+                    if (multiplayerWrapper != null && multiplayerWrapper.getChildren().contains(multiplayerSettingsOverlay)) {
+                        multiplayerWrapper.getChildren().remove(multiplayerSettingsOverlay);
+                        multiplayerWrapper.getChildren().add(multiplayerSettingsOverlay);
+                    }
+                }
+            } else {
+                // Hide pause panel for single player
+                if (pausePanel != null) {
+                    pausePanel.setVisible(false);
+                }
+                // Ensure settings panel is in gameStack for single player
+                if (gameStack != null && settingsPanel != null) {
+                    // Remove from any other parent first (defensive check)
+                    javafx.scene.Parent currentParent = settingsPanel.getParent();
+                    if (currentParent != null && currentParent != gameStack) {
+                        if (currentParent instanceof javafx.scene.layout.Pane) {
+                            ((javafx.scene.layout.Pane) currentParent).getChildren().remove(settingsPanel);
+                        }
+                    }
+                    // Remove from multiplayer overlay if it's there (defensive check)
+                    if (multiplayerSettingsOverlay != null && multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
+                        multiplayerSettingsOverlay.getChildren().remove(settingsPanel);
+                    }
+                    // Add back to gameStack if not already there (defensive check)
+                    if (!gameStack.getChildren().contains(settingsPanel)) {
+                        gameStack.getChildren().add(settingsPanel);
+                    }
+                    // Bring settings panel to front in gameStack (so it's on top of other elements)
+                    gameStack.getChildren().remove(settingsPanel);
+                    gameStack.getChildren().add(settingsPanel);
+                }
+                // Show settings panel (it's in gameStack for single player)
+                if (settingsPanel != null) {
+                    // Ensure it's managed and visible
+                    settingsPanel.setManaged(true);
+                    settingsPanel.setVisible(true);
+                    // Force a layout update to ensure it's displayed
+                    if (gameStack != null) {
+                        gameStack.requestLayout();
+                    }
+                }
+            }
+        }
+    }
+    
     private void hideSettings() {
-        if (settingsPanel != null && mainMenuPanel != null) {
-            settingsPanel.setVisible(false);
-            mainMenuPanel.setVisible(true);
+        if (settingsPanel != null) {
+            if (isMultiplayerMode) {
+                // Hide settings panel first
+                settingsPanel.setVisible(false);
+                // Hide settings overlay for multiplayer
+                if (multiplayerSettingsOverlay != null) {
+                    multiplayerSettingsOverlay.setVisible(false);
+                    multiplayerSettingsOverlay.setManaged(false);
+                    multiplayerSettingsOverlay.setMouseTransparent(true);
+                }
+                // Note: Keep settingsPanel in multiplayerSettingsOverlay for next time
+            } else {
+                // Hide settings panel for single player
+                settingsPanel.setVisible(false);
+                // Note: Keep settingsPanel in gameStack for next time
+            }
+            
+            // If main menu is visible, show it
+            if (mainMenuPanel != null && !mainMenuPanel.isVisible()) {
+                // Check if we should return to pause menu or main menu
+                if (isPause.get() && gameStarted) {
+                    // Return to pause menu
+                    if (isMultiplayerMode) {
+                        // Make sure pause overlay is restored properly
+                        if (multiplayerPauseOverlay != null && multiplayerPausePanel != null) {
+                            // Ensure pause panel is visible
+                            multiplayerPausePanel.setVisible(true);
+                            // Show and enable pause overlay
+                            multiplayerPauseOverlay.setVisible(true);
+                            multiplayerPauseOverlay.setManaged(true);
+                            multiplayerPauseOverlay.setMouseTransparent(false);
+                        }
+                    } else {
+                        if (pausePanel != null) {
+                            pausePanel.setVisible(true);
+                        }
+                    }
+                } else {
+                    // Return to main menu
+                    if (mainMenuPanel != null) {
+                        mainMenuPanel.setVisible(true);
+                    }
+                }
+            } else if (mainMenuPanel != null) {
+                mainMenuPanel.setVisible(true);
+            }
         }
     }
     
@@ -437,6 +562,20 @@ public class GuiController implements Initializable {
                     
                     // Add pause overlay to wrapper (on top of multiplayer container)
                     multiplayerWrapper.getChildren().add(multiplayerPauseOverlay);
+                    
+                    // Create settings panel overlay for multiplayer mode
+                    multiplayerSettingsOverlay = new javafx.scene.layout.StackPane();
+                    multiplayerSettingsOverlay.setAlignment(javafx.geometry.Pos.CENTER);
+                    multiplayerSettingsOverlay.setMaxWidth(Double.MAX_VALUE);
+                    multiplayerSettingsOverlay.setMaxHeight(Double.MAX_VALUE);
+                    multiplayerSettingsOverlay.setPickOnBounds(true);
+                    multiplayerSettingsOverlay.setMouseTransparent(false);
+                    multiplayerSettingsOverlay.setVisible(false);
+                    multiplayerSettingsOverlay.setManaged(false);
+                    
+                    // Add settings overlay to wrapper (on top of pause overlay)
+                    // Note: settingsPanel will be moved here dynamically when needed
+                    multiplayerWrapper.getChildren().add(multiplayerSettingsOverlay);
                     
                     // Add wrapper to center VBox
                     centerVBox.getChildren().add(multiplayerWrapper);
@@ -2082,6 +2221,20 @@ public class GuiController implements Initializable {
             pausePanel.setVisible(false);
         }
         
+        // Ensure settings panel is in gameStack for single player mode (defensive check)
+        if (!isMultiplayerMode && gameStack != null && settingsPanel != null) {
+            // Remove from multiplayer overlay if it's there
+            if (multiplayerSettingsOverlay != null && multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
+                multiplayerSettingsOverlay.getChildren().remove(settingsPanel);
+            }
+            // Ensure it's in gameStack
+            if (!gameStack.getChildren().contains(settingsPanel)) {
+                gameStack.getChildren().add(settingsPanel);
+            }
+            // Hide settings panel (it will be shown when needed)
+            settingsPanel.setVisible(false);
+        }
+        
         // Make game panel and brick panel visible for new game
         if (gamePanel != null) {
             gamePanel.setVisible(true);
@@ -2210,6 +2363,20 @@ public class GuiController implements Initializable {
                 bindLevel(simpleBoard.levelProperty(), 0);
                 bindLines(simpleBoard.linesProperty(), 0);
             }
+        }
+        
+        // Ensure settings panel is in gameStack for single player mode (defensive check)
+        if (!isMultiplayerMode && gameStack != null && settingsPanel != null) {
+            // Remove from multiplayer overlay if it's there
+            if (multiplayerSettingsOverlay != null && multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
+                multiplayerSettingsOverlay.getChildren().remove(settingsPanel);
+            }
+            // Ensure it's in gameStack
+            if (!gameStack.getChildren().contains(settingsPanel)) {
+                gameStack.getChildren().add(settingsPanel);
+            }
+            // Hide settings panel (it will be shown when needed)
+            settingsPanel.setVisible(false);
         }
         
         // Make game panel, brick panel and ghost panel visible
@@ -2360,6 +2527,11 @@ public class GuiController implements Initializable {
         // Resume action - just resume the game
         panel.setOnResumeAction(() -> {
             pauseGame(null);
+        });
+        
+        // Settings action - show settings panel
+        panel.setOnSettingsAction(() -> {
+            showSettingsFromPause();
         });
         
         // Restart action - start a new game
@@ -2545,6 +2717,40 @@ public class GuiController implements Initializable {
                     multiplayerPauseOverlay.setVisible(false);
                     multiplayerPauseOverlay.setManaged(false);
                     multiplayerPauseOverlay.setMouseTransparent(true);
+                }
+                
+                // Hide and clear settings overlay
+                if (multiplayerSettingsOverlay != null) {
+                    multiplayerSettingsOverlay.setVisible(false);
+                    multiplayerSettingsOverlay.setManaged(false);
+                    multiplayerSettingsOverlay.setMouseTransparent(true);
+                    // Move settings panel back to gameStack for single player mode
+                    if (settingsPanel != null) {
+                        // Hide settings panel first
+                        settingsPanel.setVisible(false);
+                        // Remove from multiplayer overlay if it's there
+                        if (multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
+                            multiplayerSettingsOverlay.getChildren().remove(settingsPanel);
+                        }
+                    }
+                }
+                
+                // Ensure settings panel is in gameStack for single player mode (do this regardless of overlay state)
+                if (settingsPanel != null && gameStack != null) {
+                    // Remove from any other parent first (defensive)
+                    javafx.scene.Parent currentParent = settingsPanel.getParent();
+                    if (currentParent != null && currentParent != gameStack) {
+                        if (currentParent instanceof javafx.scene.layout.Pane) {
+                            ((javafx.scene.layout.Pane) currentParent).getChildren().remove(settingsPanel);
+                        }
+                    }
+                    // Ensure it's in gameStack
+                    if (!gameStack.getChildren().contains(settingsPanel)) {
+                        gameStack.getChildren().add(settingsPanel);
+                    }
+                    // Ensure it's properly configured
+                    settingsPanel.setVisible(false);
+                    settingsPanel.setManaged(true);
                 }
                 
                 // Remove scene event filters from multiplayer mode
