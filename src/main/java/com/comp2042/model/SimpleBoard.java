@@ -39,7 +39,7 @@ public class SimpleBoard implements Board {
         this.brickGenerator = new RandomBrickGenerator();
         this.brickRotator = new BrickRotator();
         this.score = new Score();
-        this.garbageQueue = new GarbageQueue(width);
+        this.garbageQueue = new GarbageQueue(height); // Use height (columns) not width (rows)
     }
 
     @Override
@@ -130,10 +130,24 @@ public class SimpleBoard implements Board {
 
     @Override
     public boolean createNewBrick() {
+        // First, clear any completely filled rows (including rubbish rows) before checking game over
+        // This ensures that completely filled rubbish rows don't cause premature game over
+        // Note: We clear rows here but don't update score/level - that's handled by clearRows() when called
+        // This is a safety check to ensure rows are cleared before game over check
+        ClearRow clearRow = MatrixOperations.checkRemoving(currentGameMatrix);
+        if (clearRow.getLinesRemoved() > 0) {
+            currentGameMatrix = clearRow.getNewMatrix();
+            // Don't update score/level here - that's handled by clearRows() to avoid double-counting
+            // This is just to ensure completely filled rows (including rubbish) are cleared before game over check
+        }
+        
         currentBrick = brickGenerator.getBrick();
         brickRotator.setBrick(currentBrick);
         currentOffset = new Point(INITIAL_X, INITIAL_Y);
         canHold = true; // Reset hold ability when new brick is created
+        
+        // Only return true (game over) if the brick intersects with blocks at the top
+        // This means the game should only end when blocks reach the top, not when rubbish rows are full
         return MatrixOperations.intersect(currentGameMatrix, brickRotator.getCurrentShape(), 
                 (int) currentOffset.getX(), (int) currentOffset.getY());
     }
@@ -165,9 +179,9 @@ public class SimpleBoard implements Board {
             // IMPORTANT: Only remove garbage from THIS player's own board and queue
             // Each player has their own isolated garbageQueue instance
             
-            // Remove garbage rows from THIS board (from bottom upward)
-            // Each cleared line removes one garbage row from the bottom of THIS board
-            removeGarbageRowsFromBoard(clearRow.getLinesRemoved());
+            // Rubbish rows are only cleared by checkRemoving when they become completely filled
+            // (all cells non-zero, including filling the empty cell), just like normal rows.
+            // They are NOT removed as a reward when other lines are cleared.
             
             // Counter incoming garbage in THIS player's queue only
             // This only affects this board's own garbageQueue, not the opponent's
@@ -358,68 +372,6 @@ public class SimpleBoard implements Board {
         }
         
         return false;
-    }
-    
-    /**
-     * Removes garbage rows from THIS player's board (from bottom upward).
-     * Each cleared line removes one garbage row from the bottom of THIS player's board.
-     * A garbage row is a row where all non-zero cells are type 8 (garbage blocks).
-     * 
-     * IMPORTANT: This method only operates on this board's own currentGameMatrix.
-     * It cannot affect any other player's board since each SimpleBoard has its own matrix instance.
-     * 
-     * @param numRowsToRemove Number of garbage rows to remove from THIS board
-     * @return Number of garbage rows actually removed from THIS board
-     */
-    private int removeGarbageRowsFromBoard(int numRowsToRemove) {
-        if (numRowsToRemove <= 0) {
-            return 0;
-        }
-        
-        int removed = 0;
-        // Start from the bottom row and work upward
-        // The matrix is [width][height] = [20][10], where matrix[i] is a row
-        // Bottom row is at index width - 1 = 19
-        // This currentGameMatrix is instance-specific to this board
-        int currentRow = width - 1;
-        
-        while (currentRow >= 0 && removed < numRowsToRemove) {
-            // Check if this row is a garbage row (all non-zero cells are type 8)
-            boolean isGarbageRow = true;
-            boolean hasAnyBlocks = false;
-            
-            for (int col = 0; col < height; col++) {
-                int cellValue = currentGameMatrix[currentRow][col];
-                if (cellValue != 0) {
-                    hasAnyBlocks = true;
-                    // If any cell is not garbage (type 8), it's not a pure garbage row
-                    if (cellValue != 8) {
-                        isGarbageRow = false;
-                        break;
-                    }
-                }
-            }
-            
-            // Only remove if it's a garbage row (has blocks and they're all type 8)
-            // This only affects this board's own matrix, never the opponent's
-            if (isGarbageRow && hasAnyBlocks) {
-                // Shift all rows above this one down by one position
-                for (int r = currentRow; r < width - 1; r++) {
-                    System.arraycopy(currentGameMatrix[r + 1], 0, currentGameMatrix[r], 0, height);
-                }
-                // Clear the top row (add empty row at the top)
-                for (int col = 0; col < height; col++) {
-                    currentGameMatrix[width - 1][col] = 0;
-                }
-                removed++;
-                // Don't change currentRow - check the same position again since rows shifted down
-            } else {
-                // Not a garbage row, move up to check the next row
-                currentRow--;
-            }
-        }
-        
-        return removed;
     }
     
     /**

@@ -10,12 +10,12 @@ import java.util.Random;
  */
 public class GarbageQueue {
     private final Deque<int[]> queue;
-    private final int boardWidth;
+    private final int boardWidth; // Number of columns (width of the board)
     private final Random random;
     
     public GarbageQueue(int boardWidth) {
         this.queue = new ArrayDeque<>();
-        this.boardWidth = boardWidth;
+        this.boardWidth = boardWidth; // This should be the number of columns (height in matrix terms)
         this.random = new Random();
     }
     
@@ -76,7 +76,7 @@ public class GarbageQueue {
     /**
      * Generates a garbage line with a random hole.
      * The line is filled with a garbage block type (using type 8 to distinguish from normal blocks).
-     * One random position is left empty (0) to create a hole.
+     * One random position is ALWAYS left empty (0) to create a hole, ensuring the row is never completely solid.
      */
     private int[] generateGarbageLine() {
         int[] line = new int[boardWidth];
@@ -85,7 +85,8 @@ public class GarbageQueue {
             line[i] = 8; // Use type 8 for garbage blocks
         }
         
-        // Create one random hole
+        // ALWAYS create one random hole - this ensures the rubbish row is never completely solid
+        // and can only be cleared when the player fills the empty cell
         int holePosition = random.nextInt(boardWidth);
         line[holePosition] = 0;
         
