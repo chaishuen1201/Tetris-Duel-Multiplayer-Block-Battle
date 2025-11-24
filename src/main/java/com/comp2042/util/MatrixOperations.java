@@ -77,14 +77,15 @@ public final class MatrixOperations {
                 newRows.add(tmpRow);
             }
         }
-        for (int i = matrix.length - 1; i >= 0; i--) {
+        // Fill result matrix from bottom to top with remaining rows
+        // This makes rows fall down when rows above are cleared
+        int resultIndex = matrix.length - 1;
+        while (!newRows.isEmpty() && resultIndex >= 0) {
             int[] row = newRows.pollLast();
-            if (row != null) {
-                result[i] = row;
-            } else {
-                break;
-            }
+            result[resultIndex] = row;
+            resultIndex--;
         }
+        // Remaining rows at the top are already initialized to zeros (empty rows)
         // Calculate base score based on Tetris scoring system (without level multiplier)
         // Single: 40, Double: 100, Triple: 300, Tetris: 1200
         int baseScore = 0;

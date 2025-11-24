@@ -2843,6 +2843,22 @@ public class GuiController implements Initializable {
             ghostPanel.setVisible(showGhost);
         }
         
+        // Show and initialize next bricks panel for single player mode
+        if (!isMultiplayerMode && nextBricksPanel != null) {
+            nextBricksPanel.setVisible(true);
+            nextBricksPanel.setManaged(true);
+            initializeNextBricksPanel();
+            
+            // Update next bricks with initial bricks from the board
+            if (eventListener instanceof GameController) {
+                GameController gameController = (GameController) eventListener;
+                if (gameController.getBoard() instanceof SimpleBoard) {
+                    SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
+                    updateNextBricks(simpleBoard.getNextBricks(), 0);
+                }
+            }
+        }
+        
         // Refresh the brick display with stored brick data
         // The brick data was stored when initGameView was called
         if (currentBrickData != null) {
