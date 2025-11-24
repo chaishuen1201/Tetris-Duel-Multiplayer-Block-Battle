@@ -70,10 +70,8 @@ public class GuiController implements Initializable {
     @FXML private Label scoreLabel;
     @FXML private Label levelLabel;
     @FXML private Label linesLabel;
-    @FXML private Button pauseButton;
     @FXML private MainMenuPanel mainMenuPanel;
     @FXML private Label countdownLabel;
-    @FXML private HBox bottomPanel;
 
     // Multiplayer fields
     private HBox multiplayerContainer;
@@ -149,6 +147,7 @@ public class GuiController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        // Parameters are required by Initializable interface but not used
         try {
             Font.loadFont(getClass().getClassLoader().getResource("digital.ttf").toExternalForm(), 38);
         } catch (Exception e) {
@@ -443,6 +442,14 @@ public class GuiController implements Initializable {
                 multiplayerWrapper.getChildren().remove(multiplayerWinningOverlay);
                 multiplayerWrapper.getChildren().add(multiplayerWinningOverlay);
             }
+            // Ensure container and wrapper maintain their sizes and layout
+            // The overlay should not affect the underlying container sizing
+            if (multiplayerContainer != null) {
+                multiplayerContainer.setManaged(true);
+            }
+            if (multiplayerWrapper != null) {
+                multiplayerWrapper.setManaged(true);
+            }
             // Play winner sound
             if (winnerSound != null) {
                 winnerSound.stop();
@@ -517,10 +524,9 @@ public class GuiController implements Initializable {
         
         isMultiplayerMode = true;
         
-        // Create multiplayer container if it doesn't exist
-        if (multiplayerContainer == null) {
-            initializeMultiplayerPanels();
-        }
+        // Always re-initialize multiplayer panels to ensure consistent sizing
+        // This fixes issues where container size differs between fresh launch and restart
+        initializeMultiplayerPanels();
         
         // Get root BorderPane to hide original left and right panels
         BorderPane rootPane = getRootBorderPane();
@@ -626,10 +632,13 @@ public class GuiController implements Initializable {
                     // Create winning panel overlay for multiplayer mode
                     multiplayerWinningOverlay = new javafx.scene.layout.StackPane();
                     multiplayerWinningOverlay.setAlignment(javafx.geometry.Pos.CENTER);
+                    // Set overlay to fill available space but not affect container sizing
                     multiplayerWinningOverlay.setMaxWidth(Double.MAX_VALUE);
                     multiplayerWinningOverlay.setMaxHeight(Double.MAX_VALUE);
                     multiplayerWinningOverlay.setPickOnBounds(true);
                     multiplayerWinningOverlay.setMouseTransparent(false);
+                    // Initially not managed - will be set to managed when shown
+                    multiplayerWinningOverlay.setManaged(false);
                     
                     // Create winning panel
                     multiplayerWinningPanel = new WinningPanel();
@@ -637,7 +646,6 @@ public class GuiController implements Initializable {
                     setupWinningPanelActions(multiplayerWinningPanel);
                     multiplayerWinningOverlay.getChildren().add(multiplayerWinningPanel);
                     multiplayerWinningOverlay.setVisible(false);
-                    multiplayerWinningOverlay.setManaged(false);
                     
                     // Add winning overlay to wrapper (on top of settings overlay)
                     multiplayerWrapper.getChildren().add(multiplayerWinningOverlay);
@@ -780,7 +788,7 @@ public class GuiController implements Initializable {
                                     Label label = (Label) labelNode;
                                     if ("player1ReadyLabel".equals(label.getId())) {
                                         if (player1Ready) {
-                                            label.setText("✓ READY");
+                                            label.setText("READY");
                                             if (!label.getStyleClass().contains("ready-confirmed")) {
                                                 label.getStyleClass().add("ready-confirmed");
                                             }
@@ -790,7 +798,7 @@ public class GuiController implements Initializable {
                                         }
                                     } else if ("player2ReadyLabel".equals(label.getId())) {
                                         if (player2Ready) {
-                                            label.setText("✓ READY");
+                                            label.setText("READY");
                                             if (!label.getStyleClass().contains("ready-confirmed")) {
                                                 label.getStyleClass().add("ready-confirmed");
                                             }
@@ -910,9 +918,6 @@ public class GuiController implements Initializable {
         }
         if (pausePanel != null) {
             pausePanel.setVisible(false);
-        }
-        if (pauseButton != null) {
-            pauseButton.setText("Pause");
         }
         
         // Start both timelines
@@ -1144,9 +1149,24 @@ public class GuiController implements Initializable {
         // Side panel needs to match the scaled game board height
         int targetSidePanelHeight = scaledPanelHeight; // Match game board height
         
-        multiplayerContainer = new HBox(30);
+        // Clear existing container if it exists (for restart scenarios)
+        // This ensures consistent sizing between fresh launch and restart
+        boolean containerExisted = (multiplayerContainer != null);
+        if (multiplayerContainer != null) {
+            // Remove container from wrapper if it exists, so we can re-add it properly
+            if (multiplayerWrapper != null && multiplayerWrapper.getChildren().contains(multiplayerContainer)) {
+                multiplayerWrapper.getChildren().remove(multiplayerContainer);
+            }
+            multiplayerContainer.getChildren().clear();
+        } else {
+            multiplayerContainer = new HBox(30);
+            multiplayerContainer.getStyleClass().add("multiplayer-container");
+        }
+        
         multiplayerContainer.setAlignment(javafx.geometry.Pos.CENTER);
-        multiplayerContainer.getStyleClass().add("multiplayer-container");
+        // Set container to use preferred size and not expand beyond window
+        multiplayerContainer.setMaxWidth(Double.MAX_VALUE);
+        multiplayerContainer.setMaxHeight(Double.MAX_VALUE);
         // Initially set to not managed so it doesn't affect layout until shown
         multiplayerContainer.setManaged(false);
         multiplayerContainer.setVisible(false);
@@ -1162,6 +1182,14 @@ public class GuiController implements Initializable {
         VBox player2Container = createPlayerContainer(2, scaledBrickSize, scaledPanelWidth, scaledPanelHeight, scale);
         
         multiplayerContainer.getChildren().addAll(player1Container, vsLabel, player2Container);
+        
+        // Re-add container to wrapper if it existed and wrapper exists
+        if (containerExisted && multiplayerWrapper != null) {
+            // Add container back to wrapper (should be first child, before overlays)
+            if (!multiplayerWrapper.getChildren().contains(multiplayerContainer)) {
+                multiplayerWrapper.getChildren().add(0, multiplayerContainer);
+            }
+        }
     }
     
     private VBox createPlayerContainer(int playerNumber, int brickSize, int panelWidth, int panelHeight, double scale) {
@@ -1210,42 +1238,41 @@ public class GuiController implements Initializable {
         gameFieldContainer.setAlignment(javafx.geometry.Pos.CENTER);
         gameFieldContainer.getStyleClass().add("player-field");
         
-        // Game field container - match exact height, adjust width proportionally
-        // BorderPane needs to be larger than grid to accommodate the 4px border
-        // In JavaFX, CSS borders are drawn inside the node bounds, so we need to add border width
+
         BorderPane gameFieldBoard = new BorderPane();
         gameFieldBoard.getStyleClass().add("gameBoard");
-        // Set size to accommodate border: add 8px (4px border on each side) to both dimensions
-        int borderWidth = 8; // 4px border on each side
-        gameFieldBoard.setPrefHeight(panelHeight + borderWidth);
-        gameFieldBoard.setMaxHeight(panelHeight + borderWidth);
-        gameFieldBoard.setMinHeight(panelHeight + borderWidth);
-        gameFieldBoard.setPrefWidth(panelWidth + borderWidth);
-        gameFieldBoard.setMaxWidth(panelWidth + borderWidth);
-        gameFieldBoard.setMinWidth(panelWidth + borderWidth);
+
+        int borderOffset = 4; // Border width from CSS
+        int gridHeight = panelHeight + 1; // Grid extends 1px to close gap
+        int totalHeight = gridHeight;
+        gameFieldBoard.setPrefHeight(totalHeight);
+        gameFieldBoard.setMaxHeight(totalHeight);
+        gameFieldBoard.setMinHeight(totalHeight);
+        gameFieldBoard.setPrefWidth(panelWidth + (borderOffset * 2));
+        gameFieldBoard.setMaxWidth(panelWidth + (borderOffset * 2));
+        gameFieldBoard.setMinWidth(panelWidth + (borderOffset * 2));
         
         // Use a simple Pane with exact pixel positioning to eliminate any gaps
         Pane borderWrapper = new Pane();
-        borderWrapper.setPrefSize(panelWidth + borderWidth, panelHeight + borderWidth);
-        borderWrapper.setMaxSize(panelWidth + borderWidth, panelHeight + borderWidth);
-        borderWrapper.setMinSize(panelWidth + borderWidth, panelHeight + borderWidth);
+        borderWrapper.setPrefSize(panelWidth + (borderOffset * 2), totalHeight);
+        borderWrapper.setMaxSize(panelWidth + (borderOffset * 2), totalHeight);
+        borderWrapper.setMinSize(panelWidth + (borderOffset * 2), totalHeight);
         // Remove any default padding
         borderWrapper.setPadding(javafx.geometry.Insets.EMPTY);
         
         StackPane gameFieldStack = new StackPane();
-        // Set exact size to match grid dimensions
-        gameFieldStack.setPrefSize(panelWidth, panelHeight);
-        gameFieldStack.setMaxSize(panelWidth, panelHeight);
-        gameFieldStack.setMinSize(panelWidth, panelHeight);
+        // Set size to match grid dimensions, add 1px height to close bottom gap
+        gameFieldStack.setPrefSize(panelWidth, panelHeight + 1);
+        gameFieldStack.setMaxSize(panelWidth, panelHeight + 1);
+        gameFieldStack.setMinSize(panelWidth, panelHeight + 1);
         // Remove any default padding/alignment that might cause gaps
         gameFieldStack.setPadding(javafx.geometry.Insets.EMPTY);
         gameFieldStack.setAlignment(javafx.geometry.Pos.TOP_LEFT);
         
         // Position the StackPane exactly at the border offset using layoutX/Y
-        // Use 3px top offset instead of 4px to extend grid down and eliminate bottom gap
-        int borderOffset = 4; // Border width from CSS
+        // Align with the 4px border on top, extend 1px at bottom to close gap
         gameFieldStack.setLayoutX(borderOffset);
-        gameFieldStack.setLayoutY(borderOffset - 1); // Start 1px higher to extend down and close bottom gap
+        gameFieldStack.setLayoutY(borderOffset); // Align with top border
         // Enable pixel snapping for crisp rendering
         borderWrapper.setSnapToPixel(true);
         gameFieldStack.setSnapToPixel(true);
@@ -1264,32 +1291,32 @@ public class GuiController implements Initializable {
             matrix = displayMatrix2;
         }
         
-        // Create game panel - set exact dimensions
+        // Create game panel - set exact dimensions, add 1px height to close bottom gap
         GridPane gameFieldPanel = new GridPane();
         gameFieldPanel.setHgap(GRID_GAP);
         gameFieldPanel.setVgap(GRID_GAP);
-        gameFieldPanel.setPrefSize(panelWidth, panelHeight);
-        gameFieldPanel.setMaxSize(panelWidth, panelHeight);
-        gameFieldPanel.setMinSize(panelWidth, panelHeight);
+        gameFieldPanel.setPrefSize(panelWidth, panelHeight + 1);
+        gameFieldPanel.setMaxSize(panelWidth, panelHeight + 1);
+        gameFieldPanel.setMinSize(panelWidth, panelHeight + 1);
         initializeGameFieldPanel(gameFieldPanel, brickSize, matrix);
         
-        // Create brick panel - set exact dimensions
+        // Create brick panel - set exact dimensions, add 1px height to close bottom gap
         GridPane gameFieldBrickPanel = new GridPane();
         gameFieldBrickPanel.setHgap(GRID_GAP);
         gameFieldBrickPanel.setVgap(GRID_GAP);
-        gameFieldBrickPanel.setPrefSize(panelWidth, panelHeight);
-        gameFieldBrickPanel.setMaxSize(panelWidth, panelHeight);
-        gameFieldBrickPanel.setMinSize(panelWidth, panelHeight);
+        gameFieldBrickPanel.setPrefSize(panelWidth, panelHeight + 1);
+        gameFieldBrickPanel.setMaxSize(panelWidth, panelHeight + 1);
+        gameFieldBrickPanel.setMinSize(panelWidth, panelHeight + 1);
         gameFieldBrickPanel.setMouseTransparent(true);
         initializeBrickPanel(gameFieldBrickPanel, brickSize);
         
-        // Create ghost panel - set exact dimensions
+        // Create ghost panel - set exact dimensions, add 1px height to close bottom gap
         GridPane gameFieldGhostPanel = new GridPane();
         gameFieldGhostPanel.setHgap(GRID_GAP);
         gameFieldGhostPanel.setVgap(GRID_GAP);
-        gameFieldGhostPanel.setPrefSize(panelWidth, panelHeight);
-        gameFieldGhostPanel.setMaxSize(panelWidth, panelHeight);
-        gameFieldGhostPanel.setMinSize(panelWidth, panelHeight);
+        gameFieldGhostPanel.setPrefSize(panelWidth, panelHeight + 1);
+        gameFieldGhostPanel.setMaxSize(panelWidth, panelHeight + 1);
+        gameFieldGhostPanel.setMinSize(panelWidth, panelHeight + 1);
         gameFieldGhostPanel.setMouseTransparent(true);
         initializeBrickPanel(gameFieldGhostPanel, brickSize);
         
@@ -1943,10 +1970,15 @@ public class GuiController implements Initializable {
             }
         }
     }
+
+    private void moveDown(MoveEvent event) {
+        moveDown(event, 0);
+    }
     
     /**
      * Clears all multiplayer game panels (game panels, brick panels, ghost panels)
-     * by setting all rectangles to transparent/empty state.
+     * and side panels (hold, next, score, level) by setting all rectangles to transparent/empty state
+     * and resetting labels to default values.
      */
     private void clearMultiplayerGamePanels() {
         // Clear displayMatrix1 (Player 1 game panel)
@@ -1971,33 +2003,156 @@ public class GuiController implements Initializable {
             }
         }
         
-        // Clear brickPanel1 (Player 1 current brick)
+        // Clear brickPanel1 (Player 1 current brick) - re-initialize to ensure grid structure exists
         if (brickPanel1 != null) {
             brickPanel1.getChildren().clear();
+            // Re-initialize the grid structure
+            double scale = 0.85;
+            int brickSize = (int)(BRICK_SIZE * scale);
+            initializeBrickPanel(brickPanel1, brickSize);
         }
         
-        // Clear brickPanel2 (Player 2 current brick)
+        // Clear brickPanel2 (Player 2 current brick) - re-initialize to ensure grid structure exists
         if (brickPanel2 != null) {
             brickPanel2.getChildren().clear();
+            // Re-initialize the grid structure
+            double scale = 0.85;
+            int brickSize = (int)(BRICK_SIZE * scale);
+            initializeBrickPanel(brickPanel2, brickSize);
         }
         
-        // Clear ghostPanel1 (Player 1 ghost piece)
+        // Clear ghostPanel1 (Player 1 ghost piece) - re-initialize to ensure grid structure exists
         if (ghostPanel1 != null) {
             ghostPanel1.getChildren().clear();
+            // Re-initialize the grid structure
+            double scale = 0.85;
+            int brickSize = (int)(BRICK_SIZE * scale);
+            initializeBrickPanel(ghostPanel1, brickSize);
         }
         
-        // Clear ghostPanel2 (Player 2 ghost piece)
+        // Clear ghostPanel2 (Player 2 ghost piece) - re-initialize to ensure grid structure exists
         if (ghostPanel2 != null) {
             ghostPanel2.getChildren().clear();
+            // Re-initialize the grid structure
+            double scale = 0.85;
+            int brickSize = (int)(BRICK_SIZE * scale);
+            initializeBrickPanel(ghostPanel2, brickSize);
+        }
+        
+        // Clear and re-initialize hold panels
+        double scale = 0.85;
+        int holdBrickSize = (int)((BRICK_SIZE - 10) * scale);
+        
+        if (holdBrickPanel1 != null) {
+            holdBrickPanel1.getChildren().clear();
+            // Initialize rectangles array if needed
+            if (holdBrickRectangles1 == null) {
+                holdBrickRectangles1 = new Rectangle[4][4];
+            }
+            // Re-initialize hold panel structure
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                    rect.setFill(Color.TRANSPARENT);
+                    rect.setStroke(Color.gray(0.3));
+                    holdBrickRectangles1[i][j] = rect;
+                    holdBrickPanel1.add(rect, j, i);
+                }
+            }
+        }
+        if (holdBrickPanel2 != null) {
+            holdBrickPanel2.getChildren().clear();
+            // Initialize rectangles array if needed
+            if (holdBrickRectangles2 == null) {
+                holdBrickRectangles2 = new Rectangle[4][4];
+            }
+            // Re-initialize hold panel structure
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                    rect.setFill(Color.TRANSPARENT);
+                    rect.setStroke(Color.gray(0.3));
+                    holdBrickRectangles2[i][j] = rect;
+                    holdBrickPanel2.add(rect, j, i);
+                }
+            }
+        }
+        
+        // Clear and re-initialize next bricks panels
+        int nextBrickSize = (int)(80 * scale);
+        
+        if (nextBricksPanel1 != null) {
+            nextBricksPanel1.getChildren().clear();
+            // Re-initialize next bricks panel structure (only 1 brick for multiplayer)
+            if (nextBrickPanes1 != null) {
+                nextBrickPanes1.clear();
+                GridPane pane = new GridPane();
+                pane.setVgap(1);
+                pane.setHgap(1);
+                pane.setPrefSize(nextBrickSize, nextBrickSize);
+                for (int r = 0; r < 4; r++) {
+                    for (int c = 0; c < 4; c++) {
+                        Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                        rect.setFill(Color.TRANSPARENT);
+                        pane.add(rect, c, r);
+                    }
+                }
+                nextBrickPanes1.add(pane);
+                nextBricksPanel1.getChildren().add(pane);
+            }
+        }
+        if (nextBricksPanel2 != null) {
+            nextBricksPanel2.getChildren().clear();
+            // Re-initialize next bricks panel structure (only 1 brick for multiplayer)
+            if (nextBrickPanes2 != null) {
+                nextBrickPanes2.clear();
+                GridPane pane = new GridPane();
+                pane.setVgap(1);
+                pane.setHgap(1);
+                pane.setPrefSize(nextBrickSize, nextBrickSize);
+                for (int r = 0; r < 4; r++) {
+                    for (int c = 0; c < 4; c++) {
+                        Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                        rect.setFill(Color.TRANSPARENT);
+                        pane.add(rect, c, r);
+                    }
+                }
+                nextBrickPanes2.add(pane);
+                nextBricksPanel2.getChildren().add(pane);
+            }
+        }
+        
+        // Reset score labels
+        if (scoreLabel1 != null) {
+            if (scoreLabel1.textProperty().isBound()) {
+                scoreLabel1.textProperty().unbind();
+            }
+            scoreLabel1.setText("0");
+        }
+        if (scoreLabel2 != null) {
+            if (scoreLabel2.textProperty().isBound()) {
+                scoreLabel2.textProperty().unbind();
+            }
+            scoreLabel2.setText("0");
+        }
+        
+        // Reset level labels
+        if (levelLabel1 != null) {
+            if (levelLabel1.textProperty().isBound()) {
+                levelLabel1.textProperty().unbind();
+            }
+            levelLabel1.setText("1");
+        }
+        if (levelLabel2 != null) {
+            if (levelLabel2.textProperty().isBound()) {
+                levelLabel2.textProperty().unbind();
+            }
+            levelLabel2.setText("1");
         }
         
         // Clear stored brick data
         currentBrickData1 = null;
         currentBrickData2 = null;
-    }
-
-    private void moveDown(MoveEvent event) {
-        moveDown(event, 0);
     }
     
     private void moveDown(MoveEvent event, int playerNumber) {
@@ -2297,6 +2452,9 @@ public class GuiController implements Initializable {
             // Stop garbage processing timelines
             stopGarbageProcessingTimelines();
             
+            // Don't clear game panels here - keep them visible so players can see the final game state
+            // Game panels will be cleared when restarting or quitting
+            
             // Hide pause panel if visible
             if (multiplayerPauseOverlay != null) {
                 multiplayerPauseOverlay.setVisible(false);
@@ -2318,19 +2476,13 @@ public class GuiController implements Initializable {
             if (isGameOver1.get() && !isGameOver2.get()) {
                 // Player 1 lost, Player 2 wins - stop Player 2 from controlling
                 isGameOver2.set(true);
-                // Clear game panels before showing winning panel
-                clearMultiplayerGamePanels();
                 showWinningPanel(2);
             } else if (isGameOver2.get() && !isGameOver1.get()) {
                 // Player 2 lost, Player 1 wins - stop Player 1 from controlling
                 isGameOver1.set(true);
-                // Clear game panels before showing winning panel
-                clearMultiplayerGamePanels();
                 showWinningPanel(1);
             } else if (isGameOver1.get() && isGameOver2.get()) {
                 // Both players are game over
-                // Clear game panels
-                clearMultiplayerGamePanels();
                 // Hide winning panel if visible
                 if (multiplayerWinningOverlay != null) {
                     multiplayerWinningOverlay.setVisible(false);
@@ -2361,10 +2513,6 @@ public class GuiController implements Initializable {
             gameOverSound.play();
         }
         
-        // Hide bottom panel when game is over
-        if (bottomPanel != null) {
-            bottomPanel.setVisible(false);
-        }
         // Hide pause panel if visible
         if (pausePanel != null) {
             pausePanel.setVisible(false);
@@ -2457,8 +2605,6 @@ public class GuiController implements Initializable {
                 // Hide game over panel and show main menu
                 if (gameOverPanel != null) gameOverPanel.setVisible(false);
                 if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
-                // Hide bottom panel when returning to main menu
-                if (bottomPanel != null) bottomPanel.setVisible(false);
                 isGameOver.set(false);
                 gameStarted = false;
                 if (timeLine != null) timeLine.stop();
@@ -2518,13 +2664,6 @@ public class GuiController implements Initializable {
         isPause.set(false);
         isGameOver.set(false);
         gameStarted = true;
-        // Hide bottom panel in single player mode
-        if (bottomPanel != null) {
-            bottomPanel.setVisible(false);
-        }
-        if (pauseButton != null) {
-            pauseButton.setText("Pause");
-        }
         if (mainMenuPanel != null) {
             mainMenuPanel.setVisible(false);
         }
@@ -2704,11 +2843,6 @@ public class GuiController implements Initializable {
             ghostPanel.setVisible(showGhost);
         }
         
-        // Hide bottom panel in single player mode (use P key to pause instead)
-        if (bottomPanel != null) {
-            bottomPanel.setVisible(false);
-        }
-        
         // Refresh the brick display with stored brick data
         // The brick data was stored when initGameView was called
         if (currentBrickData != null) {
@@ -2760,9 +2894,6 @@ public class GuiController implements Initializable {
                     gameMusic.pause();
                 }
                 isPause.set(true);
-                if (pauseButton != null) {
-                    pauseButton.setText("Resume");
-                }
                 // Pause garbage processing timelines
                 if (garbageProcessTimeline1 != null) {
                     garbageProcessTimeline1.pause();
@@ -2785,9 +2916,6 @@ public class GuiController implements Initializable {
                     gameMusic.play();
                 }
                 isPause.set(false);
-                if (pauseButton != null) {
-                    pauseButton.setText("Pause");
-                }
                 // Resume garbage processing timelines
                 if (garbageProcessTimeline1 != null) {
                     garbageProcessTimeline1.play();
@@ -2811,9 +2939,6 @@ public class GuiController implements Initializable {
                     gameMusic.pause();
                 }
                 isPause.set(true);
-                if (pauseButton != null) {
-                    pauseButton.setText("Resume");
-                }
                 // Show pause panel
                 if (pausePanel != null) {
                     pausePanel.setVisible(true);
@@ -2826,9 +2951,6 @@ public class GuiController implements Initializable {
                     gameMusic.play();
                 }
                 isPause.set(false);
-                if (pauseButton != null) {
-                    pauseButton.setText("Pause");
-                }
                 // Hide pause panel
                 if (pausePanel != null) {
                     pausePanel.setVisible(false);
@@ -2851,8 +2973,22 @@ public class GuiController implements Initializable {
     private void setupWinningPanelActions(WinningPanel panel) {
         // Restart action - start a new multiplayer game
         panel.setOnRestartAction(() -> {
-            // Clear multiplayer game panels before restarting
+            // Clear all multiplayer game panels and side panels before restarting
             clearMultiplayerGamePanels();
+            
+            // Re-initialize multiplayer panels to ensure consistent container and side panel sizing
+            // This fixes issues where sizes differ after restart
+            initializeMultiplayerPanels();
+            
+            // Ensure container and wrapper are properly sized and visible
+            if (multiplayerContainer != null) {
+                multiplayerContainer.setVisible(true);
+                multiplayerContainer.setManaged(true);
+            }
+            if (multiplayerWrapper != null) {
+                multiplayerWrapper.setVisible(true);
+                multiplayerWrapper.setManaged(true);
+            }
             
             // Restart both games
             if (gameController1 != null) {
@@ -2890,24 +3026,19 @@ public class GuiController implements Initializable {
                 gameMusic.seek(Duration.ZERO);
                 gameMusic.play();
             }
-            
-            // Reset pause button
-            if (pauseButton != null) {
-                pauseButton.setText("Pause");
-            }
         });
         
         // Main menu action - go back to main menu
         // Restore everything to the exact initial state when game launches
         panel.setOnMainMenuAction(() -> {
+            // Clear all multiplayer game panels and side panels before quitting
+            clearMultiplayerGamePanels();
+            
             // Stop all timelines
             if (timeLine != null) timeLine.stop();
             if (timeLine1 != null) timeLine1.stop();
             if (timeLine2 != null) timeLine2.stop();
             stopGarbageProcessingTimelines();
-            
-            // Clear multiplayer game panels before resetting
-            clearMultiplayerGamePanels();
             
             // Reset pause state
             isPause.set(false);
@@ -2948,14 +3079,19 @@ public class GuiController implements Initializable {
             }
             playMainMenuMusic();
             
-            // Hide bottom panel
-            if (bottomPanel != null) {
-                bottomPanel.setVisible(false);
-            }
-            
-            // Reset pause button text
-            if (pauseButton != null) {
-                pauseButton.setText("Pause");
+            // Reset multiplayer mode flag
+            if (isMultiplayerMode) {
+                isMultiplayerMode = false;
+                
+                // Clear multiplayer controllers and listeners
+                gameController1 = null;
+                gameController2 = null;
+                eventListener1 = null;
+                eventListener2 = null;
+                timeLine1 = null;
+                timeLine2 = null;
+                garbageProcessTimeline1 = null;
+                garbageProcessTimeline2 = null;
             }
             
             // Hide multiplayer container and overlays
@@ -3180,6 +3316,23 @@ public class GuiController implements Initializable {
         // Restart action - start a new game
         panel.setOnRestartAction(() -> {
             if (isMultiplayerMode) {
+                // Clear all multiplayer game panels and side panels before restarting
+                clearMultiplayerGamePanels();
+                
+                // Re-initialize multiplayer panels to ensure consistent container and side panel sizing
+                // This fixes issues where sizes differ after restart
+                initializeMultiplayerPanels();
+                
+                // Ensure container and wrapper are properly sized and visible
+                if (multiplayerContainer != null) {
+                    multiplayerContainer.setVisible(true);
+                    multiplayerContainer.setManaged(true);
+                }
+                if (multiplayerWrapper != null) {
+                    multiplayerWrapper.setVisible(true);
+                    multiplayerWrapper.setManaged(true);
+                }
+                
                 // For multiplayer, restart both games
                 if (gameController1 != null) {
                     gameController1.createNewGame();
@@ -3195,9 +3348,6 @@ public class GuiController implements Initializable {
                     multiplayerPauseOverlay.setVisible(false);
                     multiplayerPauseOverlay.setManaged(false);
                     multiplayerPauseOverlay.setMouseTransparent(true);
-                }
-                if (pauseButton != null) {
-                    pauseButton.setText("Pause");
                 }
                 // Reset game over states
                 isGameOver1.set(false);
@@ -3215,6 +3365,9 @@ public class GuiController implements Initializable {
                     timeLine2.stop();
                     timeLine2.play();
                 }
+                // Restart garbage processing timelines
+                startGarbageProcessingTimelines();
+                
                 // Restart music
                 if (gameMusic != null) {
                     gameMusic.stop();
@@ -3274,15 +3427,6 @@ public class GuiController implements Initializable {
             playMainMenuMusic();
             
             // Hide bottom panel
-            if (bottomPanel != null) {
-                bottomPanel.setVisible(false);
-            }
-            
-            // Reset pause button text
-            if (pauseButton != null) {
-                pauseButton.setText("Pause");
-            }
-            
             // For single player mode, clear the game board display
             if (!isMultiplayerMode) {
                 // Reset the game board state
@@ -3344,6 +3488,9 @@ public class GuiController implements Initializable {
             
             // If multiplayer, restore single player view
             if (isMultiplayerMode) {
+                // Clear all multiplayer game panels and bricks before quitting
+                clearMultiplayerGamePanels();
+                
                 isMultiplayerMode = false;
                 
                 // Clear multiplayer controllers and listeners
@@ -3445,6 +3592,12 @@ public class GuiController implements Initializable {
                     gameBoard.setOnKeyPressed(this::handleKeyPress);
                     gameBoard.setOnKeyReleased(this::handleKeyRelease);
                 }
+                
+                // Restore game panel visibility (grid background) for main menu
+                if (gamePanel != null) {
+                    gamePanel.setVisible(true);
+                }
+                
                 // Show single player panels
                 if (holdBrickPanel != null) {
                     holdBrickPanel.setVisible(true);
@@ -3505,9 +3658,9 @@ public class GuiController implements Initializable {
             if (ghostPanel != null) {
                 ghostPanel.setVisible(false);
             }
-            // Hide game panel (background grid) for single player mode
+            // Show game panel (background grid) for main menu - it should be visible
             if (!isMultiplayerMode && gamePanel != null) {
-                gamePanel.setVisible(false);
+                gamePanel.setVisible(true);
             }
         });
     }

@@ -116,13 +116,6 @@
         </VBox>
     </right>
 
-    <bottom>
-        <HBox fx:id="bottomPanel" alignment="CENTER" spacing="20" styleClass="bottom-panel" visible="false">
-            <Button text="New Game" onAction="#newGame" styleClass="menu-button"/>
-            <Button fx:id="pauseButton" text="Pause" onAction="#pauseGame" styleClass="menu-button"/>
-        </HBox>
-    </bottom>
-
     <stylesheets>
         <URL value="@window_style.css"/>
     </stylesheets>
