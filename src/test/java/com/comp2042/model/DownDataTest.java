@@ -27,4 +27,3 @@ class DownDataTest {
         assertSame(viewData, downData.getViewData());
     }
 }
-

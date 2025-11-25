@@ -127,6 +127,9 @@ public class GuiController implements Initializable {
     private Timeline timeLine;
     private Timeline timerTimeline; // Timer for single player mode
     private int elapsedSeconds = 0; // Elapsed time in seconds
+    private Timeline multiplayerTimerTimeline; // Timer for multiplayer mode
+    private int multiplayerElapsedSeconds = 0; // Elapsed time in seconds for multiplayer
+    private Label multiplayerTimerLabel; // Timer label for multiplayer mode
     private final BooleanProperty isPause = new SimpleBooleanProperty(false);
     private final BooleanProperty isGameOver = new SimpleBooleanProperty(false);
     private boolean gameStarted = false;
@@ -953,6 +956,9 @@ public class GuiController implements Initializable {
         // Start garbage processing timelines
         startGarbageProcessingTimelines();
         
+        // Start multiplayer timer
+        startMultiplayerTimer();
+        
         // Start game music
         if (gameMusic != null) {
             if (mainMenuMusic != null) {
@@ -1196,14 +1202,27 @@ public class GuiController implements Initializable {
         // Create Player 1 container (side panel + game field)
         VBox player1Container = createPlayerContainer(1, scaledBrickSize, scaledPanelWidth, scaledPanelHeight, scale);
         
+        // Create VS column with timer at top and VS label below
+        VBox vsColumn = new VBox(10);
+        vsColumn.setAlignment(javafx.geometry.Pos.CENTER);
+        
+        // Create timer label for multiplayer (aligned with player titles)
+        multiplayerTimerLabel = new Label("00:00");
+        multiplayerTimerLabel.getStyleClass().add("multiplayer-timer-label");
+        multiplayerTimerLabel.setAlignment(javafx.geometry.Pos.CENTER);
+        multiplayerTimerLabel.setMaxWidth(Double.MAX_VALUE);
+        
         // Create VS label
         Label vsLabel = new Label("VS");
         vsLabel.getStyleClass().add("vs-label");
         
+        // Add timer at top, then VS label below
+        vsColumn.getChildren().addAll(multiplayerTimerLabel, vsLabel);
+        
         // Create Player 2 container (game field + side panel)
         VBox player2Container = createPlayerContainer(2, scaledBrickSize, scaledPanelWidth, scaledPanelHeight, scale);
         
-        multiplayerContainer.getChildren().addAll(player1Container, vsLabel, player2Container);
+        multiplayerContainer.getChildren().addAll(player1Container, vsColumn, player2Container);
         
         // Re-add container to wrapper if it existed and wrapper exists
         if (containerExisted && multiplayerWrapper != null) {
@@ -2982,6 +3001,8 @@ public class GuiController implements Initializable {
                 if (gameMusic != null) {
                     gameMusic.pause();
                 }
+                // Pause multiplayer timer
+                pauseMultiplayerTimer();
                 isPause.set(true);
                 // Pause garbage processing timelines
                 if (garbageProcessTimeline1 != null) {
@@ -3004,6 +3025,8 @@ public class GuiController implements Initializable {
                 if (gameMusic != null) {
                     gameMusic.play();
                 }
+                // Resume multiplayer timer
+                resumeMultiplayerTimer();
                 isPause.set(false);
                 // Resume garbage processing timelines
                 if (garbageProcessTimeline1 != null) {
@@ -3113,6 +3136,10 @@ public class GuiController implements Initializable {
             // Restart garbage processing timelines
             startGarbageProcessingTimelines();
             
+            // Restart multiplayer timer
+            resetMultiplayerTimer();
+            startMultiplayerTimer();
+            
             // Restart music
             if (gameMusic != null) {
                 gameMusic.stop();
@@ -3132,6 +3159,9 @@ public class GuiController implements Initializable {
             if (timeLine1 != null) timeLine1.stop();
             if (timeLine2 != null) timeLine2.stop();
             stopGarbageProcessingTimelines();
+            
+            // Stop multiplayer timer
+            stopMultiplayerTimer();
             
             // Reset pause state
             isPause.set(false);
@@ -3380,6 +3410,9 @@ public class GuiController implements Initializable {
             garbageProcessTimeline1 = null;
             garbageProcessTimeline2 = null;
             
+            // Stop multiplayer timer
+            stopMultiplayerTimer();
+            
             // Reset ready states
             player1Ready = false;
             player2Ready = false;
@@ -3460,6 +3493,10 @@ public class GuiController implements Initializable {
                 }
                 // Restart garbage processing timelines
                 startGarbageProcessingTimelines();
+                
+                // Restart multiplayer timer
+                resetMultiplayerTimer();
+                startMultiplayerTimer();
                 
                 // Restart music
                 if (gameMusic != null) {
@@ -3588,6 +3625,7 @@ public class GuiController implements Initializable {
                 
                 // Clear multiplayer controllers and listeners
                 stopGarbageProcessingTimelines();
+                stopMultiplayerTimer();
                 gameController1 = null;
                 gameController2 = null;
                 eventListener1 = null;
@@ -3923,6 +3961,73 @@ public class GuiController implements Initializable {
         elapsedSeconds = 0;
         if (timerLabel != null) {
             timerLabel.setText(formatTime(0));
+        }
+    }
+    
+    /**
+     * Starts the timer for multiplayer mode
+     */
+    private void startMultiplayerTimer() {
+        if (!isMultiplayerMode || multiplayerTimerLabel == null) {
+            return; // Only for multiplayer mode
+        }
+        
+        // Stop existing timer if any
+        stopMultiplayerTimer();
+        
+        // Reset elapsed time
+        multiplayerElapsedSeconds = 0;
+        if (multiplayerTimerLabel != null) {
+            multiplayerTimerLabel.setText(formatTime(0));
+        }
+        
+        // Create timer timeline that updates every second
+        multiplayerTimerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            multiplayerElapsedSeconds++;
+            if (multiplayerTimerLabel != null) {
+                multiplayerTimerLabel.setText(formatTime(multiplayerElapsedSeconds));
+            }
+        }));
+        multiplayerTimerTimeline.setCycleCount(Timeline.INDEFINITE);
+        multiplayerTimerTimeline.play();
+    }
+    
+    /**
+     * Stops the multiplayer timer
+     */
+    private void stopMultiplayerTimer() {
+        if (multiplayerTimerTimeline != null) {
+            multiplayerTimerTimeline.stop();
+            multiplayerTimerTimeline = null;
+        }
+    }
+    
+    /**
+     * Pauses the multiplayer timer
+     */
+    private void pauseMultiplayerTimer() {
+        if (multiplayerTimerTimeline != null && isMultiplayerMode) {
+            multiplayerTimerTimeline.pause();
+        }
+    }
+    
+    /**
+     * Resumes the multiplayer timer
+     */
+    private void resumeMultiplayerTimer() {
+        if (multiplayerTimerTimeline != null && isMultiplayerMode) {
+            multiplayerTimerTimeline.play();
+        }
+    }
+    
+    /**
+     * Resets the multiplayer timer
+     */
+    private void resetMultiplayerTimer() {
+        stopMultiplayerTimer();
+        multiplayerElapsedSeconds = 0;
+        if (multiplayerTimerLabel != null) {
+            multiplayerTimerLabel.setText(formatTime(0));
         }
     }
 
