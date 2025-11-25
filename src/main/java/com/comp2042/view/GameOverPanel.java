@@ -11,6 +11,7 @@ import java.util.List;
 public class GameOverPanel extends BorderPane {
 
     private Label currentScoreLabel;
+    private Label timeUsedLabel;
     private Label highScore1Label;
     private Label highScore2Label;
     private Label highScore3Label;
@@ -66,6 +67,15 @@ public class GameOverPanel extends BorderPane {
         scoreBox.setAlignment(javafx.geometry.Pos.CENTER);
         scoreBox.getChildren().addAll(currentScoreTitle, currentScoreLabel);
         
+        // Time used
+        Label timeUsedTitle = new Label("TIME USED:");
+        timeUsedTitle.getStyleClass().add("game-over-score-title");
+        timeUsedLabel = new Label("00:00");
+        timeUsedLabel.getStyleClass().add("game-over-current-score");
+        VBox timeBox = new VBox(5);
+        timeBox.setAlignment(javafx.geometry.Pos.CENTER);
+        timeBox.getChildren().addAll(timeUsedTitle, timeUsedLabel);
+        
         // High scores section
         Label highScoreTitle = new Label("HIGH SCORES:");
         highScoreTitle.getStyleClass().add("game-over-high-score-title");
@@ -87,6 +97,7 @@ public class GameOverPanel extends BorderPane {
             tryAgainLabel,
             buttonBox,
             scoreBox,
+            timeBox,
             highScoreBox
         );
         
@@ -96,6 +107,14 @@ public class GameOverPanel extends BorderPane {
     public void setCurrentScore(int score) {
         if (currentScoreLabel != null) {
             currentScoreLabel.setText(String.valueOf(score));
+        }
+    }
+    
+    public void setTimeUsed(int seconds) {
+        if (timeUsedLabel != null) {
+            int minutes = seconds / 60;
+            int secs = seconds % 60;
+            timeUsedLabel.setText(String.format("%02d:%02d", minutes, secs));
         }
     }
     

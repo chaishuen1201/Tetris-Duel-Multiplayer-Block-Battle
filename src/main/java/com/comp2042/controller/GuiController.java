@@ -2617,6 +2617,7 @@ public class GuiController implements Initializable {
             
             // Update game over panel
             gameOverPanel.setCurrentScore(currentScore);
+            gameOverPanel.setTimeUsed(elapsedSeconds);
             gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
             
             // Set button actions
