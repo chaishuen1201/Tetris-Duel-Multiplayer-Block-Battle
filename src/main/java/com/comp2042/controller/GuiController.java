@@ -2664,6 +2664,9 @@ public class GuiController implements Initializable {
                 gameStarted = false;
                 if (timeLine != null) timeLine.stop();
                 
+                // Reset timer
+                resetTimer();
+                
                 // Stop game over sound and play main menu music
                 if (gameOverSound != null) {
                     gameOverSound.stop();
