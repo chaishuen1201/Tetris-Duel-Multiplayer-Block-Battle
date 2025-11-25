@@ -109,14 +109,13 @@
     -fx-border-radius: 20;
     -fx-border-color: rgba(255, 255, 255, 0.3);
     -fx-border-width: 2;
-    -fx-padding: 40;
-    -fx-pref-width: 500;
-    -fx-pref-height: 400;
+    -fx-padding: 30;
+    -fx-pref-width: 650;
+    -fx-pref-height: 650;
 }
 
 .settings-container {
-    -fx-alignment: center;
-    -fx-spacing: 30;
+    -fx-spacing: 20;
 }
 
 .settings-title {
@@ -126,13 +125,16 @@
     -fx-text-fill: #ffeb3b;
     -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.9), 20, 0, 0, 5);
     -fx-font-family: "Public Pixel";
+    -fx-alignment: center;
 }
 
 .settings-label {
+    -fx-alignment: center-left;
     -fx-font-size: 13px;
     -fx-font-weight: bold;
     -fx-text-fill: #ffffff;
     -fx-font-family: "Public Pixel";
+    -fx-padding: 10 0 10 0px;
 }
 
 .volume-slider {
@@ -221,7 +223,83 @@
     -fx-shape: "M 0 0 L 5 5 L 10 0 Z";
 }
 
+/* Controls customization styles */
+.controls-scroll-pane {
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+}
 
+.controls-scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.controls-player-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffeb3b;
+    -fx-font-family: "Public Pixel";
+    -fx-padding: 3 0 3 0;
+}
+
+.controls-action-label {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-font-family: "Public Pixel";
+    -fx-wrap-text: true;
+    -fx-text-alignment: left;
+}
+
+.rebind-button {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-font-size: 9px;
+    -fx-padding: 8 8;
+    -fx-border-width: 1.5;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-font-family: "Public Pixel";
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.3), 4, 0, 1, 1);
+    -fx-text-alignment: center;
+    -fx-wrap-text: true;
+    -fx-content-display: center;
+}
+
+.rebind-button:hover {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+    -fx-text-fill: #ffeb3b;
+    -fx-border-color: rgba(255, 235, 59, 0.6);
+    -fx-effect: dropshadow(one-pass-box, rgba(255, 235, 59, 0.4), 8, 0, 2, 2);
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.rebind-button:pressed {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 107, 107, 0.3), rgba(255, 107, 107, 0.1));
+    -fx-text-fill: #ff6b6b;
+    -fx-border-color: rgba(255, 107, 107, 0.5);
+    -fx-scale-x: 0.98;
+    -fx-scale-y: 0.98;
+}
+
+.rebind-button-active {
+    -fx-background-color: linear-gradient(to bottom, rgba(255, 235, 59, 0.4), rgba(255, 235, 59, 0.2));
+    -fx-text-fill: #ffeb3b;
+    -fx-border-color: rgba(255, 235, 59, 0.8);
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 235, 59, 0.6), 10, 0, 0, 3);
+    -fx-animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { -fx-opacity: 1.0; }
+    50% { -fx-opacity: 0.7; }
+}
 
 /* ==============================================
    Game Board & Grid - Enhanced

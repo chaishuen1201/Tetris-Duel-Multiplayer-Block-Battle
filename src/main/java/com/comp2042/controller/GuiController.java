@@ -17,6 +17,7 @@ import com.comp2042.view.WinningPanel;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
 import com.comp2042.util.MatrixOperations;
+import com.comp2042.util.KeyBindingsManager;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
@@ -144,6 +145,9 @@ public class GuiController implements Initializable {
     // Volume control
     private double currentVolume = 0.5; // Default volume (50%)
     private boolean isMuted = false;
+    
+    // Key bindings manager
+    private KeyBindingsManager keyBindingsManager = KeyBindingsManager.getInstance();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -353,11 +357,20 @@ public class GuiController implements Initializable {
         if (settingsPanel != null && mainMenuPanel != null) {
             mainMenuPanel.setVisible(false);
             settingsPanel.setVisible(true);
+            // Refresh controls display to show current bindings
+            settingsPanel.updateControlsDisplay();
+            // Request focus on settings panel to receive key events
+            settingsPanel.requestFocus();
         }
     }
     
     private void showSettingsFromPause() {
         if (settingsPanel != null) {
+            // Refresh controls display to show current bindings
+            settingsPanel.updateControlsDisplay();
+            // Request focus on settings panel to receive key events
+            settingsPanel.requestFocus();
+            
             if (isMultiplayerMode) {
                 // Hide pause overlay for multiplayer
                 if (multiplayerPauseOverlay != null) {
@@ -1530,8 +1543,18 @@ public class GuiController implements Initializable {
     }
 
     private void handleKeyPress(KeyEvent keyEvent) {
-        // Handle P key for pause (only when game is playing)
-        if (keyEvent.getCode() == KeyCode.P) {
+        // Check if settings panel is visible and rebinding is active
+        if (settingsPanel != null && settingsPanel.isVisible() && settingsPanel.isRebinding()) {
+            settingsPanel.handleRebindingKey(keyEvent.getCode());
+            keyEvent.consume();
+            return;
+        }
+        
+        KeyCode keyCode = keyEvent.getCode();
+        
+        // Handle pause key (only when game is playing)
+        KeyCode pauseKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.PAUSE);
+        if (pauseKey != null && keyCode == pauseKey) {
             // Only allow pause when game is started and not game over
             if (gameStarted && !isGameOver.get()) {
                 if (isMultiplayerMode) {
@@ -1550,14 +1573,15 @@ public class GuiController implements Initializable {
         // Handle multiplayer mode
         if (isMultiplayerMode) {
             if (!gameStarted) {
-                // Handle ready state
-                if (keyEvent.getCode() == KeyCode.SPACE && !player1Ready) {
+                // Handle ready state - use fixed default keys (SPACE for player 1, ENTER for player 2)
+                // These are independent of the hard drop key bindings
+                if (keyCode == KeyCode.SPACE && !player1Ready) {
                     player1Ready = true;
                     updateReadyLabels();
                     checkBothReady();
                     keyEvent.consume();
                     return;
-                } else if (keyEvent.getCode() == KeyCode.ENTER && !player2Ready) {
+                } else if (keyCode == KeyCode.ENTER && !player2Ready) {
                     player2Ready = true;
                     updateReadyLabels();
                     checkBothReady();
@@ -1572,8 +1596,10 @@ public class GuiController implements Initializable {
         
         // Single player mode
         if (!gameStarted) {
-            // If game hasn't started, Enter key can start it
-            if (keyEvent.getCode() == KeyCode.ENTER) {
+            // If game hasn't started, Enter key can start it (or NEW_GAME key if set)
+            KeyCode newGameKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.NEW_GAME);
+            if (newGameKey == null) newGameKey = KeyCode.ENTER;
+            if (keyCode == newGameKey) {
                 startGame();
                 keyEvent.consume();
             }
@@ -1581,33 +1607,49 @@ public class GuiController implements Initializable {
         }
 
         if (!isPause.get() && !isGameOver.get()) {
-            switch (keyEvent.getCode()) {
-                case LEFT, A -> { if (eventListener != null) refreshBrick(eventListener.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER))); }
-                case RIGHT, D -> { if (eventListener != null) refreshBrick(eventListener.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER))); }
-                case UP, W -> { if (eventListener != null) refreshBrick(eventListener.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER))); }
-                case DOWN, S -> { if (timeLine != null) timeLine.setRate(SOFT_DROP_RATE); moveDown(new MoveEvent(EventType.DOWN, EventSource.USER)); }
-                case SPACE -> { 
-                    if (eventListener != null) {
-                        // Hard drop can also clear lines
-                        DownData downData = eventListener.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
-                        if (downData != null) {
-                            if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                                showNotification("+" + downData.getClearRow().getScoreBonus());
-                                // Play line clear sound
-                                if (lineClearSound != null) {
-                                    lineClearSound.stop();
-                                    lineClearSound.seek(Duration.ZERO);
-                                    lineClearSound.play();
-                                }
+            // Single player controls using KeyBindingsManager
+            KeyCode leftKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.LEFT);
+            KeyCode rightKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.RIGHT);
+            KeyCode rotateKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.ROTATE);
+            KeyCode softDropKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.SOFT_DROP);
+            KeyCode hardDropKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.HARD_DROP);
+            KeyCode holdKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.HOLD);
+            
+            if (leftKey != null && keyCode == leftKey && eventListener != null) {
+                refreshBrick(eventListener.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)));
+            } else if (rightKey != null && keyCode == rightKey && eventListener != null) {
+                refreshBrick(eventListener.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)));
+            } else if (rotateKey != null && keyCode == rotateKey && eventListener != null) {
+                refreshBrick(eventListener.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)));
+            } else if (softDropKey != null && keyCode == softDropKey) {
+                if (timeLine != null) timeLine.setRate(SOFT_DROP_RATE);
+                moveDown(new MoveEvent(EventType.DOWN, EventSource.USER));
+            } else if (hardDropKey != null && keyCode == hardDropKey) {
+                if (eventListener != null) {
+                    // Hard drop can also clear lines
+                    DownData downData = eventListener.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
+                    if (downData != null) {
+                        if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                            showNotification("+" + downData.getClearRow().getScoreBonus());
+                            // Play line clear sound
+                            if (lineClearSound != null) {
+                                lineClearSound.stop();
+                                lineClearSound.seek(Duration.ZERO);
+                                lineClearSound.play();
                             }
-                            refreshBrick(downData.getViewData());
                         }
+                        refreshBrick(downData.getViewData());
                     }
                 }
-                case C, SHIFT -> { if (eventListener != null) refreshBrick(eventListener.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER))); }
+            } else if (holdKey != null && keyCode == holdKey && eventListener != null) {
+                refreshBrick(eventListener.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)));
             }
         }
-        if (keyEvent.getCode() == KeyCode.N) newGame(null);
+        
+        KeyCode newGameKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.NEW_GAME);
+        if (newGameKey != null && keyCode == newGameKey) {
+            newGame(null);
+        }
         keyEvent.consume();
     }
     
@@ -1616,143 +1658,139 @@ public class GuiController implements Initializable {
             return;
         }
         
+        KeyCode keyCode = keyEvent.getCode();
+        
         if (isPause.get()) {
             // Only allow pause/unpause in pause state
-            if (keyEvent.getCode() == KeyCode.P) {
+            KeyCode pauseKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.PAUSE);
+            if (pauseKey != null && keyCode == pauseKey) {
                 pauseGame(null);
                 keyEvent.consume();
             }
             return;
         }
         
-        // Player 1 controls: L (left), R (right), Y (rotate), A (left), W (rotate), S (down), D (right), Space (hard drop)
-        // Player 2 controls: Left, Right, Up (rotate), Down, Enter (hard drop)
-        
         boolean consumed = false;
         
-        // Player 1 controls
+        // Player 1 controls using KeyBindingsManager
         if (!isGameOver1.get() && eventListener1 != null) {
-            switch (keyEvent.getCode()) {
-                case L, A -> {
-                    refreshBrick(eventListener1.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)), 1);
+            KeyCode leftKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.LEFT);
+            KeyCode rightKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.RIGHT);
+            KeyCode rotateKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.ROTATE);
+            KeyCode softDropKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.SOFT_DROP);
+            KeyCode hardDropKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.HARD_DROP);
+            KeyCode holdKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.HOLD);
+            
+            if (leftKey1 != null && keyCode == leftKey1) {
+                refreshBrick(eventListener1.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)), 1);
+                consumed = true;
+            } else if (rightKey1 != null && keyCode == rightKey1) {
+                refreshBrick(eventListener1.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)), 1);
+                consumed = true;
+            } else if (rotateKey1 != null && keyCode == rotateKey1) {
+                refreshBrick(eventListener1.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)), 1);
+                consumed = true;
+            } else if (softDropKey1 != null && keyCode == softDropKey1) {
+                if (timeLine1 != null) timeLine1.setRate(SOFT_DROP_RATE);
+                moveDown(new MoveEvent(EventType.DOWN, EventSource.USER), 1);
+                consumed = true;
+            } else if (hardDropKey1 != null && keyCode == hardDropKey1) {
+                // Prevent multiple hard drops from being processed simultaneously
+                if (!isHardDropProcessing1) {
+                    isHardDropProcessing1 = true;
                     consumed = true;
-                }
-                case R, D -> {
-                    refreshBrick(eventListener1.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)), 1);
-                    consumed = true;
-                }
-                case Y, W -> {
-                    refreshBrick(eventListener1.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)), 1);
-                    consumed = true;
-                }
-                case S -> {
-                    if (timeLine1 != null) timeLine1.setRate(SOFT_DROP_RATE);
-                    moveDown(new MoveEvent(EventType.DOWN, EventSource.USER), 1);
-                    consumed = true;
-                }
-                case SPACE -> {
-                    // Prevent multiple hard drops from being processed simultaneously
-                    if (!isHardDropProcessing1) {
-                        isHardDropProcessing1 = true;
-                        consumed = true;
-                        keyEvent.consume(); // Consume immediately to prevent duplicate processing
-                        
-                        DownData downData = eventListener1.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
-                        if (downData != null) {
-                            if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                                if (lineClearSound != null) {
-                                    lineClearSound.stop();
-                                    lineClearSound.seek(Duration.ZERO);
-                                    lineClearSound.play();
-                                }
+                    keyEvent.consume(); // Consume immediately to prevent duplicate processing
+                    
+                    DownData downData = eventListener1.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
+                    if (downData != null) {
+                        if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                            if (lineClearSound != null) {
+                                lineClearSound.stop();
+                                lineClearSound.seek(Duration.ZERO);
+                                lineClearSound.play();
                             }
-                            refreshBrick(downData.getViewData(), 1);
                         }
-                        // Reset flag after a delay to allow next hard drop (but prevent rapid-fire)
-                        Timeline resetTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
-                            isHardDropProcessing1 = false;
-                        }));
-                        resetTimeline.setCycleCount(1);
-                        resetTimeline.play();
-                    } else {
-                        // If already processing, just consume the event
-                        consumed = true;
-                        keyEvent.consume();
+                        refreshBrick(downData.getViewData(), 1);
                     }
-                }
-                case C -> {
-                    refreshBrick(eventListener1.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)), 1);
+                    // Reset flag after a delay to allow next hard drop (but prevent rapid-fire)
+                    Timeline resetTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
+                        isHardDropProcessing1 = false;
+                    }));
+                    resetTimeline.setCycleCount(1);
+                    resetTimeline.play();
+                } else {
+                    // If already processing, just consume the event
                     consumed = true;
+                    keyEvent.consume();
                 }
+            } else if (holdKey1 != null && keyCode == holdKey1) {
+                refreshBrick(eventListener1.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)), 1);
+                consumed = true;
             }
         }
         
-        // Player 2 controls: Arrow keys and Enter
-        // These are separate keys from Player 1, so both players can control simultaneously
+        // Player 2 controls using KeyBindingsManager
         if (!isGameOver2.get() && eventListener2 != null) {
-            switch (keyEvent.getCode()) {
-                case LEFT -> {
-                    refreshBrick(eventListener2.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)), 2);
-                    consumed = true;
+            KeyCode leftKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.LEFT);
+            KeyCode rightKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.RIGHT);
+            KeyCode rotateKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.ROTATE);
+            KeyCode softDropKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.SOFT_DROP);
+            KeyCode hardDropKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.HARD_DROP);
+            KeyCode holdKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.HOLD);
+            
+            if (leftKey2 != null && keyCode == leftKey2) {
+                refreshBrick(eventListener2.onLeftEvent(new MoveEvent(EventType.LEFT, EventSource.USER)), 2);
+                consumed = true;
+            } else if (rightKey2 != null && keyCode == rightKey2) {
+                refreshBrick(eventListener2.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)), 2);
+                consumed = true;
+            } else if (rotateKey2 != null && keyCode == rotateKey2) {
+                refreshBrick(eventListener2.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)), 2);
+                consumed = true;
+            } else if (softDropKey2 != null && keyCode == softDropKey2) {
+                if (timeLine2 != null) {
+                    timeLine2.setRate(SOFT_DROP_RATE);
                 }
-                case RIGHT -> {
-                    refreshBrick(eventListener2.onRightEvent(new MoveEvent(EventType.RIGHT, EventSource.USER)), 2);
+                moveDown(new MoveEvent(EventType.DOWN, EventSource.USER), 2);
+                consumed = true;
+            } else if (hardDropKey2 != null && keyCode == hardDropKey2) {
+                // Prevent multiple hard drops from being processed simultaneously
+                if (!isHardDropProcessing2) {
+                    isHardDropProcessing2 = true;
                     consumed = true;
-                }
-                case UP -> {
-                    refreshBrick(eventListener2.onRotateEvent(new MoveEvent(EventType.ROTATE, EventSource.USER)), 2);
-                    consumed = true;
-                }
-                case DOWN -> {
-                    if (timeLine2 != null) {
-                        timeLine2.setRate(SOFT_DROP_RATE);
-                    }
-                    moveDown(new MoveEvent(EventType.DOWN, EventSource.USER), 2);
-                    consumed = true;
-                }
-                case ENTER -> {
-                    // Prevent multiple hard drops from being processed simultaneously
-                    if (!isHardDropProcessing2) {
-                        isHardDropProcessing2 = true;
-                        consumed = true;
-                        keyEvent.consume(); // Consume immediately to prevent duplicate processing
-                        
-                        DownData downData = eventListener2.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
-                        if (downData != null) {
-                            if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                                if (lineClearSound != null) {
-                                    lineClearSound.stop();
-                                    lineClearSound.seek(Duration.ZERO);
-                                    lineClearSound.play();
-                                }
+                    keyEvent.consume(); // Consume immediately to prevent duplicate processing
+                    
+                    DownData downData = eventListener2.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
+                    if (downData != null) {
+                        if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
+                            if (lineClearSound != null) {
+                                lineClearSound.stop();
+                                lineClearSound.seek(Duration.ZERO);
+                                lineClearSound.play();
                             }
-                            refreshBrick(downData.getViewData(), 2);
                         }
-                        // Reset flag after a delay to allow next hard drop (but prevent rapid-fire)
-                        Timeline resetTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
-                            isHardDropProcessing2 = false;
-                        }));
-                        resetTimeline.setCycleCount(1);
-                        resetTimeline.play();
-                    } else {
-                        // If already processing, just consume the event
-                        consumed = true;
-                        keyEvent.consume();
+                        refreshBrick(downData.getViewData(), 2);
                     }
-                }
-                case CONTROL -> {
-                    // Right Ctrl for Player 2 hold
-                    // Note: JavaFX doesn't easily distinguish left vs right control
-                    // Both left and right control will trigger this, but typically
-                    // players will use the right control key as specified
-                    refreshBrick(eventListener2.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)), 2);
+                    // Reset flag after a delay to allow next hard drop (but prevent rapid-fire)
+                    Timeline resetTimeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
+                        isHardDropProcessing2 = false;
+                    }));
+                    resetTimeline.setCycleCount(1);
+                    resetTimeline.play();
+                } else {
+                    // If already processing, just consume the event
                     consumed = true;
+                    keyEvent.consume();
                 }
+            } else if (holdKey2 != null && keyCode == holdKey2) {
+                refreshBrick(eventListener2.onHoldEvent(new MoveEvent(EventType.HOLD, EventSource.USER)), 2);
+                consumed = true;
             }
         }
         
         // Global controls
-        if (keyEvent.getCode() == KeyCode.P) {
+        KeyCode pauseKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.PAUSE);
+        if (pauseKey != null && keyCode == pauseKey) {
             pauseGame(null);
             consumed = true;
         }
@@ -1763,17 +1801,22 @@ public class GuiController implements Initializable {
     }
 
     private void handleKeyRelease(KeyEvent keyEvent) {
+        KeyCode keyCode = keyEvent.getCode();
+        
         if (isMultiplayerMode) {
-            // Player 1: S key releases soft drop
-            if (keyEvent.getCode() == KeyCode.S) {
+            // Player 1: soft drop key release
+            KeyCode softDropKey1 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER1, KeyBindingsManager.Action.SOFT_DROP);
+            if (softDropKey1 != null && keyCode == softDropKey1) {
                 updateTimelineRate(1);
             }
-            // Player 2: DOWN arrow key releases soft drop
-            else if (keyEvent.getCode() == KeyCode.DOWN) {
+            // Player 2: soft drop key release
+            KeyCode softDropKey2 = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.PLAYER2, KeyBindingsManager.Action.SOFT_DROP);
+            if (softDropKey2 != null && keyCode == softDropKey2) {
                 updateTimelineRate(2);
             }
         } else {
-            if (keyEvent.getCode() == KeyCode.DOWN || keyEvent.getCode() == KeyCode.S) {
+            KeyCode softDropKey = keyBindingsManager.getKeyBinding(KeyBindingsManager.PlayerMode.SINGLE, KeyBindingsManager.Action.SOFT_DROP);
+            if (softDropKey != null && keyCode == softDropKey) {
                 updateTimelineRate();
             }
         }
