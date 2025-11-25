@@ -14,7 +14,7 @@
             xmlns:fx="http://javafx.com/fxml" styleClass="root-pane" prefWidth="800" prefHeight="700">
 
     <left>
-        <VBox spacing="20" styleClass="side-panel" prefWidth="150" maxWidth="150">
+        <VBox spacing="30" styleClass="side-panel" prefWidth="150" maxWidth="150">
             <VBox styleClass="info-box">
                 <Label text="HOLD" styleClass="panel-title"/>
                 <GridPane fx:id="holdBrickPanel" vgap="1" hgap="1" styleClass="brick-preview"
@@ -94,7 +94,7 @@
     </center>
 
     <right>
-        <VBox spacing="20" styleClass="side-panel" prefWidth="150" maxWidth="150">
+        <VBox spacing="30" styleClass="side-panel" prefWidth="150" maxWidth="150">
             <VBox styleClass="info-box">
                 <Label text="NEXT" styleClass="panel-title"/>
                 <VBox fx:id="nextBricksPanel" spacing="10" styleClass="next-bricks-panel"
@@ -102,16 +102,8 @@
             </VBox>
 
             <VBox styleClass="info-box">
-                <Label text="CONTROLS" styleClass="panel-title"/>
-                <VBox styleClass="controls-list">
-                    <Label text="←→ : Move" styleClass="control-item"/>
-                    <Label text="↑ : Rotate" styleClass="control-item"/>
-                    <Label text="↓ : Soft Drop" styleClass="control-item"/>
-                    <Label text="SPACE : Hard Drop" styleClass="control-item"/>
-                    <Label text="C : Hold" styleClass="control-item"/>
-                    <Label text="P : Pause" styleClass="control-item"/>
-                    <Label text="N : New Game" styleClass="control-item"/>
-                </VBox>
+                <Label text="TIME" styleClass="panel-title"/>
+                <Label fx:id="timerLabel" text="00:00" styleClass="timer-display"/>
             </VBox>
         </VBox>
     </right>

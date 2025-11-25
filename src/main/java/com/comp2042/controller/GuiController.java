@@ -73,6 +73,7 @@ public class GuiController implements Initializable {
     @FXML private Label linesLabel;
     @FXML private MainMenuPanel mainMenuPanel;
     @FXML private Label countdownLabel;
+    @FXML private Label timerLabel;
 
     // Multiplayer fields
     private HBox multiplayerContainer;
@@ -124,6 +125,8 @@ public class GuiController implements Initializable {
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
     private Timeline timeLine;
+    private Timeline timerTimeline; // Timer for single player mode
+    private int elapsedSeconds = 0; // Elapsed time in seconds
     private final BooleanProperty isPause = new SimpleBooleanProperty(false);
     private final BooleanProperty isGameOver = new SimpleBooleanProperty(false);
     private boolean gameStarted = false;
@@ -182,6 +185,12 @@ public class GuiController implements Initializable {
         if (countdownLabel != null) {
             countdownLabel.setVisible(false);
             countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
+        }
+        
+        // Initialize timer label
+        if (timerLabel != null) {
+            timerLabel.setText("00:00");
+            elapsedSeconds = 0;
         }
 
         // Hide brick panel and ghost panel when main menu is visible
@@ -2546,6 +2555,9 @@ public class GuiController implements Initializable {
         // Single player game over
         if (timeLine != null) timeLine.stop();
         
+        // Stop timer
+        stopTimer();
+        
         // Stop game music and play game over sound
         if (gameMusic != null) {
             gameMusic.stop();
@@ -2668,6 +2680,9 @@ public class GuiController implements Initializable {
         if (timeLine != null) timeLine.stop();
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
         
+        // Reset timer for new game
+        resetTimer();
+        
         // Stop game over sound and start game music
         if (gameOverSound != null) {
             gameOverSound.stop();
@@ -2704,6 +2719,12 @@ public class GuiController implements Initializable {
             gameBoard.requestFocus();
         }
         if (timeLine != null) timeLine.play();
+        
+        // Start timer for new game (single player only)
+        if (!isMultiplayerMode) {
+            startTimer();
+        }
+        
         isPause.set(false);
         isGameOver.set(false);
         gameStarted = true;
@@ -2911,6 +2932,12 @@ public class GuiController implements Initializable {
         if (timeLine != null) {
             timeLine.play();
         }
+        
+        // Start timer for single player mode
+        if (!isMultiplayerMode) {
+            startTimer();
+        }
+        
         if (gameBoard != null) {
             // Ensure keyboard handlers are attached for single player mode
             if (!isMultiplayerMode) {
@@ -2997,6 +3024,8 @@ public class GuiController implements Initializable {
                 if (gameMusic != null) {
                     gameMusic.pause();
                 }
+                // Pause timer
+                pauseTimer();
                 isPause.set(true);
                 // Show pause panel
                 if (pausePanel != null) {
@@ -3009,6 +3038,8 @@ public class GuiController implements Initializable {
                 if (gameMusic != null) {
                     gameMusic.play();
                 }
+                // Resume timer
+                resumeTimer();
                 isPause.set(false);
                 // Hide pause panel
                 if (pausePanel != null) {
@@ -3813,6 +3844,82 @@ public class GuiController implements Initializable {
                 double rate = 1.0 + (Math.max(1, currentLevel) - 1) * 0.25;
                 timeLine.setRate(rate);
             }
+        }
+    }
+    
+    /**
+     * Formats elapsed seconds as MM:SS
+     */
+    private String formatTime(int seconds) {
+        int minutes = seconds / 60;
+        int secs = seconds % 60;
+        return String.format("%02d:%02d", minutes, secs);
+    }
+    
+    /**
+     * Starts the timer for single player mode
+     */
+    private void startTimer() {
+        if (isMultiplayerMode || timerLabel == null) {
+            return; // Only for single player mode
+        }
+        
+        // Stop existing timer if any
+        stopTimer();
+        
+        // Reset elapsed time
+        elapsedSeconds = 0;
+        if (timerLabel != null) {
+            timerLabel.setText(formatTime(0));
+        }
+        
+        // Create timer timeline that updates every second
+        timerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            elapsedSeconds++;
+            if (timerLabel != null) {
+                timerLabel.setText(formatTime(elapsedSeconds));
+            }
+        }));
+        timerTimeline.setCycleCount(Timeline.INDEFINITE);
+        timerTimeline.play();
+    }
+    
+    /**
+     * Stops the timer
+     */
+    private void stopTimer() {
+        if (timerTimeline != null) {
+            timerTimeline.stop();
+            timerTimeline = null;
+        }
+    }
+    
+    /**
+     * Pauses the timer
+     */
+    private void pauseTimer() {
+        if (timerTimeline != null && !isMultiplayerMode) {
+            timerTimeline.pause();
+        }
+    }
+    
+    /**
+     * Resumes the timer
+     */
+    private void resumeTimer() {
+        if (timerTimeline != null && !isMultiplayerMode) {
+            timerTimeline.play();
+        }
+    }
+    
+    /**
+     * Resets the timer
+     */
+    private void resetTimer() {
+        stopTimer();
+        elapsedSeconds = 0;
+        if (timerLabel != null) {
+            timerLabel.setText(formatTime(0));
         }
     }
 
