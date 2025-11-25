@@ -456,8 +456,13 @@ public class GuiController implements Initializable {
     
     private void showWinningPanel(int winnerPlayerNumber) {
         if (multiplayerWinningOverlay != null && multiplayerWinningPanel != null) {
+            // Stop multiplayer timer
+            stopMultiplayerTimer();
+            
             // Set the winner
             multiplayerWinningPanel.setWinner(winnerPlayerNumber);
+            // Set the time used
+            multiplayerWinningPanel.setTimeUsed(multiplayerElapsedSeconds);
             // Show winning overlay
             multiplayerWinningOverlay.setVisible(true);
             multiplayerWinningOverlay.setManaged(true);

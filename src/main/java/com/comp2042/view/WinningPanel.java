@@ -9,6 +9,7 @@ public class WinningPanel extends BorderPane {
 
     private Label winnerLabel;
     private Label messageLabel;
+    private Label timeUsedLabel;
     private Button restartButton;
     private Button mainMenuButton;
     
@@ -37,6 +38,15 @@ public class WinningPanel extends BorderPane {
         messageLabel = new Label("The other player has lost!");
         messageLabel.getStyleClass().add("winning-message");
         
+        // Time used
+        Label timeUsedTitle = new Label("TIME USED:");
+        timeUsedTitle.getStyleClass().add("game-over-score-title");
+        timeUsedLabel = new Label("00:00");
+        timeUsedLabel.getStyleClass().add("game-over-current-score");
+        VBox timeBox = new VBox(5);
+        timeBox.setAlignment(javafx.geometry.Pos.CENTER);
+        timeBox.getChildren().addAll(timeUsedTitle, timeUsedLabel);
+        
         // Restart button
         restartButton = new Button("RESTART");
         restartButton.getStyleClass().add("pause-button");
@@ -55,7 +65,7 @@ public class WinningPanel extends BorderPane {
             }
         });
         
-        mainContainer.getChildren().addAll(winnerTitle, winnerLabel, messageLabel, restartButton, mainMenuButton);
+        mainContainer.getChildren().addAll(winnerTitle, winnerLabel, messageLabel, timeBox, restartButton, mainMenuButton);
         
         setCenter(mainContainer);
     }
@@ -69,6 +79,14 @@ public class WinningPanel extends BorderPane {
     public void setMessage(String message) {
         if (messageLabel != null) {
             messageLabel.setText(message);
+        }
+    }
+    
+    public void setTimeUsed(int seconds) {
+        if (timeUsedLabel != null) {
+            int minutes = seconds / 60;
+            int secs = seconds % 60;
+            timeUsedLabel.setText(String.format("%02d:%02d", minutes, secs));
         }
     }
     
