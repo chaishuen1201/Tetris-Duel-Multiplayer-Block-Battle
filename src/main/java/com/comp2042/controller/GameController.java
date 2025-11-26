@@ -33,6 +33,8 @@ public class GameController implements InputEventListener {
             SimpleBoard simpleBoard = (SimpleBoard) board;
             viewGuiController.bindLevel(simpleBoard.levelProperty(), playerNumber);
             viewGuiController.bindLines(simpleBoard.linesProperty(), playerNumber);
+            // Update next bricks display when game starts
+            viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
         }
     }
 
