@@ -36,8 +36,7 @@ import javafx.scene.text.Font;
 import javafx.scene.control.Label;
 import javafx.util.Duration;
 import javafx.scene.control.Button;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
+// Audio management is now handled by AudioManager
 import javafx.scene.Parent;
 import javafx.application.Platform;
 
@@ -48,13 +47,14 @@ import java.util.ResourceBundle;
 
 public class GuiController implements Initializable {
 
-    private static final int BRICK_SIZE = 30;
-    private static final int GRID_GAP = 1;
-    private static final int BOARD_WIDTH = 10;
-    private static final int BOARD_HEIGHT = 20;
-    private static final int GAME_PANEL_WIDTH = (BRICK_SIZE * BOARD_WIDTH) + (GRID_GAP * (BOARD_WIDTH - 1));
-    private static final int GAME_PANEL_HEIGHT = (BRICK_SIZE * BOARD_HEIGHT) + (GRID_GAP * (BOARD_HEIGHT - 1));
-    private static final double SOFT_DROP_RATE = 12.0;
+    // Use constants from GameConstants instead of magic numbers
+    private static final int BRICK_SIZE = GameConstants.BRICK_SIZE;
+    private static final int GRID_GAP = GameConstants.GRID_GAP;
+    private static final int BOARD_WIDTH = GameConstants.BOARD_WIDTH;
+    private static final int BOARD_HEIGHT = GameConstants.BOARD_HEIGHT;
+    private static final int GAME_PANEL_WIDTH = GameConstants.GAME_PANEL_WIDTH;
+    private static final int GAME_PANEL_HEIGHT = GameConstants.GAME_PANEL_HEIGHT;
+    private static final double SOFT_DROP_RATE = GameConstants.SOFT_DROP_RATE;
     private ViewData currentBrickData; // Store current brick data for countdown refresh
 
     @FXML private BorderPane gameBoard;
@@ -125,11 +125,8 @@ public class GuiController implements Initializable {
     private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
     private Timeline timeLine;
-    private Timeline timerTimeline; // Timer for single player mode
-    private int elapsedSeconds = 0; // Elapsed time in seconds
-    private Timeline multiplayerTimerTimeline; // Timer for multiplayer mode
-    private int multiplayerElapsedSeconds = 0; // Elapsed time in seconds for multiplayer
-    private Label multiplayerTimerLabel; // Timer label for multiplayer mode
+    // Timer management - delegated to TimerManager
+    private final TimerManager timerManager = new TimerManager();
     private final BooleanProperty isPause = new SimpleBooleanProperty(false);
     private final BooleanProperty isGameOver = new SimpleBooleanProperty(false);
     private boolean gameStarted = false;
@@ -140,17 +137,8 @@ public class GuiController implements Initializable {
     private List<GridPane> nextBrickPanes = new ArrayList<>();
     private HighScoreManager highScoreManager = new HighScoreManager();
     
-    // Audio players
-    private MediaPlayer countdownSound;
-    private MediaPlayer gameMusic;
-    private MediaPlayer gameOverSound;
-    private MediaPlayer lineClearSound;
-    private MediaPlayer mainMenuMusic;
-    private MediaPlayer winnerSound;
-    
-    // Volume control
-    private double currentVolume = 0.5; // Default volume (50%)
-    private boolean isMuted = false;
+    // Audio management - delegated to AudioManager
+    private final AudioManager audioManager = new AudioManager();
     
     // Key bindings manager
     private KeyBindingsManager keyBindingsManager = KeyBindingsManager.getInstance();
@@ -174,7 +162,12 @@ public class GuiController implements Initializable {
         initializeHoldPanel();
         initializeNextBricksPanel();
         initializeInfoPanel();
-        initializeAudio();
+        
+        // Initialize audio manager
+        audioManager.initialize();
+        
+        // Initialize timer manager
+        timerManager.setSinglePlayerTimerLabel(timerLabel);
 
         if (gameOverPanel != null) gameOverPanel.setVisible(false);
         if (pausePanel != null) {
@@ -190,11 +183,7 @@ public class GuiController implements Initializable {
             countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
         }
         
-        // Initialize timer label
-        if (timerLabel != null) {
-            timerLabel.setText("00:00");
-            elapsedSeconds = 0;
-        }
+        // Timer label initialization is handled by TimerManager
 
         // Hide brick panel and ghost panel when main menu is visible
         if (brickPanel != null) {
@@ -223,61 +212,10 @@ public class GuiController implements Initializable {
         }
         
         // Start main menu music
-        playMainMenuMusic();
+        audioManager.playMainMenuMusic();
     }
     
-    private void initializeAudio() {
-        try {
-            // Countdown sound
-            URL countdownUrl = getClass().getClassLoader().getResource("audio/3-2-1-countdown.mp3");
-            if (countdownUrl != null) {
-                Media countdownMedia = new Media(countdownUrl.toExternalForm());
-                countdownSound = new MediaPlayer(countdownMedia);
-            }
-            
-            // Game music (looping)
-            URL gameMusicUrl = getClass().getClassLoader().getResource("audio/A-Type Music (Korobeiniki).mp3");
-            if (gameMusicUrl != null) {
-                Media gameMusicMedia = new Media(gameMusicUrl.toExternalForm());
-                gameMusic = new MediaPlayer(gameMusicMedia);
-                gameMusic.setCycleCount(MediaPlayer.INDEFINITE);
-            }
-            
-            // Game over sound
-            URL gameOverUrl = getClass().getClassLoader().getResource("audio/Game Over.mp3");
-            if (gameOverUrl != null) {
-                Media gameOverMedia = new Media(gameOverUrl.toExternalForm());
-                gameOverSound = new MediaPlayer(gameOverMedia);
-            }
-            
-            // Line clear sound
-            URL lineClearUrl = getClass().getClassLoader().getResource("audio/Stage Clear.mp3");
-            if (lineClearUrl != null) {
-                Media lineClearMedia = new Media(lineClearUrl.toExternalForm());
-                lineClearSound = new MediaPlayer(lineClearMedia);
-            }
-            
-            // Main menu music (looping)
-            URL mainMenuUrl = getClass().getClassLoader().getResource("audio/tetris-party-deluxe-main-menu-music.mp3");
-            if (mainMenuUrl != null) {
-                Media mainMenuMedia = new Media(mainMenuUrl.toExternalForm());
-                mainMenuMusic = new MediaPlayer(mainMenuMedia);
-                mainMenuMusic.setCycleCount(MediaPlayer.INDEFINITE);
-            }
-            
-            // Winner sound
-            URL winnerUrl = getClass().getClassLoader().getResource("audio/winners_W9Cpenj.mp3");
-            if (winnerUrl != null) {
-                Media winnerMedia = new Media(winnerUrl.toExternalForm());
-                winnerSound = new MediaPlayer(winnerMedia);
-            }
-            
-            // Apply initial volume to all players
-            applyVolumeToAllPlayers(currentVolume);
-        } catch (Exception e) {
-            System.out.println("Error loading audio files: " + e.getMessage());
-        }
-    }
+    // Audio initialization is now handled by AudioManager
     
     private void initializeSettingsPanel() {
         if (settingsPanel != null) {
@@ -285,15 +223,13 @@ public class GuiController implements Initializable {
             
             // Set up volume slider
             javafx.scene.control.Slider volumeSlider = settingsPanel.getVolumeSlider();
-            volumeSlider.setValue(currentVolume * 100); // Convert to percentage
+            volumeSlider.setValue(audioManager.getVolume() * 100); // Convert to percentage
             volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
-                currentVolume = newVal.doubleValue() / 100.0;
-                if (!isMuted) {
-                    applyVolumeToAllPlayers(currentVolume);
-                }
+                double newVolume = newVal.doubleValue() / 100.0;
+                audioManager.setVolume(newVolume);
                 // If user moves slider while muted, unmute
-                if (isMuted && newVal.doubleValue() != oldVal.doubleValue()) {
-                    isMuted = false;
+                if (audioManager.isMuted() && newVal.doubleValue() != oldVal.doubleValue()) {
+                    audioManager.toggleMute();
                     Button muteBtn = settingsPanel.getMuteButton();
                     if (muteBtn != null) {
                         muteBtn.setText("🔊");
@@ -303,7 +239,10 @@ public class GuiController implements Initializable {
             
             // Set up mute button
             Button muteButton = settingsPanel.getMuteButton();
-            muteButton.setOnAction(e -> toggleMute());
+            muteButton.setOnAction(e -> {
+                boolean isMuted = audioManager.toggleMute();
+                muteButton.setText(isMuted ? "🔇" : "🔊");
+            });
             
             // Set up ghost piece checkbox
             javafx.scene.control.CheckBox ghostPieceCheckBox = settingsPanel.getGhostPieceCheckBox();
@@ -327,43 +266,7 @@ public class GuiController implements Initializable {
         }
     }
     
-    private void applyVolumeToAllPlayers(double volume) {
-        if (countdownSound != null) {
-            countdownSound.setVolume(volume);
-        }
-        if (gameMusic != null) {
-            gameMusic.setVolume(volume);
-        }
-        if (gameOverSound != null) {
-            gameOverSound.setVolume(volume);
-        }
-        if (lineClearSound != null) {
-            lineClearSound.setVolume(volume);
-        }
-        if (mainMenuMusic != null) {
-            mainMenuMusic.setVolume(volume);
-        }
-        if (winnerSound != null) {
-            winnerSound.setVolume(volume);
-        }
-    }
-    
-    private void toggleMute() {
-        isMuted = !isMuted;
-        Button muteButton = settingsPanel != null ? settingsPanel.getMuteButton() : null;
-        
-        if (isMuted) {
-            applyVolumeToAllPlayers(0.0);
-            if (muteButton != null) {
-                muteButton.setText("🔇");
-            }
-        } else {
-            applyVolumeToAllPlayers(currentVolume);
-            if (muteButton != null) {
-                muteButton.setText("🔊");
-            }
-        }
-    }
+    // Volume and mute operations are now handled by AudioManager
     
     private void showSettings() {
         if (settingsPanel != null && mainMenuPanel != null) {
@@ -462,7 +365,7 @@ public class GuiController implements Initializable {
             // Set the winner
             multiplayerWinningPanel.setWinner(winnerPlayerNumber);
             // Set the time used
-            multiplayerWinningPanel.setTimeUsed(multiplayerElapsedSeconds);
+            multiplayerWinningPanel.setTimeUsed(timerManager.getMultiplayerElapsedSeconds());
             // Show winning overlay
             multiplayerWinningOverlay.setVisible(true);
             multiplayerWinningOverlay.setManaged(true);
@@ -481,11 +384,7 @@ public class GuiController implements Initializable {
                 multiplayerWrapper.setManaged(true);
             }
             // Play winner sound
-            if (winnerSound != null) {
-                winnerSound.stop();
-                winnerSound.seek(Duration.ZERO);
-                winnerSound.play();
-            }
+            audioManager.playWinner();
         }
     }
     
@@ -965,12 +864,7 @@ public class GuiController implements Initializable {
         startMultiplayerTimer();
         
         // Start game music
-        if (gameMusic != null) {
-            if (mainMenuMusic != null) {
-                mainMenuMusic.stop();
-            }
-            gameMusic.play();
-        }
+        audioManager.playGameMusic();
         
         // Make brick panels and ghost panels visible
         if (brickPanel1 != null) {
@@ -1212,10 +1106,11 @@ public class GuiController implements Initializable {
         vsColumn.setAlignment(javafx.geometry.Pos.CENTER);
         
         // Create timer label for multiplayer (aligned with player titles)
-        multiplayerTimerLabel = new Label("00:00");
+        Label multiplayerTimerLabel = new Label("00:00");
         multiplayerTimerLabel.getStyleClass().add("multiplayer-timer-label");
         multiplayerTimerLabel.setAlignment(javafx.geometry.Pos.CENTER);
         multiplayerTimerLabel.setMaxWidth(Double.MAX_VALUE);
+        timerManager.setMultiplayerTimerLabel(multiplayerTimerLabel);
         
         // Create VS label
         Label vsLabel = new Label("VS");
@@ -1441,21 +1336,7 @@ public class GuiController implements Initializable {
         }
     }
     
-    private void playMainMenuMusic() {
-        stopAllMusic();
-        if (mainMenuMusic != null) {
-            mainMenuMusic.play();
-        }
-    }
-    
-    private void stopAllMusic() {
-        if (gameMusic != null) {
-            gameMusic.stop();
-        }
-        if (mainMenuMusic != null) {
-            mainMenuMusic.stop();
-        }
-    }
+    // Audio methods are now handled by AudioManager
 
     private void initializeGamePanel() {
         if (gamePanel != null) {
@@ -1665,11 +1546,7 @@ public class GuiController implements Initializable {
                         if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
                             showNotification("+" + downData.getClearRow().getScoreBonus());
                             // Play line clear sound
-                            if (lineClearSound != null) {
-                                lineClearSound.stop();
-                                lineClearSound.seek(Duration.ZERO);
-                                lineClearSound.play();
-                            }
+                            audioManager.playLineClear();
                         }
                         refreshBrick(downData.getViewData());
                     }
@@ -1737,11 +1614,7 @@ public class GuiController implements Initializable {
                     DownData downData = eventListener1.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
                     if (downData != null) {
                         if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                            if (lineClearSound != null) {
-                                lineClearSound.stop();
-                                lineClearSound.seek(Duration.ZERO);
-                                lineClearSound.play();
-                            }
+                            audioManager.playLineClear();
                         }
                         refreshBrick(downData.getViewData(), 1);
                     }
@@ -1796,11 +1669,7 @@ public class GuiController implements Initializable {
                     DownData downData = eventListener2.onHardDropEvent(new MoveEvent(EventType.HARD_DROP, EventSource.USER));
                     if (downData != null) {
                         if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                            if (lineClearSound != null) {
-                                lineClearSound.stop();
-                                lineClearSound.seek(Duration.ZERO);
-                                lineClearSound.play();
-                            }
+                            audioManager.playLineClear();
                         }
                         refreshBrick(downData.getViewData(), 2);
                     }
@@ -2244,11 +2113,7 @@ public class GuiController implements Initializable {
                 if (downData != null) {
                     if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
                         // Play line clear sound
-                        if (lineClearSound != null) {
-                            lineClearSound.stop();
-                            lineClearSound.seek(Duration.ZERO);
-                            lineClearSound.play();
-                        }
+                        audioManager.playLineClear();
                     }
                     refreshBrick(downData.getViewData(), playerNumber);
                 }
@@ -2263,11 +2128,7 @@ public class GuiController implements Initializable {
                     if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
                         showNotification("+" + downData.getClearRow().getScoreBonus());
                         // Play line clear sound
-                        if (lineClearSound != null) {
-                            lineClearSound.stop();
-                            lineClearSound.seek(Duration.ZERO);
-                            lineClearSound.play();
-                        }
+                        audioManager.playLineClear();
                     }
                     refreshBrick(downData.getViewData());
                 }
@@ -2543,9 +2404,7 @@ public class GuiController implements Initializable {
             isPause.set(false);
             
             // Stop game music when game ends in multiplayer mode
-            if (gameMusic != null) {
-                gameMusic.stop();
-            }
+            audioManager.stopGameMusic();
             
             // If only one player is game over, show winning panel for the other player
             // Also set the winning player's game over flag to prevent further input
@@ -2566,11 +2425,7 @@ public class GuiController implements Initializable {
                     multiplayerWinningOverlay.setMouseTransparent(true);
                 }
                 // Play game over sound (game music already stopped above)
-                if (gameOverSound != null) {
-                    gameOverSound.stop();
-                    gameOverSound.seek(Duration.ZERO);
-                    gameOverSound.play();
-                }
+                audioManager.playGameOver();
                 // Could show a multiplayer game over screen here
             }
             return;
@@ -2583,14 +2438,8 @@ public class GuiController implements Initializable {
         stopTimer();
         
         // Stop game music and play game over sound
-        if (gameMusic != null) {
-            gameMusic.stop();
-        }
-        if (gameOverSound != null) {
-            gameOverSound.stop();
-            gameOverSound.seek(Duration.ZERO);
-            gameOverSound.play();
-        }
+        audioManager.stopGameMusic();
+        audioManager.playGameOver();
         
         // Hide pause panel if visible
         if (pausePanel != null) {
@@ -2622,7 +2471,7 @@ public class GuiController implements Initializable {
             
             // Update game over panel
             gameOverPanel.setCurrentScore(currentScore);
-            gameOverPanel.setTimeUsed(elapsedSeconds);
+            gameOverPanel.setTimeUsed(timerManager.getSinglePlayerElapsedSeconds());
             gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
             
             // Set button actions
@@ -2693,10 +2542,7 @@ public class GuiController implements Initializable {
                 resetTimer();
                 
                 // Stop game over sound and play main menu music
-                if (gameOverSound != null) {
-                    gameOverSound.stop();
-                }
-                playMainMenuMusic();
+                audioManager.playMainMenuMusic();
             });
             
             gameOverPanel.setVisible(true);
@@ -2712,17 +2558,7 @@ public class GuiController implements Initializable {
         resetTimer();
         
         // Stop game over sound and start game music
-        if (gameOverSound != null) {
-            gameOverSound.stop();
-        }
-        if (mainMenuMusic != null) {
-            mainMenuMusic.stop();
-        }
-        if (gameMusic != null) {
-            gameMusic.stop();
-            gameMusic.seek(Duration.ZERO);
-            gameMusic.play();
-        }
+        audioManager.playGameMusic();
         
         if (eventListener != null) eventListener.createNewGame();
         
@@ -2809,9 +2645,7 @@ public class GuiController implements Initializable {
         }
         
         // Stop main menu music during countdown
-        if (mainMenuMusic != null) {
-            mainMenuMusic.stop();
-        }
+        audioManager.stopMainMenuMusic();
         
         // Make game panel visible during countdown so grid is visible
         if (gamePanel != null) {
@@ -2829,11 +2663,7 @@ public class GuiController implements Initializable {
         }
         
         // Play countdown sound
-        if (countdownSound != null) {
-            countdownSound.stop();
-            countdownSound.seek(Duration.ZERO);
-            countdownSound.play();
-        }
+        audioManager.playCountdown();
         
         // Make countdown label visible and center it
         countdownLabel.setVisible(true);
@@ -2889,12 +2719,7 @@ public class GuiController implements Initializable {
         isPause.set(false);
         
         // Stop main menu music and start game music
-        if (mainMenuMusic != null) {
-            mainMenuMusic.stop();
-        }
-        if (gameMusic != null) {
-            gameMusic.play();
-        }
+        audioManager.playGameMusic();
         
         // Ensure score, level, and lines bindings are active
         if (eventListener instanceof GameController) {
@@ -3003,10 +2828,8 @@ public class GuiController implements Initializable {
                 // Pause the game
                 if (timeLine1 != null) timeLine1.pause();
                 if (timeLine2 != null) timeLine2.pause();
-                // Pause game music
-                if (gameMusic != null) {
-                    gameMusic.pause();
-                }
+                // Pause game music - AudioManager doesn't have pause, so we stop it
+                audioManager.stopGameMusic();
                 // Pause multiplayer timer
                 pauseMultiplayerTimer();
                 isPause.set(true);
@@ -3028,9 +2851,7 @@ public class GuiController implements Initializable {
                 if (timeLine1 != null) { timeLine1.play(); updateTimelineRate(1); }
                 if (timeLine2 != null) { timeLine2.play(); updateTimelineRate(2); }
                 // Resume game music
-                if (gameMusic != null) {
-                    gameMusic.play();
-                }
+                audioManager.playGameMusic();
                 // Resume multiplayer timer
                 resumeMultiplayerTimer();
                 isPause.set(false);
@@ -3052,10 +2873,8 @@ public class GuiController implements Initializable {
             if (!isPause.get()) {
                 // Pause the game
                 if (timeLine != null) timeLine.pause();
-                // Pause game music
-                if (gameMusic != null) {
-                    gameMusic.pause();
-                }
+                // Pause game music - AudioManager doesn't have pause, so we stop it
+                audioManager.stopGameMusic();
                 // Pause timer
                 pauseTimer();
                 isPause.set(true);
@@ -3067,9 +2886,7 @@ public class GuiController implements Initializable {
                 // Resume the game
                 if (timeLine != null) { timeLine.play(); updateTimelineRate(); }
                 // Resume game music
-                if (gameMusic != null) {
-                    gameMusic.play();
-                }
+                audioManager.playGameMusic();
                 // Resume timer
                 resumeTimer();
                 isPause.set(false);
@@ -3147,11 +2964,7 @@ public class GuiController implements Initializable {
             startMultiplayerTimer();
             
             // Restart music
-            if (gameMusic != null) {
-                gameMusic.stop();
-                gameMusic.seek(Duration.ZERO);
-                gameMusic.play();
-            }
+            audioManager.playGameMusic();
         });
         
         // Main menu action - go back to main menu
@@ -3197,16 +3010,8 @@ public class GuiController implements Initializable {
             }
             
             // Stop game music and play main menu music
-            if (gameMusic != null) {
-                gameMusic.stop();
-            }
-            if (gameOverSound != null) {
-                gameOverSound.stop();
-            }
-            if (winnerSound != null) {
-                winnerSound.stop();
-            }
-            playMainMenuMusic();
+            audioManager.stopAll();
+            audioManager.playMainMenuMusic();
             
             // Reset multiplayer mode flag
             if (isMultiplayerMode) {
@@ -3505,11 +3310,7 @@ public class GuiController implements Initializable {
                 startMultiplayerTimer();
                 
                 // Restart music
-                if (gameMusic != null) {
-                    gameMusic.stop();
-                    gameMusic.seek(Duration.ZERO);
-                    gameMusic.play();
-                }
+                audioManager.playGameMusic();
             } else {
                 // For single player, use newGame method
                 newGame(null);
@@ -3554,13 +3355,8 @@ public class GuiController implements Initializable {
             }
             
             // Stop game music and play main menu music
-            if (gameMusic != null) {
-                gameMusic.stop();
-            }
-            if (gameOverSound != null) {
-                gameOverSound.stop();
-            }
-            playMainMenuMusic();
+            audioManager.stopAll();
+            audioManager.playMainMenuMusic();
             
             // Hide bottom panel
             // For single player mode, clear the game board display
@@ -3894,147 +3690,50 @@ public class GuiController implements Initializable {
         }
     }
     
-    /**
-     * Formats elapsed seconds as MM:SS
-     */
-    private String formatTime(int seconds) {
-        int minutes = seconds / 60;
-        int secs = seconds % 60;
-        return String.format("%02d:%02d", minutes, secs);
-    }
-    
-    /**
-     * Starts the timer for single player mode
-     */
+    // Timer methods are now handled by TimerManager
     private void startTimer() {
-        if (isMultiplayerMode || timerLabel == null) {
-            return; // Only for single player mode
+        if (!isMultiplayerMode) {
+            timerManager.startSinglePlayerTimer();
         }
-        
-        // Stop existing timer if any
-        stopTimer();
-        
-        // Reset elapsed time
-        elapsedSeconds = 0;
-        if (timerLabel != null) {
-            timerLabel.setText(formatTime(0));
-        }
-        
-        // Create timer timeline that updates every second
-        timerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-            elapsedSeconds++;
-            if (timerLabel != null) {
-                timerLabel.setText(formatTime(elapsedSeconds));
-            }
-        }));
-        timerTimeline.setCycleCount(Timeline.INDEFINITE);
-        timerTimeline.play();
     }
     
-    /**
-     * Stops the timer
-     */
     private void stopTimer() {
-        if (timerTimeline != null) {
-            timerTimeline.stop();
-            timerTimeline = null;
-        }
+        timerManager.stopSinglePlayerTimer();
     }
     
-    /**
-     * Pauses the timer
-     */
     private void pauseTimer() {
-        if (timerTimeline != null && !isMultiplayerMode) {
-            timerTimeline.pause();
-        }
+        timerManager.pauseSinglePlayerTimer();
     }
     
-    /**
-     * Resumes the timer
-     */
     private void resumeTimer() {
-        if (timerTimeline != null && !isMultiplayerMode) {
-            timerTimeline.play();
-        }
+        timerManager.resumeSinglePlayerTimer();
     }
     
-    /**
-     * Resets the timer
-     */
     private void resetTimer() {
-        stopTimer();
-        elapsedSeconds = 0;
-        if (timerLabel != null) {
-            timerLabel.setText(formatTime(0));
-        }
+        timerManager.stopSinglePlayerTimer();
+        // Reset is handled by startTimer
     }
     
-    /**
-     * Starts the timer for multiplayer mode
-     */
     private void startMultiplayerTimer() {
-        if (!isMultiplayerMode || multiplayerTimerLabel == null) {
-            return; // Only for multiplayer mode
+        if (isMultiplayerMode) {
+            timerManager.startMultiplayerTimer();
         }
-        
-        // Stop existing timer if any
-        stopMultiplayerTimer();
-        
-        // Reset elapsed time
-        multiplayerElapsedSeconds = 0;
-        if (multiplayerTimerLabel != null) {
-            multiplayerTimerLabel.setText(formatTime(0));
-        }
-        
-        // Create timer timeline that updates every second
-        multiplayerTimerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-            multiplayerElapsedSeconds++;
-            if (multiplayerTimerLabel != null) {
-                multiplayerTimerLabel.setText(formatTime(multiplayerElapsedSeconds));
-            }
-        }));
-        multiplayerTimerTimeline.setCycleCount(Timeline.INDEFINITE);
-        multiplayerTimerTimeline.play();
     }
     
-    /**
-     * Stops the multiplayer timer
-     */
     private void stopMultiplayerTimer() {
-        if (multiplayerTimerTimeline != null) {
-            multiplayerTimerTimeline.stop();
-            multiplayerTimerTimeline = null;
-        }
+        timerManager.stopMultiplayerTimer();
     }
     
-    /**
-     * Pauses the multiplayer timer
-     */
     private void pauseMultiplayerTimer() {
-        if (multiplayerTimerTimeline != null && isMultiplayerMode) {
-            multiplayerTimerTimeline.pause();
-        }
+        timerManager.pauseMultiplayerTimer();
     }
     
-    /**
-     * Resumes the multiplayer timer
-     */
     private void resumeMultiplayerTimer() {
-        if (multiplayerTimerTimeline != null && isMultiplayerMode) {
-            multiplayerTimerTimeline.play();
-        }
+        timerManager.resumeMultiplayerTimer();
     }
     
-    /**
-     * Resets the multiplayer timer
-     */
     private void resetMultiplayerTimer() {
-        stopMultiplayerTimer();
-        multiplayerElapsedSeconds = 0;
-        if (multiplayerTimerLabel != null) {
-            multiplayerTimerLabel.setText(formatTime(0));
-        }
+        timerManager.stopMultiplayerTimer();
     }
 
     
