@@ -157,12 +157,21 @@ public class PausePanelActionHandler {
             multiplayerScreen.hidePausePanel();
         }
         
-        // Update GameStateManager with current references
+        // Check multiplayer mode BEFORE calling quitToMainMenu (which sets it to false)
+        boolean wasMultiplayer = gameStateManager.isMultiplayerMode();
+        
+        // If multiplayer, use the same method as winning panel (it handles timeline updates)
+        if (wasMultiplayer) {
+            guiController.quitToMainMenuFromMultiplayer();
+            return;
+        }
+        
+        // For single player, update GameStateManager with current references
         gameStateManager.setTimeLine(timeLine);
         gameStateManager.setTimeLine1(timeLine1);
         gameStateManager.setTimeLine2(timeLine2);
         
-        // Delegate to GameStateManager
+        // For single player, delegate to GameStateManager
         gameStateManager.quitToMainMenu();
         
         // Hide winning panel if visible
@@ -178,16 +187,8 @@ public class PausePanelActionHandler {
         audioManager.stopAll();
         audioManager.playMainMenuMusic();
         
-        // Hide bottom panel
-        // For single player mode, clear the game board display
-        if (!gameStateManager.isMultiplayerMode()) {
-            handleSinglePlayerQuit(singlePlayerScreen);
-        }
-        
-        // If multiplayer, restore single player view
-        if (gameStateManager.isMultiplayerMode()) {
-            handleMultiplayerQuit(gameStateManager, multiplayerScreen, inputHandler, audioManager);
-        }
+        // Handle single player quit
+        handleSinglePlayerQuit(singlePlayerScreen);
         
         // Show main menu
         MainMenuPanel mainMenuPanel = guiController.getMainMenuPanel();
@@ -315,7 +316,7 @@ public class PausePanelActionHandler {
         guiController.setGarbageProcessTimeline1(null);
         guiController.setGarbageProcessTimeline2(null);
         
-        // Hide multiplayer container and wrapper
+        // Hide multiplayer container and wrapper first
         if (multiplayerScreen != null) {
             multiplayerScreen.hide();
             multiplayerScreen.hidePausePanel();
@@ -324,6 +325,32 @@ public class PausePanelActionHandler {
             // Move settings panel back to gameStack for single player mode
             if (settingsPanel != null) {
                 settingsPanel.setVisible(false);
+            }
+        }
+        
+        // Remove multiplayer wrapper and container from center VBox
+        if (gameBoard != null && gameBoard.getParent() != null) {
+            javafx.scene.Parent parent = gameBoard.getParent();
+            if (parent instanceof javafx.scene.layout.VBox) {
+                javafx.scene.layout.VBox centerVBox = (javafx.scene.layout.VBox) parent;
+                if (multiplayerScreen != null) {
+                    // Remove wrapper if present
+                    javafx.scene.layout.StackPane wrapper = multiplayerScreen.getWrapper();
+                    if (wrapper != null && centerVBox.getChildren().contains(wrapper)) {
+                        centerVBox.getChildren().remove(wrapper);
+                    }
+                    // Also check and remove container directly if it was added separately
+                    javafx.scene.layout.HBox container = multiplayerScreen.getContainer();
+                    if (container != null && centerVBox.getChildren().contains(container)) {
+                        centerVBox.getChildren().remove(container);
+                    }
+                }
+                // Ensure gameBoard is visible and request layout update
+                if (gameBoard != null) {
+                    gameBoard.setVisible(true);
+                    gameBoard.setManaged(true);
+                }
+                centerVBox.requestLayout();
             }
         }
         

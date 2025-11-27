@@ -1003,7 +1003,7 @@ public class GuiController implements Initializable {
         gameStateManager.restartMultiplayerGame();
     }
     
-    private void quitToMainMenuFromMultiplayer() {
+    public void quitToMainMenuFromMultiplayer() {
         // Clear all multiplayer game panels
         if (multiplayerScreen != null) {
             multiplayerScreen.clearGamePanels();
@@ -1020,11 +1020,38 @@ public class GuiController implements Initializable {
         // Clear multiplayer references
         gameStateManager.clearMultiplayerReferences();
         
-        // Hide multiplayer screen
+        // Hide multiplayer screen first
         if (multiplayerScreen != null) {
             multiplayerScreen.hide();
             multiplayerScreen.hideWinningPanel();
             multiplayerScreen.hidePausePanel();
+            multiplayerScreen.hideSettingsOverlay();
+        }
+        
+        // Remove multiplayer wrapper and container from center VBox
+        if (gameBoard != null && gameBoard.getParent() != null) {
+            Parent parent = gameBoard.getParent();
+            if (parent instanceof VBox) {
+                VBox centerVBox = (VBox) parent;
+                if (multiplayerScreen != null) {
+                    // Remove wrapper if present
+                    StackPane wrapper = multiplayerScreen.getWrapper();
+                    if (wrapper != null && centerVBox.getChildren().contains(wrapper)) {
+                        centerVBox.getChildren().remove(wrapper);
+                    }
+                    // Also check and remove container directly if it was added separately
+                    HBox container = multiplayerScreen.getContainer();
+                    if (container != null && centerVBox.getChildren().contains(container)) {
+                        centerVBox.getChildren().remove(container);
+                    }
+                }
+                // Ensure gameBoard is visible and request layout update
+                if (gameBoard != null) {
+                    gameBoard.setVisible(true);
+                    gameBoard.setManaged(true);
+                }
+                centerVBox.requestLayout();
+            }
         }
         
         // Hide pause panels
