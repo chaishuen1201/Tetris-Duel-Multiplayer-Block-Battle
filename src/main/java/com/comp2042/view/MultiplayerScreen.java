@@ -78,6 +78,9 @@ public class MultiplayerScreen {
     private Consumer<Parent> onGetRootBorderPane;
     private Consumer<SettingsPanel> onSetSettingsPanel;
     
+    // Pause panel action handler (optional, for direct setup)
+    private com.comp2042.controller.PausePanelActionHandler pausePanelActionHandler;
+    
     // Game controllers and event listeners (needed for UI updates)
     private GameController gameController1, gameController2;
     private InputEventListener eventListener1, eventListener2;
@@ -114,7 +117,12 @@ public class MultiplayerScreen {
         this.onSetSettingsPanel = onSetSettingsPanel;
         
         // Re-setup pause panel actions now that callbacks are set
-        setupPausePanelActions();
+        // If pausePanelActionHandler is set, use it; otherwise use callback-based setup
+        if (pausePanelActionHandler != null && multiplayerPausePanel != null) {
+            pausePanelActionHandler.setupMultiplayerPausePanelActions(multiplayerPausePanel);
+        } else {
+            setupPausePanelActions();
+        }
         setupWinningPanelActions();
     }
     
@@ -810,7 +818,12 @@ public class MultiplayerScreen {
         multiplayerPauseOverlay.setMouseTransparent(false);
         
         multiplayerPausePanel = new PausePanel();
-        setupPausePanelActions();
+        // Setup will be done by setPausePanelActionHandler or setupPausePanelActions
+        if (pausePanelActionHandler != null) {
+            pausePanelActionHandler.setupMultiplayerPausePanelActions(multiplayerPausePanel);
+        } else {
+            setupPausePanelActions();
+        }
         multiplayerPausePanel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         multiplayerPauseOverlay.getChildren().add(multiplayerPausePanel);
         multiplayerPauseOverlay.setVisible(false);
@@ -1236,6 +1249,22 @@ public class MultiplayerScreen {
     public Label getTimerLabel() {
         // Return the timer label so it can be registered with TimerManager
         return multiplayerTimerLabel;
+    }
+    
+    /**
+     * Sets the pause panel action handler to use for setting up pause panel actions.
+     * If set, this will be used instead of the callback-based setup.
+     * @param handler The pause panel action handler
+     */
+    public void setPausePanelActionHandler(com.comp2042.controller.PausePanelActionHandler handler) {
+        this.pausePanelActionHandler = handler;
+        if (handler != null && multiplayerPausePanel != null) {
+            handler.setupMultiplayerPausePanelActions(multiplayerPausePanel);
+        }
+    }
+    
+    public PausePanel getMultiplayerPausePanel() {
+        return multiplayerPausePanel;
     }
 }
 

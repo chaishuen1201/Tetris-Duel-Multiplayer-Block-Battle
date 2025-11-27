@@ -22,6 +22,7 @@ import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.TimerManager;
 import com.comp2042.controller.manager.GameStateManager;
 import com.comp2042.controller.input.InputHandler;
+import com.comp2042.controller.PausePanelActionHandler;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.IntegerProperty;
@@ -576,6 +577,10 @@ public class GuiController implements Initializable {
     private void setupMultiplayerScreenCallbacks() {
         if (multiplayerScreen == null) return;
         
+        // Set up pause panel action handler for multiplayer
+        PausePanelActionHandler pausePanelHandler = new PausePanelActionHandler(this);
+        multiplayerScreen.setPausePanelActionHandler(pausePanelHandler);
+        
         multiplayerScreen.setCallbacks(
             (r) -> startMultiplayerGame(), // onStartGame
             (r) -> restartMultiplayerGame(), // onRestartGame
@@ -651,7 +656,7 @@ public class GuiController implements Initializable {
         }
     }
     
-    private void showSettingsFromPause() {
+    void showSettingsFromPause() {
             if (settingsPanel != null) {
             // Refresh controls display to show current bindings
             settingsPanel.updateControlsDisplay();
@@ -715,7 +720,7 @@ public class GuiController implements Initializable {
         }
     }
     
-    private void hideWinningPanel() {
+    void hideWinningPanel() {
         if (multiplayerScreen != null) {
             multiplayerScreen.hideWinningPanel();
         }
@@ -1149,7 +1154,7 @@ public class GuiController implements Initializable {
         pauseGame(null);
     }
     
-    private BorderPane getRootBorderPane() {
+    BorderPane getRootBorderPane() {
         // Get root BorderPane from scene (FXML root is BorderPane)
         if (gameBoard != null && gameBoard.getScene() != null) {
             javafx.scene.Node root = gameBoard.getScene().getRoot();
@@ -1271,7 +1276,7 @@ public class GuiController implements Initializable {
      * and side panels (hold, next, score, level) by setting all rectangles to transparent/empty state
      * and resetting labels to default values.
      */
-    private void clearMultiplayerGamePanels() {
+    void clearMultiplayerGamePanels() {
         if (multiplayerScreen != null) {
             multiplayerScreen.clearGamePanels();
         }
@@ -1516,7 +1521,7 @@ public class GuiController implements Initializable {
     /**
      * Stops garbage processing timelines.
      */
-    private void stopGarbageProcessingTimelines() {
+    void stopGarbageProcessingTimelines() {
         if (garbageProcessTimeline1 != null) {
             garbageProcessTimeline1.stop();
         }
@@ -1817,345 +1822,10 @@ public class GuiController implements Initializable {
     
     private void initializePausePanel() {
         if (pausePanel == null) return;
-        setupPausePanelActions(pausePanel);
+        PausePanelActionHandler handler = new PausePanelActionHandler(this);
+        handler.setupPausePanelActions(pausePanel);
     }
     
-    private void setupPausePanelActions(PausePanel panel) {
-        // Resume action - just resume the game
-        panel.setOnResumeAction(() -> {
-            pauseGame(null);
-        });
-        
-        // Settings action - show settings panel
-        panel.setOnSettingsAction(() -> {
-            showSettingsFromPause();
-        });
-        
-        // Restart action - start a new game
-        panel.setOnRestartAction(() -> {
-            if (gameStateManager.isMultiplayerMode()) {
-                // Clear all multiplayer game panels and side panels before restarting
-                clearMultiplayerGamePanels();
-                
-                // Re-initialize multiplayer panels to ensure consistent container and side panel sizing
-                // This fixes issues where sizes differ after restart
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.initializeMultiplayerPanels();
-                    multiplayerScreen.show();
-                }
-                
-                // Update GameStateManager with current references
-                gameStateManager.setGameController1(gameController1);
-                gameStateManager.setGameController2(gameController2);
-                gameStateManager.setTimeLine1(timeLine1);
-                gameStateManager.setTimeLine2(timeLine2);
-                gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
-                gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
-                
-                // Delegate to GameStateManager
-                gameStateManager.restartMultiplayerGame();
-                
-                if (pausePanel != null) {
-                    pausePanel.setVisible(false);
-                }
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.hidePausePanel();
-                }
-                
-                // Hide winning panel if visible
-                hideWinningPanel();
-            } else {
-                // For single player, use newGame method
-                newGame(null);
-                if (pausePanel != null) {
-                    pausePanel.setVisible(false);
-                }
-            }
-        });
-        
-        // Quit to main menu action
-        panel.setOnQuitAction(() -> {
-            // Stop all timelines
-            if (timeLine != null) timeLine.stop();
-            if (timeLine1 != null) timeLine1.stop();
-            if (timeLine2 != null) timeLine2.stop();
-            
-            // Hide pause panels
-            if (pausePanel != null) {
-                pausePanel.setVisible(false);
-            }
-            if (multiplayerScreen != null) {
-                multiplayerScreen.hidePausePanel();
-            }
-            
-            // Update GameStateManager with current references
-            gameStateManager.setTimeLine(timeLine);
-            gameStateManager.setTimeLine1(timeLine1);
-            gameStateManager.setTimeLine2(timeLine2);
-            
-            // Delegate to GameStateManager
-            gameStateManager.quitToMainMenu();
-            
-            // Hide winning panel if visible
-            hideWinningPanel();
-            
-            // Hide game over panel if visible
-            if (gameOverPanel != null) {
-                gameOverPanel.setVisible(false);
-            }
-            
-            // Stop game music and play main menu music
-            audioManager.stopAll();
-            audioManager.playMainMenuMusic();
-            
-            // Hide bottom panel
-            // For single player mode, clear the game board display
-            if (!gameStateManager.isMultiplayerMode()) {
-                // Reset the game board state
-                if (eventListener != null) {
-                    eventListener.createNewGame();
-                }
-                // Clear the game board display
-                if (singlePlayerScreen != null) {
-                    Rectangle[][] displayMatrix = singlePlayerScreen.getDisplayMatrix();
-                    if (displayMatrix != null) {
-                        for (int i = 0; i < displayMatrix.length; i++) {
-                            for (int j = 0; j < displayMatrix[i].length; j++) {
-                                if (displayMatrix[i][j] != null) {
-                                    displayMatrix[i][j].setFill(Color.TRANSPARENT);
-                                }
-                            }
-                        }
-                    }
-                    // Clear next bricks display
-                    List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
-                    if (nextBrickPanes != null) {
-                        for (GridPane pane : nextBrickPanes) {
-                            if (pane != null) {
-                                pane.getChildren().clear();
-                                // Re-initialize empty cells
-                                for (int r = 0; r < 4; r++) {
-                                    for (int c = 0; c < 4; c++) {
-                                        Rectangle rect = new Rectangle(GameConstants.BRICK_SIZE - 10, GameConstants.BRICK_SIZE - 10);
-                                        rect.setFill(Color.TRANSPARENT);
-                                        pane.add(rect, c, r);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Clear hold brick display
-                    Rectangle[][] holdBrickRectangles = singlePlayerScreen.getHoldBrickRectangles();
-                    if (holdBrickRectangles != null) {
-                        for (int i = 0; i < holdBrickRectangles.length; i++) {
-                            for (int j = 0; j < holdBrickRectangles[i].length; j++) {
-                                if (holdBrickRectangles[i][j] != null) {
-                                    holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
-                                }
-                            }
-                        }
-                    }
-                }
-                // Clear current brick display and ghost panel
-                if (brickPanel != null) {
-                    brickPanel.getChildren().clear();
-                    brickPanel.setVisible(false);
-                }
-                if (ghostPanel != null) {
-                    ghostPanel.getChildren().clear();
-                    ghostPanel.setVisible(false);
-                }
-                // Hide game panel (background grid) but keep gameBoard visible for main menu
-                if (gamePanel != null) {
-                    gamePanel.setVisible(false);
-                }
-                // Keep gameBoard visible so main menu can be shown
-                // The main menu panel is inside gameBoard's StackPane
-            }
-            
-            // If multiplayer, restore single player view
-            if (gameStateManager.isMultiplayerMode()) {
-                // Clear all multiplayer game panels and bricks before quitting
-                clearMultiplayerGamePanels();
-                
-                // Clear multiplayer references via GameStateManager
-                gameStateManager.clearMultiplayerReferences();
-                gameStateManager.setMultiplayerMode(false);
-                
-                // Clear local references
-                stopGarbageProcessingTimelines();
-                stopMultiplayerTimer();
-                gameController1 = null;
-                gameController2 = null;
-                eventListener1 = null;
-                eventListener2 = null;
-                timeLine1 = null;
-                timeLine2 = null;
-                garbageProcessTimeline1 = null;
-                garbageProcessTimeline2 = null;
-                
-                // Hide multiplayer container and wrapper
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.hide();
-                    multiplayerScreen.hidePausePanel();
-                    multiplayerScreen.hideWinningPanel();
-                    multiplayerScreen.hideSettingsOverlay();
-                    // Move settings panel back to gameStack for single player mode
-                    if (settingsPanel != null) {
-                        settingsPanel.setVisible(false);
-                    }
-                }
-                
-                // Hide winning panel if visible
-                hideWinningPanel();
-                
-                // Ensure settings panel is in gameStack for single player mode (do this regardless of overlay state)
-                if (settingsPanel != null && gameStack != null) {
-                    // Remove from any other parent first (defensive)
-                    javafx.scene.Parent currentParent = settingsPanel.getParent();
-                    if (currentParent != null && currentParent != gameStack) {
-                        if (currentParent instanceof javafx.scene.layout.Pane) {
-                            ((javafx.scene.layout.Pane) currentParent).getChildren().remove(settingsPanel);
-                        }
-                    }
-                    // Ensure it's in gameStack
-                    if (!gameStack.getChildren().contains(settingsPanel)) {
-                        gameStack.getChildren().add(settingsPanel);
-                    }
-                    // Ensure it's properly configured
-                    settingsPanel.setVisible(false);
-                    settingsPanel.setManaged(true);
-                }
-                
-                // Remove scene event filters from multiplayer mode
-                if (gameBoard != null && gameBoard.getScene() != null) {
-                    javafx.scene.Scene scene = gameBoard.getScene();
-                    if (sceneKeyPressedHandler != null) {
-                        scene.removeEventFilter(KeyEvent.KEY_PRESSED, sceneKeyPressedHandler);
-                    }
-                    if (sceneKeyReleasedHandler != null) {
-                        scene.removeEventFilter(KeyEvent.KEY_RELEASED, sceneKeyReleasedHandler);
-                    }
-                    sceneKeyPressedHandler = null;
-                    sceneKeyReleasedHandler = null;
-                }
-                
-                // Restore original panels
-                BorderPane rootPane = getRootBorderPane();
-                if (rootPane != null) {
-                    if (originalLeftPanel != null) {
-                        originalLeftPanel.setVisible(true);
-                        originalLeftPanel.setManaged(true);
-                        rootPane.setLeft(originalLeftPanel);
-                    }
-                    if (originalRightPanel != null) {
-                        originalRightPanel.setVisible(true);
-                        originalRightPanel.setManaged(true);
-                        rootPane.setRight(originalRightPanel);
-                    }
-                }
-                // Show single player game board
-                if (gameBoard != null) {
-                    gameBoard.setVisible(true);
-                    gameBoard.setManaged(true);
-                    gameBoard.setFocusTraversable(true);
-                    // Restore node-level keyboard handlers for single player mode
-                    gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, gameStateManager.isMultiplayerMode(), gameStateManager.isGameStarted()));
-                    gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, gameStateManager.isMultiplayerMode()));
-                }
-                
-                // Restore game panel visibility (grid background) for main menu
-                if (gamePanel != null) {
-                    gamePanel.setVisible(true);
-                }
-                
-                // Show single player panels
-                if (holdBrickPanel != null) {
-                    holdBrickPanel.setVisible(true);
-                }
-                // Keep next bricks panel container visible, but hide the brick previews
-                if (nextBricksPanel != null && singlePlayerScreen != null) {
-                    nextBricksPanel.setVisible(true);
-                    // Hide the individual brick panes when main menu is visible
-                    List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
-                    if (nextBrickPanes != null) {
-                        for (GridPane pane : nextBrickPanes) {
-                            if (pane != null) {
-                                pane.setVisible(false);
-                            }
-                        }
-                    }
-                }
-                if (scoreLabel != null) {
-                    scoreLabel.setVisible(true);
-                }
-                if (levelLabel != null) {
-                    levelLabel.setVisible(true);
-                }
-                if (linesLabel != null) {
-                    linesLabel.setVisible(true);
-                }
-                
-                // Ensure single player eventListener exists - if not, create a new GameController
-                // This handles the case where single player was never initialized or was cleared
-                if (eventListener == null) {
-                    new GameController(this);
-                    // Hide next brick panes after GameController creation (it may have called updateNextBricks)
-                    if (singlePlayerScreen != null) {
-                        List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
-                        if (nextBrickPanes != null) {
-                            for (GridPane pane : nextBrickPanes) {
-                                if (pane != null) {
-                                    pane.setVisible(false);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // If eventListener exists, rebind level and lines to ensure they work
-                    // This is needed in case the bindings were broken
-                    if (eventListener instanceof GameController) {
-                        GameController gameController = (GameController) eventListener;
-                        if (gameController.getBoard() instanceof SimpleBoard) {
-                            SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                            bindLevel(simpleBoard.levelProperty(), 0);
-                            bindLines(simpleBoard.linesProperty(), 0);
-                        }
-                    }
-                }
-                
-                // Request focus on gameBoard so it can receive keyboard events
-                Platform.runLater(() -> {
-                    if (gameBoard != null) {
-                        gameBoard.requestFocus();
-                    }
-                });
-            }
-            
-            // Show main menu
-            if (mainMenuPanel != null) {
-                mainMenuPanel.setVisible(true);
-            }
-            
-            // Ensure gameBoard is visible for single player mode (main menu is inside it)
-            if (!gameStateManager.isMultiplayerMode() && gameBoard != null) {
-                gameBoard.setVisible(true);
-                gameBoard.setManaged(true);
-            }
-            
-            // Hide game board panels
-            if (brickPanel != null) {
-                brickPanel.setVisible(false);
-            }
-            if (ghostPanel != null) {
-                ghostPanel.setVisible(false);
-            }
-            // Show game panel (background grid) for main menu - it should be visible
-            if (!gameStateManager.isMultiplayerMode() && gamePanel != null) {
-                gamePanel.setVisible(true);
-            }
-        });
-    }
 
     public void updateNextBricks(List<Brick> nextBricks) {
         updateNextBricks(nextBricks, 0);
@@ -2241,7 +1911,7 @@ public class GuiController implements Initializable {
         }
     }
     
-    private void stopMultiplayerTimer() {
+    void stopMultiplayerTimer() {
         timerManager.stopMultiplayerTimer();
     }
     
@@ -2256,6 +1926,180 @@ public class GuiController implements Initializable {
     private void resetMultiplayerTimer() {
         timerManager.resetMultiplayerTimer();
     }
+    
+    // Getters and setters for PausePanelActionHandler
+    public GameStateManager getGameStateManager() {
+        return gameStateManager;
+    }
+    
+    public MultiplayerScreen getMultiplayerScreen() {
+        return multiplayerScreen;
+    }
+    
+    public PausePanel getPausePanel() {
+        return pausePanel;
+    }
+    
+    public SinglePlayerScreen getSinglePlayerScreen() {
+        return singlePlayerScreen;
+    }
+    
+    public AudioManager getAudioManager() {
+        return audioManager;
+    }
+    
+    public InputHandler getInputHandler() {
+        return inputHandler;
+    }
+    
+    public Timeline getTimeLine() {
+        return timeLine;
+    }
+    
+    public Timeline getTimeLine1() {
+        return timeLine1;
+    }
+    
+    public Timeline getTimeLine2() {
+        return timeLine2;
+    }
+    
+    public GameController getGameController1() {
+        return gameController1;
+    }
+    
+    public GameController getGameController2() {
+        return gameController2;
+    }
+    
+    public void setGameController1(GameController gameController1) {
+        this.gameController1 = gameController1;
+    }
+    
+    public void setGameController2(GameController gameController2) {
+        this.gameController2 = gameController2;
+    }
+    
+    public InputEventListener getEventListener() {
+        return eventListener;
+    }
+    
+    public InputEventListener getEventListener1() {
+        return eventListener1;
+    }
+    
+    public InputEventListener getEventListener2() {
+        return eventListener2;
+    }
+    
+    public void setEventListener1(InputEventListener eventListener1) {
+        this.eventListener1 = eventListener1;
+    }
+    
+    public void setEventListener2(InputEventListener eventListener2) {
+        this.eventListener2 = eventListener2;
+    }
+    
+    public Timeline getGarbageProcessTimeline1() {
+        return garbageProcessTimeline1;
+    }
+    
+    public Timeline getGarbageProcessTimeline2() {
+        return garbageProcessTimeline2;
+    }
+    
+    public void setGarbageProcessTimeline1(Timeline garbageProcessTimeline1) {
+        this.garbageProcessTimeline1 = garbageProcessTimeline1;
+    }
+    
+    public void setGarbageProcessTimeline2(Timeline garbageProcessTimeline2) {
+        this.garbageProcessTimeline2 = garbageProcessTimeline2;
+    }
+    
+    public void setTimeLine1(Timeline timeLine1) {
+        this.timeLine1 = timeLine1;
+    }
+    
+    public void setTimeLine2(Timeline timeLine2) {
+        this.timeLine2 = timeLine2;
+    }
+    
+    public BorderPane getGameBoard() {
+        return gameBoard;
+    }
+    
+    public StackPane getGameStack() {
+        return gameStack;
+    }
+    
+    public GridPane getGamePanel() {
+        return gamePanel;
+    }
+    
+    public GridPane getBrickPanel() {
+        return brickPanel;
+    }
+    
+    public GridPane getGhostPanel() {
+        return ghostPanel;
+    }
+    
+    public SettingsPanel getSettingsPanel() {
+        return settingsPanel;
+    }
+    
+    public MainMenuPanel getMainMenuPanel() {
+        return mainMenuPanel;
+    }
+    
+    public GameOverPanel getGameOverPanel() {
+        return gameOverPanel;
+    }
+    
+    public VBox getNextBricksPanel() {
+        return nextBricksPanel;
+    }
+    
+    public GridPane getHoldBrickPanel() {
+        return holdBrickPanel;
+    }
+    
+    public Label getScoreLabel() {
+        return scoreLabel;
+    }
+    
+    public Label getLevelLabel() {
+        return levelLabel;
+    }
+    
+    public Label getLinesLabel() {
+        return linesLabel;
+    }
+    
+    public VBox getOriginalLeftPanel() {
+        return originalLeftPanel;
+    }
+    
+    public VBox getOriginalRightPanel() {
+        return originalRightPanel;
+    }
+    
+    public javafx.event.EventHandler<KeyEvent> getSceneKeyPressedHandler() {
+        return sceneKeyPressedHandler;
+    }
+    
+    public javafx.event.EventHandler<KeyEvent> getSceneKeyReleasedHandler() {
+        return sceneKeyReleasedHandler;
+    }
+    
+    public void setSceneKeyPressedHandler(javafx.event.EventHandler<KeyEvent> sceneKeyPressedHandler) {
+        this.sceneKeyPressedHandler = sceneKeyPressedHandler;
+    }
+    
+    public void setSceneKeyReleasedHandler(javafx.event.EventHandler<KeyEvent> sceneKeyReleasedHandler) {
+        this.sceneKeyReleasedHandler = sceneKeyReleasedHandler;
+    }
+    
 
     
 }
