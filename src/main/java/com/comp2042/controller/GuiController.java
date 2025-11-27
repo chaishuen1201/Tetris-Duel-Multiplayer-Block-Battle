@@ -20,12 +20,11 @@ import com.comp2042.util.MatrixOperations;
 import com.comp2042.util.KeyBindingsManager;
 import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.TimerManager;
+import com.comp2042.controller.manager.GameStateManager;
 import com.comp2042.controller.input.InputHandler;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -38,7 +37,6 @@ import javafx.scene.text.Font;
 import javafx.scene.control.Label;
 import javafx.util.Duration;
 import javafx.scene.control.Button;
-// Audio management is now handled by AudioManager
 import javafx.scene.Parent;
 import javafx.application.Platform;
 
@@ -52,7 +50,6 @@ public class GuiController implements Initializable {
     private SinglePlayerScreen singlePlayerScreen;
     
     // Multiplayer fields
-    private boolean isMultiplayerMode = false;
     private MultiplayerScreen multiplayerScreen;
     
     // FXML components - kept for initialization and access
@@ -79,8 +76,6 @@ public class GuiController implements Initializable {
     private Timeline timeLine1, timeLine2;
     private Timeline garbageProcessTimeline1, garbageProcessTimeline2; // Timelines for processing garbage queues
     private InputEventListener eventListener1, eventListener2;
-    private BooleanProperty isGameOver1 = new SimpleBooleanProperty(false);
-    private BooleanProperty isGameOver2 = new SimpleBooleanProperty(false);
     
     // Store scene filter handlers to avoid duplicates
     private javafx.event.EventHandler<KeyEvent> sceneKeyPressedHandler;
@@ -93,9 +88,8 @@ public class GuiController implements Initializable {
     private Timeline timeLine;
     // Timer management - delegated to TimerManager
     private final TimerManager timerManager = new TimerManager();
-    private final BooleanProperty isPause = new SimpleBooleanProperty(false);
-    private final BooleanProperty isGameOver = new SimpleBooleanProperty(false);
-    private boolean gameStarted = false;
+    // Game state management - delegated to GameStateManager
+    private final GameStateManager gameStateManager;
     private int currentLevel = 1;
     private javafx.beans.value.ChangeListener<? super Number> levelChangeListener;
 
@@ -106,6 +100,11 @@ public class GuiController implements Initializable {
     
     // Input handling - delegated to InputHandler (dependency injection)
     private final InputHandler inputHandler = new InputHandler(KeyBindingsManager.getInstance());
+    
+    // Initialize GameStateManager with dependencies
+    {
+        gameStateManager = new GameStateManager(audioManager, timerManager);
+    }
 
     @Override
     public void initialize(URL _location, ResourceBundle _resources) {
@@ -151,6 +150,9 @@ public class GuiController implements Initializable {
         
         // Initialize timer manager
         timerManager.setSinglePlayerTimerLabel(timerLabel);
+        
+        // Initialize game state manager
+        initializeGameStateManager();
         
         // Initialize multiplayer screen
         multiplayerScreen = new MultiplayerScreen();
@@ -213,8 +215,8 @@ public class GuiController implements Initializable {
         if (gameBoard != null) {
             gameBoard.setFocusTraversable(true);
             gameBoard.requestFocus();
-            gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, isMultiplayerMode, gameStarted));
-            gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, isMultiplayerMode));
+            gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, gameStateManager.isMultiplayerMode(), gameStateManager.isGameStarted()));
+            gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, gameStateManager.isMultiplayerMode()));
         }
         
         // Start main menu music
@@ -222,6 +224,169 @@ public class GuiController implements Initializable {
     }
     
     // Audio initialization is now handled by AudioManager
+    
+    private void initializeGameStateManager() {
+        // Set up callbacks for UI updates
+        gameStateManager.setOnShowPausePanel(() -> {
+            if (pausePanel != null) pausePanel.setVisible(true);
+        });
+        
+        gameStateManager.setOnHidePausePanel(() -> {
+            if (pausePanel != null) pausePanel.setVisible(false);
+        });
+        
+        gameStateManager.setOnShowMultiplayerPausePanel(() -> {
+            if (multiplayerScreen != null) multiplayerScreen.showPausePanel();
+        });
+        
+        gameStateManager.setOnHideMultiplayerPausePanel(() -> {
+            if (multiplayerScreen != null) multiplayerScreen.hidePausePanel();
+        });
+        
+        gameStateManager.setOnStartGarbageProcessingTimelines(this::startGarbageProcessingTimelines);
+        gameStateManager.setOnStopGarbageProcessingTimelines(this::stopGarbageProcessingTimelines);
+        
+        gameStateManager.setOnStartMultiplayerTimer(this::startMultiplayerTimer);
+        gameStateManager.setOnStopMultiplayerTimer(this::stopMultiplayerTimer);
+        gameStateManager.setOnPauseMultiplayerTimer(this::pauseMultiplayerTimer);
+        gameStateManager.setOnResumeMultiplayerTimer(this::resumeMultiplayerTimer);
+        gameStateManager.setOnResetMultiplayerTimer(this::resetMultiplayerTimer);
+        
+        gameStateManager.setOnStartSinglePlayerTimer(this::startTimer);
+        gameStateManager.setOnStopSinglePlayerTimer(this::stopTimer);
+        gameStateManager.setOnPauseSinglePlayerTimer(this::pauseTimer);
+        gameStateManager.setOnResumeSinglePlayerTimer(this::resumeTimer);
+        gameStateManager.setOnResetSinglePlayerTimer(this::resetTimer);
+        
+        gameStateManager.setOnUpdateTimelineRate(this::updateTimelineRate);
+        gameStateManager.setOnUpdateTimelineRate1(() -> updateTimelineRate(1));
+        gameStateManager.setOnUpdateTimelineRate2(() -> updateTimelineRate(2));
+        
+        gameStateManager.setOnShowWinningPanel(() -> {
+            int winnerPlayerNumber = gameStateManager.isGameOver1() ? 2 : 1;
+            showWinningPanel(winnerPlayerNumber);
+        });
+        
+        gameStateManager.setOnHideWinningPanel(this::hideWinningPanel);
+        
+        gameStateManager.setOnShowGameOverPanel(() -> {
+            if (gameOverPanel != null) {
+                // Get current score from scoreLabel
+                int currentScore = 0;
+                if (scoreLabel != null) {
+                    try {
+                        String scoreText = scoreLabel.getText();
+                        if (scoreText != null && scoreText.contains(":")) {
+                            String scoreValue = scoreText.substring(scoreText.indexOf(":") + 1).trim();
+                            currentScore = Integer.parseInt(scoreValue);
+                        }
+                    } catch (Exception e) {
+                        // If parsing fails, use 0
+                    }
+                }
+                
+                // Add score to high scores
+                highScoreManager.addScore(currentScore);
+                
+                // Update game over panel
+                gameOverPanel.setCurrentScore(currentScore);
+                gameOverPanel.setTimeUsed(timerManager.getSinglePlayerElapsedSeconds());
+                gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
+                
+                // Set button actions
+                gameOverPanel.setOnYesAction(() -> {
+                    newGame(null);
+                });
+                
+                gameOverPanel.setOnNoAction(() -> {
+                    // Go back to main menu and reset the game
+                    if (eventListener != null) {
+                        eventListener.createNewGame();
+                    }
+                    // Clear the game board display
+                    if (singlePlayerScreen != null) {
+                        Rectangle[][] displayMatrix = singlePlayerScreen.getDisplayMatrix();
+                        if (displayMatrix != null) {
+                            for (int i = 0; i < displayMatrix.length; i++) {
+                                for (int j = 0; j < displayMatrix[i].length; j++) {
+                                    if (displayMatrix[i][j] != null) {
+                                        displayMatrix[i][j].setFill(Color.TRANSPARENT);
+                                    }
+                                }
+                            }
+                        }
+                        // Clear next bricks display
+                        List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
+                        if (nextBrickPanes != null) {
+                            for (GridPane pane : nextBrickPanes) {
+                                if (pane != null) {
+                                    pane.getChildren().clear();
+                                    // Re-initialize empty cells
+                                    for (int r = 0; r < 4; r++) {
+                                        for (int c = 0; c < 4; c++) {
+                                            Rectangle rect = new Rectangle(GameConstants.BRICK_SIZE - 10, GameConstants.BRICK_SIZE - 10);
+                                            rect.setFill(Color.TRANSPARENT);
+                                            pane.add(rect, c, r);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Clear hold brick display
+                        Rectangle[][] holdBrickRectangles = singlePlayerScreen.getHoldBrickRectangles();
+                        if (holdBrickRectangles != null) {
+                            for (int i = 0; i < holdBrickRectangles.length; i++) {
+                                for (int j = 0; j < holdBrickRectangles[i].length; j++) {
+                                    if (holdBrickRectangles[i][j] != null) {
+                                        holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Clear current brick display and ghost panel
+                    if (brickPanel != null) {
+                        brickPanel.getChildren().clear();
+                        brickPanel.setVisible(false);
+                    }
+                    if (ghostPanel != null) {
+                        ghostPanel.getChildren().clear();
+                        ghostPanel.setVisible(false);
+                    }
+                    
+                    // Hide game over panel and show main menu
+                    if (gameOverPanel != null) gameOverPanel.setVisible(false);
+                    if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
+                    gameStateManager.resetGameStates();
+                    if (timeLine != null) timeLine.stop();
+                    
+                    // Reset timer
+                    resetTimer();
+                    
+                    // Stop game over sound and play main menu music
+                    audioManager.playMainMenuMusic();
+                });
+                
+                gameOverPanel.setVisible(true);
+            }
+        });
+        
+        gameStateManager.setOnHideGameOverPanel(() -> {
+            if (gameOverPanel != null) gameOverPanel.setVisible(false);
+        });
+        
+        gameStateManager.setOnShowMainMenu(() -> {
+            if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
+        });
+        
+        gameStateManager.setOnHideMainMenu(() -> {
+            if (mainMenuPanel != null) mainMenuPanel.setVisible(false);
+        });
+        
+        gameStateManager.setOnRequestFocus(() -> {
+            if (gameBoard != null) gameBoard.requestFocus();
+        });
+    }
     
     private void initializeInputHandler() {
         inputHandler.setSettingsPanel(settingsPanel);
@@ -240,23 +405,23 @@ public class GuiController implements Initializable {
             
             @Override
             public boolean isPaused() {
-                return isPause.get();
+                return gameStateManager.isPaused();
             }
             
             @Override
             public boolean isGameOver() {
-                return isGameOver.get();
+                return gameStateManager.isGameOver();
             }
             
             @Override
             public boolean isGameStarted() {
-                return gameStarted;
+                return gameStateManager.isGameStarted();
             }
             
             @Override
             public void refreshBrick(ViewData viewData) {
                 if (singlePlayerScreen != null) {
-                    singlePlayerScreen.refreshBrick(viewData, gameStarted);
+                    singlePlayerScreen.refreshBrick(viewData, gameStateManager.isGameStarted());
                 }
             }
             
@@ -300,27 +465,27 @@ public class GuiController implements Initializable {
         inputHandler.setMultiplayerCallbacks(new InputHandler.MultiplayerCallbacks() {
             @Override
             public boolean isMultiplayerMode() {
-                return isMultiplayerMode;
+                return gameStateManager.isMultiplayerMode();
             }
             
             @Override
             public boolean isGameStarted() {
-                return gameStarted;
+                return gameStateManager.isGameStarted();
             }
             
             @Override
             public boolean isPaused() {
-                return isPause.get();
+                return gameStateManager.isPaused();
             }
             
             @Override
             public boolean isGameOver1() {
-                return isGameOver1.get();
+                return gameStateManager.isGameOver1();
             }
             
             @Override
             public boolean isGameOver2() {
-                return isGameOver2.get();
+                return gameStateManager.isGameOver2();
             }
             
             @Override
@@ -457,14 +622,14 @@ public class GuiController implements Initializable {
             // Set up ghost piece checkbox
             javafx.scene.control.CheckBox ghostPieceCheckBox = settingsPanel.getGhostPieceCheckBox();
             ghostPieceCheckBox.setSelected(true); // Default to checked
-            ghostPieceCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                    ghostPieceCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 // Update ghost panel for single player
                 if (ghostPanel != null) {
-                    ghostPanel.setVisible(newVal && gameStarted);
+                    ghostPanel.setVisible(newVal && gameStateManager.isGameStarted());
                 }
                 // Update ghost panels for multiplayer
-                if (isMultiplayerMode && multiplayerScreen != null) {
-                    multiplayerScreen.setBrickPanelsVisible(newVal && gameStarted, settingsPanel);
+                if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
+                    multiplayerScreen.setBrickPanelsVisible(newVal && gameStateManager.isGameStarted(), settingsPanel);
                 }
             });
             
@@ -487,13 +652,13 @@ public class GuiController implements Initializable {
     }
     
     private void showSettingsFromPause() {
-        if (settingsPanel != null) {
+            if (settingsPanel != null) {
             // Refresh controls display to show current bindings
             settingsPanel.updateControlsDisplay();
             // Request focus on settings panel to receive key events
             settingsPanel.requestFocus();
             
-            if (isMultiplayerMode && multiplayerScreen != null) {
+            if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                 // Hide pause overlay for multiplayer
                 multiplayerScreen.hidePausePanel();
                 // Show settings overlay
@@ -513,7 +678,7 @@ public class GuiController implements Initializable {
                         }
                     }
                     // Remove from multiplayer overlay if it's there (defensive check)
-                    if (isMultiplayerMode && multiplayerScreen != null) {
+                    if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                         multiplayerScreen.hideSettingsOverlay();
                     }
                     // Add back to gameStack if not already there (defensive check)
@@ -558,7 +723,7 @@ public class GuiController implements Initializable {
     
     private void hideSettings() {
         if (settingsPanel != null) {
-            if (isMultiplayerMode && multiplayerScreen != null) {
+            if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                 // Hide settings overlay for multiplayer
                 multiplayerScreen.hideSettingsOverlay();
                 settingsPanel.setVisible(false);
@@ -571,9 +736,9 @@ public class GuiController implements Initializable {
             // If main menu is visible, show it
             if (mainMenuPanel != null && !mainMenuPanel.isVisible()) {
                 // Check if we should return to pause menu or main menu
-                if (isPause.get() && gameStarted) {
+                if (gameStateManager.isPaused() && gameStateManager.isGameStarted()) {
                     // Return to pause menu
-                    if (isMultiplayerMode && multiplayerScreen != null) {
+                    if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                         // Make sure pause overlay is restored properly
                         multiplayerScreen.showPausePanel();
                     } else {
@@ -598,7 +763,7 @@ public class GuiController implements Initializable {
             mainMenuPanel.setVisible(false);
         }
         
-        isMultiplayerMode = true;
+        gameStateManager.setMultiplayerMode(true);
         
         if (multiplayerScreen == null) {
             multiplayerScreen = new MultiplayerScreen();
@@ -711,7 +876,7 @@ public class GuiController implements Initializable {
             scene.removeEventFilter(KeyEvent.KEY_RELEASED, sceneKeyReleasedHandler);
         }
         
-        if (isMultiplayerMode) {
+        if (gameStateManager.isMultiplayerMode()) {
             // Remove node handlers from gameBoard in multiplayer mode to avoid duplicate processing
             if (gameBoard != null) {
                 gameBoard.setOnKeyPressed(null);
@@ -721,13 +886,13 @@ public class GuiController implements Initializable {
             // Add handlers as filters so they work regardless of focus
             // Store handlers so we can remove them later
             sceneKeyPressedHandler = e -> {
-                if (isMultiplayerMode && !e.isConsumed()) {
-                    inputHandler.handleKeyPress(e, isMultiplayerMode, gameStarted);
+                if (gameStateManager.isMultiplayerMode() && !e.isConsumed()) {
+                    inputHandler.handleKeyPress(e, gameStateManager.isMultiplayerMode(), gameStateManager.isGameStarted());
                 }
             };
             sceneKeyReleasedHandler = e -> {
-                if (isMultiplayerMode && !e.isConsumed()) {
-                    inputHandler.handleKeyRelease(e, isMultiplayerMode);
+                if (gameStateManager.isMultiplayerMode() && !e.isConsumed()) {
+                    inputHandler.handleKeyRelease(e, gameStateManager.isMultiplayerMode());
                 }
             };
             
@@ -752,14 +917,21 @@ public class GuiController implements Initializable {
         gameController1 = new GameController(this, 1);
         gameController2 = new GameController(this, 2);
         
+        // Update GameStateManager with controllers and listeners
+        gameStateManager.setGameController1(gameController1);
+        gameStateManager.setGameController2(gameController2);
+        gameStateManager.setEventListener1(eventListener1);
+        gameStateManager.setEventListener2(eventListener2);
+        gameStateManager.setTimeLine1(timeLine1);
+        gameStateManager.setTimeLine2(timeLine2);
+        gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
+        gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
+        gameStateManager.setMultiplayerMode(true);
+        
         if (multiplayerScreen != null) {
             multiplayerScreen.setGameControllers(gameController1, gameController2);
             multiplayerScreen.setEventListeners(eventListener1, eventListener2);
         }
-        
-        // Reset game over states
-        isGameOver1.set(false);
-        isGameOver2.set(false);
         
         // Hide winning panel if visible
         if (multiplayerScreen != null) {
@@ -772,34 +944,8 @@ public class GuiController implements Initializable {
             multiplayerScreen.setPlayer2Ready(false);
         }
         
-        // Start the game
-        gameStarted = true;
-        isPause.set(false);
-        
-        // Hide pause panel if visible
-        if (multiplayerScreen != null) {
-            multiplayerScreen.hidePausePanel();
-        }
-        if (pausePanel != null) {
-            pausePanel.setVisible(false);
-        }
-        
-        // Start both timelines
-        if (timeLine1 != null) {
-            timeLine1.play();
-        }
-        if (timeLine2 != null) {
-            timeLine2.play();
-        }
-        
-        // Start garbage processing timelines
-        startGarbageProcessingTimelines();
-        
-        // Start multiplayer timer
-        startMultiplayerTimer();
-        
-        // Start game music
-        audioManager.playGameMusic();
+        // Delegate to GameStateManager
+        gameStateManager.startMultiplayerGame();
         
         // Make brick panels and ghost panels visible
         if (multiplayerScreen != null && settingsPanel != null) {
@@ -833,44 +979,16 @@ public class GuiController implements Initializable {
             multiplayerScreen.show();
         }
         
-        // Restart both games
-        if (gameController1 != null) {
-            gameController1.createNewGame();
-        }
-        if (gameController2 != null) {
-            gameController2.createNewGame();
-        }
+        // Update GameStateManager with current references
+        gameStateManager.setGameController1(gameController1);
+        gameStateManager.setGameController2(gameController2);
+        gameStateManager.setTimeLine1(timeLine1);
+        gameStateManager.setTimeLine2(timeLine2);
+        gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
+        gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
         
-        // Reset game over states
-        isGameOver1.set(false);
-        isGameOver2.set(false);
-        gameStarted = true;
-        isPause.set(false);
-        
-        // Hide winning panel
-        if (multiplayerScreen != null) {
-            multiplayerScreen.hideWinningPanel();
-        }
-        
-        // Restart timelines
-        if (timeLine1 != null) {
-            timeLine1.stop();
-            timeLine1.play();
-        }
-        if (timeLine2 != null) {
-            timeLine2.stop();
-            timeLine2.play();
-        }
-        
-        // Restart garbage processing timelines
-        startGarbageProcessingTimelines();
-        
-        // Restart multiplayer timer
-        resetMultiplayerTimer();
-        startMultiplayerTimer();
-        
-        // Restart music
-        audioManager.playGameMusic();
+        // Delegate to GameStateManager
+        gameStateManager.restartMultiplayerGame();
     }
     
     private void quitToMainMenuFromMultiplayer() {
@@ -879,24 +997,16 @@ public class GuiController implements Initializable {
             multiplayerScreen.clearGamePanels();
         }
         
-        // Stop all timelines
-        if (timeLine != null) timeLine.stop();
-        if (timeLine1 != null) timeLine1.stop();
-        if (timeLine2 != null) timeLine2.stop();
-        stopGarbageProcessingTimelines();
+        // Update GameStateManager with current references
+        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setTimeLine1(timeLine1);
+        gameStateManager.setTimeLine2(timeLine2);
         
-        // Stop multiplayer timer
-        stopMultiplayerTimer();
+        // Delegate state management to GameStateManager
+        gameStateManager.quitToMainMenu();
         
-        // Reset pause state
-        isPause.set(false);
-        
-        // Reset game states
-        isGameOver.set(false);
-        isGameOver1.set(false);
-        isGameOver2.set(false);
-        gameStarted = false;
-        isMultiplayerMode = false;
+        // Clear multiplayer references
+        gameStateManager.clearMultiplayerReferences();
         
         // Hide multiplayer screen
         if (multiplayerScreen != null) {
@@ -1063,23 +1173,13 @@ public class GuiController implements Initializable {
         }
         return null;
     }
-    
-    // Old multiplayer UI methods removed - now in MultiplayerScreen
-    // createPlayerSidePanel, initializeMultiplayerPanels, createPlayerContainer, 
-    // createPlayerGameField, initializeGameFieldPanel are now in MultiplayerScreen
-    
-    // Audio methods are now handled by AudioManager
-
-    // Single player UI initialization methods are now in SinglePlayerScreen
-
-    // Key handling methods are now handled by InputHandler
 
     public void initGameView(int[][] boardMatrix, ViewData brick) {
         initGameView(boardMatrix, brick, 0);
     }
     
     public void initGameView(int[][] boardMatrix, ViewData brick, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             // Initialize multiplayer game view
             refreshBrick(brick, playerNumber);
             refreshGameBackground(boardMatrix, playerNumber);
@@ -1105,7 +1205,7 @@ public class GuiController implements Initializable {
         } else {
             // Single player game view
             if (singlePlayerScreen != null) {
-                singlePlayerScreen.refreshBrick(brick, gameStarted);
+                singlePlayerScreen.refreshBrick(brick, gameStateManager.isGameStarted());
                 singlePlayerScreen.refreshGameBackground(boardMatrix);
                 
                 // Store brick data for countdown refresh
@@ -1113,11 +1213,11 @@ public class GuiController implements Initializable {
                 
                 // Update next bricks display for single player (only if game has started)
                 // Don't show next bricks during main menu or countdown
-                if (gameStarted && eventListener instanceof GameController) {
+                if (gameStateManager.isGameStarted() && eventListener instanceof GameController) {
                     GameController gameController = (GameController) eventListener;
                     if (gameController.getBoard() instanceof SimpleBoard) {
                         SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                        singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStarted);
+                        singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStateManager.isGameStarted());
                     }
                 }
             }
@@ -1134,8 +1234,8 @@ public class GuiController implements Initializable {
 
     private void refreshBrick(ViewData brick, int playerNumber) {
         // Use MultiplayerScreen for multiplayer mode
-        if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
-            if (!isPause.get()) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
+            if (!gameStateManager.isPaused()) {
                 multiplayerScreen.refreshBrick(brick, playerNumber);
             }
             return;
@@ -1143,7 +1243,7 @@ public class GuiController implements Initializable {
         
         // Single player mode - use SinglePlayerScreen
         if (singlePlayerScreen != null) {
-            singlePlayerScreen.refreshBrick(brick, gameStarted);
+            singlePlayerScreen.refreshBrick(brick, gameStateManager.isGameStarted());
         }
     }
 
@@ -1152,7 +1252,7 @@ public class GuiController implements Initializable {
     }
     
     public void refreshGameBackground(int[][] board, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.refreshGameBackground(board, playerNumber);
         } else {
             // Single player mode - use SinglePlayerScreen
@@ -1175,15 +1275,14 @@ public class GuiController implements Initializable {
         if (multiplayerScreen != null) {
             multiplayerScreen.clearGamePanels();
         }
-        // Fallback code removed - multiplayerScreen should always be initialized
     }
     
     private void moveDown(MoveEvent event, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0) {
-            BooleanProperty isGameOverProp = (playerNumber == 1) ? isGameOver1 : isGameOver2;
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
+            boolean isGameOver = (playerNumber == 1) ? gameStateManager.isGameOver1() : gameStateManager.isGameOver2();
             InputEventListener listener = (playerNumber == 1) ? eventListener1 : eventListener2;
             
-            if (!gameStarted || isPause.get() || isGameOverProp.get()) {
+            if (!gameStateManager.isGameStarted() || gameStateManager.isPaused() || isGameOver) {
                 return;
             }
             if (listener != null) {
@@ -1197,7 +1296,7 @@ public class GuiController implements Initializable {
                 }
             }
         } else {
-            if (!gameStarted || isPause.get() || isGameOver.get()) {
+            if (!gameStateManager.isGameStarted() || gameStateManager.isPaused() || gameStateManager.isGameOver()) {
                 return;
             }
             if (eventListener != null) {
@@ -1237,6 +1336,11 @@ public class GuiController implements Initializable {
             this.eventListener2 = listener;
         } else {
             this.eventListener = listener;
+            // For single player, also set the eventListener in SinglePlayerScreen
+            // This is needed for ghost piece rendering
+            if (singlePlayerScreen != null) {
+                singlePlayerScreen.setEventListener(listener);
+            }
         }
     }
 
@@ -1245,7 +1349,7 @@ public class GuiController implements Initializable {
     }
     
     public void bindScore(IntegerProperty score, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.bindScore(score, playerNumber);
         } else if (playerNumber == 0) {
             // Single player mode - use SinglePlayerScreen
@@ -1260,19 +1364,12 @@ public class GuiController implements Initializable {
     }
     
     public void bindLevel(IntegerProperty level, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.bindLevel(level, playerNumber);
         } else if (playerNumber == 0) {
             // Single player mode - use SinglePlayerScreen
             if (singlePlayerScreen != null && level != null) {
                 singlePlayerScreen.bindLevel(level);
-                
-                // Remove old listener if it exists to avoid duplicates
-                if (levelChangeListener != null) {
-                    // Try to remove from the previous level property if we can find it
-                    // Since we don't have a reference to the old property, we'll just create a new listener
-                    // The old listener will become unreachable and be garbage collected
-                }
                 
                 // Create and store new listener
                 levelChangeListener = (obs, oldVal, newVal) -> {
@@ -1303,7 +1400,7 @@ public class GuiController implements Initializable {
      * @param numGarbageLines Number of garbage lines to send
      */
     public void sendGarbageToOpponent(int fromPlayerNumber, int numGarbageLines) {
-        if (!isMultiplayerMode || numGarbageLines <= 0) {
+        if (!gameStateManager.isMultiplayerMode() || numGarbageLines <= 0) {
             return;
         }
         
@@ -1334,12 +1431,12 @@ public class GuiController implements Initializable {
      * @param playerNumber The player number (1 or 2)
      */
     private void processGarbageQueue(int playerNumber) {
-        if (!isMultiplayerMode || playerNumber <= 0) {
+        if (!gameStateManager.isMultiplayerMode() || playerNumber <= 0) {
             return;
         }
         
-        BooleanProperty isGameOverProp = (playerNumber == 1) ? isGameOver1 : isGameOver2;
-        if (isGameOverProp.get() || isPause.get()) {
+        boolean isGameOver = (playerNumber == 1) ? gameStateManager.isGameOver1() : gameStateManager.isGameOver2();
+        if (isGameOver || gameStateManager.isPaused()) {
             return;
         }
         
@@ -1383,7 +1480,7 @@ public class GuiController implements Initializable {
      * Garbage lines appear gradually (one every 2 seconds) to give players time to react.
      */
     private void startGarbageProcessingTimelines() {
-        if (!isMultiplayerMode) {
+        if (!gameStateManager.isMultiplayerMode()) {
             return;
         }
         
@@ -1397,7 +1494,7 @@ public class GuiController implements Initializable {
         
         // Create timeline for player 1 - process garbage every 2 seconds
         garbageProcessTimeline1 = new Timeline(new KeyFrame(Duration.seconds(2), ae -> {
-            if (!isPause.get() && !isGameOver1.get()) {
+            if (!gameStateManager.isPaused() && !gameStateManager.isGameOver1()) {
                 processGarbageQueue(1);
             }
         }));
@@ -1405,7 +1502,7 @@ public class GuiController implements Initializable {
         
         // Create timeline for player 2 - process garbage every 2 seconds
         garbageProcessTimeline2 = new Timeline(new KeyFrame(Duration.seconds(2), ae -> {
-            if (!isPause.get() && !isGameOver2.get()) {
+            if (!gameStateManager.isPaused() && !gameStateManager.isGameOver2()) {
                 processGarbageQueue(2);
             }
         }));
@@ -1433,192 +1530,22 @@ public class GuiController implements Initializable {
     }
     
     public void gameOver(int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0) {
-            // Handle multiplayer game over
-            if (playerNumber == 1) {
-                if (timeLine1 != null) timeLine1.stop();
-                isGameOver1.set(true);
-                // Stop the other player's game as well (but don't mark them as game over so winning panel shows)
-                if (timeLine2 != null) timeLine2.stop();
-            } else if (playerNumber == 2) {
-                if (timeLine2 != null) timeLine2.stop();
-                isGameOver2.set(true);
-                // Stop the other player's game as well (but don't mark them as game over so winning panel shows)
-                if (timeLine1 != null) timeLine1.stop();
-            }
-            
-            // Stop garbage processing timelines
-            stopGarbageProcessingTimelines();
-            
-            // Don't clear game panels here - keep them visible so players can see the final game state
-            // Game panels will be cleared when restarting or quitting
-            
-            // Hide pause panel if visible
-            if (multiplayerScreen != null) {
-                multiplayerScreen.hidePausePanel();
-            }
-            if (pausePanel != null) {
-                pausePanel.setVisible(false);
-            }
-            isPause.set(false);
-            
-            // Stop game music when game ends in multiplayer mode
-            audioManager.stopGameMusic();
-            
-            // If only one player is game over, show winning panel for the other player
-            // Also set the winning player's game over flag to prevent further input
-            if (isGameOver1.get() && !isGameOver2.get()) {
-                // Player 1 lost, Player 2 wins - stop Player 2 from controlling
-                isGameOver2.set(true);
-                showWinningPanel(2);
-            } else if (isGameOver2.get() && !isGameOver1.get()) {
-                // Player 2 lost, Player 1 wins - stop Player 1 from controlling
-                isGameOver1.set(true);
-                showWinningPanel(1);
-            } else if (isGameOver1.get() && isGameOver2.get()) {
-                // Both players are game over
-                // Hide winning panel if visible
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.hideWinningPanel();
-                }
-                // Play game over sound (game music already stopped above)
-                audioManager.playGameOver();
-                // Could show a multiplayer game over screen here
-            }
-            return;
-        }
+        // Update GameStateManager with current timeline references
+        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setTimeLine1(timeLine1);
+        gameStateManager.setTimeLine2(timeLine2);
         
-        // Single player game over
-        if (timeLine != null) timeLine.stop();
-        
-        // Stop timer
-        stopTimer();
-        
-        // Stop game music and play game over sound
-        audioManager.stopGameMusic();
-        audioManager.playGameOver();
-        
-        // Hide pause panel if visible
-        if (pausePanel != null) {
-            pausePanel.setVisible(false);
-        }
-        if (multiplayerScreen != null) {
-            multiplayerScreen.hidePausePanel();
-        }
-        isPause.set(false);
-        if (gameOverPanel != null) {
-            // Get current score from scoreLabel
-            int currentScore = 0;
-            if (scoreLabel != null) {
-                try {
-                    String scoreText = scoreLabel.getText();
-                    if (scoreText != null && scoreText.contains(":")) {
-                        String scoreValue = scoreText.substring(scoreText.indexOf(":") + 1).trim();
-                        currentScore = Integer.parseInt(scoreValue);
-                    }
-                } catch (Exception e) {
-                    // If parsing fails, use 0
-                }
-            }
-            
-            // Add score to high scores
-            highScoreManager.addScore(currentScore);
-            
-            // Update game over panel
-            gameOverPanel.setCurrentScore(currentScore);
-            gameOverPanel.setTimeUsed(timerManager.getSinglePlayerElapsedSeconds());
-            gameOverPanel.setHighScores(highScoreManager.getTop3Scores());
-            
-            // Set button actions
-            gameOverPanel.setOnYesAction(() -> {
-                newGame(null);
-            });
-            
-            gameOverPanel.setOnNoAction(() -> {
-                // Go back to main menu and reset the game
-                if (eventListener != null) {
-                    // Reset the game board state
-                    eventListener.createNewGame();
-                }
-                // Clear the game board display
-                if (singlePlayerScreen != null) {
-                    Rectangle[][] displayMatrix = singlePlayerScreen.getDisplayMatrix();
-                    if (displayMatrix != null) {
-                        for (int i = 0; i < displayMatrix.length; i++) {
-                            for (int j = 0; j < displayMatrix[i].length; j++) {
-                                if (displayMatrix[i][j] != null) {
-                                    displayMatrix[i][j].setFill(Color.TRANSPARENT);
-                                }
-                            }
-                        }
-                    }
-                    // Clear next bricks display
-                    List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
-                    if (nextBrickPanes != null) {
-                        for (GridPane pane : nextBrickPanes) {
-                            if (pane != null) {
-                                pane.getChildren().clear();
-                                // Re-initialize empty cells
-                                for (int r = 0; r < 4; r++) {
-                                    for (int c = 0; c < 4; c++) {
-                                        Rectangle rect = new Rectangle(GameConstants.BRICK_SIZE - 10, GameConstants.BRICK_SIZE - 10);
-                                        rect.setFill(Color.TRANSPARENT);
-                                        pane.add(rect, c, r);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Clear hold brick display
-                    Rectangle[][] holdBrickRectangles = singlePlayerScreen.getHoldBrickRectangles();
-                    if (holdBrickRectangles != null) {
-                        for (int i = 0; i < holdBrickRectangles.length; i++) {
-                            for (int j = 0; j < holdBrickRectangles[i].length; j++) {
-                                if (holdBrickRectangles[i][j] != null) {
-                                    holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
-                                }
-                            }
-                        }
-                    }
-                }
-                // Clear current brick display and ghost panel
-                if (brickPanel != null) {
-                    brickPanel.getChildren().clear();
-                    brickPanel.setVisible(false);
-                }
-                if (ghostPanel != null) {
-                    ghostPanel.getChildren().clear();
-                    ghostPanel.setVisible(false);
-                }
-                
-                // Hide game over panel and show main menu
-                if (gameOverPanel != null) gameOverPanel.setVisible(false);
-                if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
-                isGameOver.set(false);
-                gameStarted = false;
-                if (timeLine != null) timeLine.stop();
-                
-                // Reset timer
-                resetTimer();
-                
-                // Stop game over sound and play main menu music
-                audioManager.playMainMenuMusic();
-            });
-            
-            gameOverPanel.setVisible(true);
-        }
-        isGameOver.set(true);
+        // Delegate to GameStateManager
+        gameStateManager.gameOver(playerNumber);
     }
 
     public void newGame(ActionEvent actionEvent) {
-        if (timeLine != null) timeLine.stop();
-        if (gameOverPanel != null) gameOverPanel.setVisible(false);
+        // Update GameStateManager with current timeline reference
+        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setEventListener(eventListener);
         
-        // Reset timer for new game
-        resetTimer();
-        
-        // Stop game over sound and start game music
-        audioManager.playGameMusic();
+        // Delegate to GameStateManager
+        gameStateManager.newGame();
         
         if (eventListener != null) eventListener.createNewGame();
         
@@ -1635,32 +1562,16 @@ public class GuiController implements Initializable {
         
         if (gameBoard != null) {
             // Ensure keyboard handlers are attached for single player mode
-            if (!isMultiplayerMode) {
-                gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, isMultiplayerMode, gameStarted));
-                gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, isMultiplayerMode));
+            if (!gameStateManager.isMultiplayerMode()) {
+                gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, gameStateManager.isMultiplayerMode(), gameStateManager.isGameStarted()));
+                gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, gameStateManager.isMultiplayerMode()));
             }
             gameBoard.setFocusTraversable(true);
             gameBoard.requestFocus();
         }
-        if (timeLine != null) timeLine.play();
-        
-        // Start timer for new game (single player only)
-        if (!isMultiplayerMode) {
-            startTimer();
-        }
-        
-        isPause.set(false);
-        isGameOver.set(false);
-        gameStarted = true;
-        if (mainMenuPanel != null) {
-            mainMenuPanel.setVisible(false);
-        }
-        if (pausePanel != null) {
-            pausePanel.setVisible(false);
-        }
         
         // Ensure settings panel is in gameStack for single player mode (defensive check)
-        if (!isMultiplayerMode && gameStack != null && settingsPanel != null) {
+        if (!gameStateManager.isMultiplayerMode() && gameStack != null && settingsPanel != null) {
             // Remove from multiplayer overlay if it's there
             if (multiplayerScreen != null) {
                 multiplayerScreen.hideSettingsOverlay();
@@ -1689,9 +1600,9 @@ public class GuiController implements Initializable {
     }
 
     public void startGame() {
-        if (!gameStarted && mainMenuPanel != null) {
+        gameStateManager.startGame();
+        if (!gameStateManager.isGameStarted() && mainMenuPanel != null) {
             mainMenuPanel.setVisible(false);
-            
             // Start countdown
             startCountdown();
         }
@@ -1786,11 +1697,13 @@ public class GuiController implements Initializable {
     }
     
     private void actuallyStartGame() {
-        gameStarted = true;
-        isGameOver.set(false);
-        isPause.set(false);
+        // Update GameStateManager with current timeline reference
+        gameStateManager.setTimeLine(timeLine);
         
-        // Stop main menu music and start game music
+        // Delegate state management to GameStateManager
+        gameStateManager.actuallyStartGame();
+        
+        // Stop main menu music and start game music (handled by GameStateManager, but we need to ensure it's called)
         audioManager.playGameMusic();
         
         // Ensure score, level, and lines bindings are active
@@ -1805,7 +1718,7 @@ public class GuiController implements Initializable {
         }
         
         // Ensure settings panel is in gameStack for single player mode (defensive check)
-        if (!isMultiplayerMode && gameStack != null && settingsPanel != null) {
+        if (!gameStateManager.isMultiplayerMode() && gameStack != null && settingsPanel != null) {
             // Remove from multiplayer overlay if it's there
             if (multiplayerScreen != null) {
                 multiplayerScreen.hideSettingsOverlay();
@@ -1833,7 +1746,7 @@ public class GuiController implements Initializable {
         }
         
         // Show and initialize next bricks panel for single player mode
-        if (!isMultiplayerMode && nextBricksPanel != null && singlePlayerScreen != null) {
+        if (!gameStateManager.isMultiplayerMode() && nextBricksPanel != null && singlePlayerScreen != null) {
             nextBricksPanel.setVisible(true);
             nextBricksPanel.setManaged(true);
             singlePlayerScreen.initializeNextBricksPanel();
@@ -1853,7 +1766,7 @@ public class GuiController implements Initializable {
                 GameController gameController = (GameController) eventListener;
                 if (gameController.getBoard() instanceof SimpleBoard) {
                     SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStarted);
+                    singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStateManager.isGameStarted());
                 }
             }
         }
@@ -1863,24 +1776,23 @@ public class GuiController implements Initializable {
         if (singlePlayerScreen != null) {
             ViewData currentBrickData = singlePlayerScreen.getCurrentBrickData();
             if (currentBrickData != null) {
-                singlePlayerScreen.refreshBrick(currentBrickData, gameStarted);
+                singlePlayerScreen.refreshBrick(currentBrickData, gameStateManager.isGameStarted());
             }
         }
         
-        if (timeLine != null) {
-            timeLine.play();
-        }
+        // Update GameStateManager with current timeline reference
+        gameStateManager.setTimeLine(timeLine);
         
-        // Start timer for single player mode
-        if (!isMultiplayerMode) {
+        // Start timer for single player mode (handled by GameStateManager callback)
+        if (!gameStateManager.isMultiplayerMode()) {
             startTimer();
         }
         
         if (gameBoard != null) {
             // Ensure keyboard handlers are attached for single player mode
-            if (!isMultiplayerMode) {
-                gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, isMultiplayerMode, gameStarted));
-                gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, isMultiplayerMode));
+            if (!gameStateManager.isMultiplayerMode()) {
+                gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, gameStateManager.isMultiplayerMode(), gameStateManager.isGameStarted()));
+                gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, gameStateManager.isMultiplayerMode()));
             }
             gameBoard.setFocusTraversable(true);
             gameBoard.requestFocus();
@@ -1892,92 +1804,15 @@ public class GuiController implements Initializable {
     }
 
     public void pauseGame(ActionEvent actionEvent) {
-        // Only allow pause/resume when game is actually playing
-        if (!gameStarted) {
-            return; // Game hasn't started, don't allow pause
-        }
+        // Update GameStateManager with current timeline references
+        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setTimeLine1(timeLine1);
+        gameStateManager.setTimeLine2(timeLine2);
+        gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
+        gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
         
-        // Check if game is over - if so, don't allow pause
-        if (isMultiplayerMode) {
-            if (isGameOver1.get() || isGameOver2.get()) {
-                return; // Game is over, don't allow pause
-            }
-        } else {
-            if (isGameOver.get()) {
-                return; // Game is over, don't allow pause
-            }
-        }
-        
-        if (isMultiplayerMode) {
-            if (!isPause.get()) {
-                // Pause the game
-                if (timeLine1 != null) timeLine1.pause();
-                if (timeLine2 != null) timeLine2.pause();
-                // Pause game music - AudioManager doesn't have pause, so we stop it
-                audioManager.stopGameMusic();
-                // Pause multiplayer timer
-                pauseMultiplayerTimer();
-                isPause.set(true);
-                // Pause garbage processing timelines
-                if (garbageProcessTimeline1 != null) {
-                    garbageProcessTimeline1.pause();
-                }
-                if (garbageProcessTimeline2 != null) {
-                    garbageProcessTimeline2.pause();
-                }
-                // Show pause panel for multiplayer
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.showPausePanel();
-                }
-            } else {
-                // Resume the game
-                if (timeLine1 != null) { timeLine1.play(); updateTimelineRate(1); }
-                if (timeLine2 != null) { timeLine2.play(); updateTimelineRate(2); }
-                // Resume game music
-                audioManager.playGameMusic();
-                // Resume multiplayer timer
-                resumeMultiplayerTimer();
-                isPause.set(false);
-                // Resume garbage processing timelines
-                if (garbageProcessTimeline1 != null) {
-                    garbageProcessTimeline1.play();
-                }
-                if (garbageProcessTimeline2 != null) {
-                    garbageProcessTimeline2.play();
-                }
-                // Hide pause panel for multiplayer
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.hidePausePanel();
-                }
-            }
-        } else {
-            if (!isPause.get()) {
-                // Pause the game
-                if (timeLine != null) timeLine.pause();
-                // Pause game music - AudioManager doesn't have pause, so we stop it
-                audioManager.stopGameMusic();
-                // Pause timer
-                pauseTimer();
-                isPause.set(true);
-                // Show pause panel
-                if (pausePanel != null) {
-                    pausePanel.setVisible(true);
-                }
-            } else {
-                // Resume the game
-                if (timeLine != null) { timeLine.play(); updateTimelineRate(); }
-                // Resume game music
-                audioManager.playGameMusic();
-                // Resume timer
-                resumeTimer();
-                isPause.set(false);
-                // Hide pause panel
-                if (pausePanel != null) {
-                    pausePanel.setVisible(false);
-                }
-            }
-        }
-        if (gameBoard != null) gameBoard.requestFocus();
+        // Delegate to GameStateManager
+        gameStateManager.pauseGame();
     }
     
     private void initializePausePanel() {
@@ -1998,7 +1833,7 @@ public class GuiController implements Initializable {
         
         // Restart action - start a new game
         panel.setOnRestartAction(() -> {
-            if (isMultiplayerMode) {
+            if (gameStateManager.isMultiplayerMode()) {
                 // Clear all multiplayer game panels and side panels before restarting
                 clearMultiplayerGamePanels();
                 
@@ -2009,45 +1844,26 @@ public class GuiController implements Initializable {
                     multiplayerScreen.show();
                 }
                 
-                // For multiplayer, restart both games
-                if (gameController1 != null) {
-                    gameController1.createNewGame();
-                }
-                if (gameController2 != null) {
-                    gameController2.createNewGame();
-                }
-                isPause.set(false);
+                // Update GameStateManager with current references
+                gameStateManager.setGameController1(gameController1);
+                gameStateManager.setGameController2(gameController2);
+                gameStateManager.setTimeLine1(timeLine1);
+                gameStateManager.setTimeLine2(timeLine2);
+                gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
+                gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
+                
+                // Delegate to GameStateManager
+                gameStateManager.restartMultiplayerGame();
+                
                 if (pausePanel != null) {
                     pausePanel.setVisible(false);
                 }
                 if (multiplayerScreen != null) {
                     multiplayerScreen.hidePausePanel();
                 }
-                // Reset game over states
-                isGameOver1.set(false);
-                isGameOver2.set(false);
                 
                 // Hide winning panel if visible
                 hideWinningPanel();
-                
-                // Restart timelines
-                if (timeLine1 != null) {
-                    timeLine1.stop();
-                    timeLine1.play();
-                }
-                if (timeLine2 != null) {
-                    timeLine2.stop();
-                    timeLine2.play();
-                }
-                // Restart garbage processing timelines
-                startGarbageProcessingTimelines();
-                
-                // Restart multiplayer timer
-                resetMultiplayerTimer();
-                startMultiplayerTimer();
-                
-                // Restart music
-                audioManager.playGameMusic();
             } else {
                 // For single player, use newGame method
                 newGame(null);
@@ -2072,14 +1888,13 @@ public class GuiController implements Initializable {
                 multiplayerScreen.hidePausePanel();
             }
             
-            // Reset pause state
-            isPause.set(false);
+            // Update GameStateManager with current references
+            gameStateManager.setTimeLine(timeLine);
+            gameStateManager.setTimeLine1(timeLine1);
+            gameStateManager.setTimeLine2(timeLine2);
             
-            // Reset game states
-            isGameOver.set(false);
-            isGameOver1.set(false);
-            isGameOver2.set(false);
-            gameStarted = false;
+            // Delegate to GameStateManager
+            gameStateManager.quitToMainMenu();
             
             // Hide winning panel if visible
             hideWinningPanel();
@@ -2095,7 +1910,7 @@ public class GuiController implements Initializable {
             
             // Hide bottom panel
             // For single player mode, clear the game board display
-            if (!isMultiplayerMode) {
+            if (!gameStateManager.isMultiplayerMode()) {
                 // Reset the game board state
                 if (eventListener != null) {
                     eventListener.createNewGame();
@@ -2159,13 +1974,15 @@ public class GuiController implements Initializable {
             }
             
             // If multiplayer, restore single player view
-            if (isMultiplayerMode) {
+            if (gameStateManager.isMultiplayerMode()) {
                 // Clear all multiplayer game panels and bricks before quitting
                 clearMultiplayerGamePanels();
                 
-                isMultiplayerMode = false;
+                // Clear multiplayer references via GameStateManager
+                gameStateManager.clearMultiplayerReferences();
+                gameStateManager.setMultiplayerMode(false);
                 
-                // Clear multiplayer controllers and listeners
+                // Clear local references
                 stopGarbageProcessingTimelines();
                 stopMultiplayerTimer();
                 gameController1 = null;
@@ -2243,8 +2060,8 @@ public class GuiController implements Initializable {
                     gameBoard.setManaged(true);
                     gameBoard.setFocusTraversable(true);
                     // Restore node-level keyboard handlers for single player mode
-                    gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, isMultiplayerMode, gameStarted));
-                    gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, isMultiplayerMode));
+                    gameBoard.setOnKeyPressed(e -> inputHandler.handleKeyPress(e, gameStateManager.isMultiplayerMode(), gameStateManager.isGameStarted()));
+                    gameBoard.setOnKeyReleased(e -> inputHandler.handleKeyRelease(e, gameStateManager.isMultiplayerMode()));
                 }
                 
                 // Restore game panel visibility (grid background) for main menu
@@ -2321,7 +2138,7 @@ public class GuiController implements Initializable {
             }
             
             // Ensure gameBoard is visible for single player mode (main menu is inside it)
-            if (!isMultiplayerMode && gameBoard != null) {
+            if (!gameStateManager.isMultiplayerMode() && gameBoard != null) {
                 gameBoard.setVisible(true);
                 gameBoard.setManaged(true);
             }
@@ -2334,7 +2151,7 @@ public class GuiController implements Initializable {
                 ghostPanel.setVisible(false);
             }
             // Show game panel (background grid) for main menu - it should be visible
-            if (!isMultiplayerMode && gamePanel != null) {
+            if (!gameStateManager.isMultiplayerMode() && gamePanel != null) {
                 gamePanel.setVisible(true);
             }
         });
@@ -2345,14 +2162,14 @@ public class GuiController implements Initializable {
     }
     
     public void updateNextBricks(List<Brick> nextBricks, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.updateNextBricks(nextBricks, playerNumber);
             return;
         }
         
         // Single player mode - use SinglePlayerScreen
         if (singlePlayerScreen != null) {
-            singlePlayerScreen.updateNextBricks(nextBricks, gameStarted);
+            singlePlayerScreen.updateNextBricks(nextBricks, gameStateManager.isGameStarted());
         }
     }
 
@@ -2361,7 +2178,7 @@ public class GuiController implements Initializable {
     }
     
     public void updateHoldBrick(Brick heldBrick, int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.updateHoldBrick(heldBrick, playerNumber);
             return;
         }
@@ -2377,7 +2194,7 @@ public class GuiController implements Initializable {
     }
     
     private void updateTimelineRate(int playerNumber) {
-        if (isMultiplayerMode && playerNumber > 0) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             Timeline timeline = (playerNumber == 1) ? timeLine1 : timeLine2;
             GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
             
@@ -2397,7 +2214,7 @@ public class GuiController implements Initializable {
     
     // Timer methods are now handled by TimerManager
     private void startTimer() {
-        if (!isMultiplayerMode) {
+        if (!gameStateManager.isMultiplayerMode()) {
             timerManager.startSinglePlayerTimer();
         }
     }
@@ -2415,12 +2232,11 @@ public class GuiController implements Initializable {
     }
     
     private void resetTimer() {
-        timerManager.stopSinglePlayerTimer();
-        // Reset is handled by startTimer
+        timerManager.resetSinglePlayerTimer();
     }
     
     private void startMultiplayerTimer() {
-        if (isMultiplayerMode) {
+        if (gameStateManager.isMultiplayerMode()) {
             timerManager.startMultiplayerTimer();
         }
     }
@@ -2438,7 +2254,7 @@ public class GuiController implements Initializable {
     }
     
     private void resetMultiplayerTimer() {
-        timerManager.stopMultiplayerTimer();
+        timerManager.resetMultiplayerTimer();
     }
 
     

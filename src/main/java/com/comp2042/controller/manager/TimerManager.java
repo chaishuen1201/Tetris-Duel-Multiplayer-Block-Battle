@@ -71,6 +71,17 @@ public class TimerManager {
     }
     
     /**
+     * Resets the single player timer (stops and resets elapsed time to 0).
+     */
+    public void resetSinglePlayerTimer() {
+        stopSinglePlayerTimer();
+        singlePlayerElapsedSeconds = 0;
+        if (singlePlayerTimerLabel != null) {
+            singlePlayerTimerLabel.setText(formatTime(0));
+        }
+    }
+    
+    /**
      * Pauses the single player timer.
      */
     public void pauseSinglePlayerTimer() {
@@ -123,6 +134,17 @@ public class TimerManager {
         if (multiplayerTimer != null) {
             multiplayerTimer.stop();
             multiplayerTimer = null;
+        }
+    }
+    
+    /**
+     * Resets the multiplayer timer (stops and resets elapsed time to 0).
+     */
+    public void resetMultiplayerTimer() {
+        stopMultiplayerTimer();
+        multiplayerElapsedSeconds = 0;
+        if (multiplayerTimerLabel != null) {
+            multiplayerTimerLabel.setText(formatTime(0));
         }
     }
     
