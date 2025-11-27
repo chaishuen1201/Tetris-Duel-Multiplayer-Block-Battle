@@ -7,13 +7,13 @@ import com.comp2042.event.MoveEvent;
 import com.comp2042.logic.bricks.Brick;
 import com.comp2042.model.DownData;
 import com.comp2042.model.ViewData;
-import com.comp2042.view.ColorStrategy;
 import com.comp2042.view.GameOverPanel;
 import com.comp2042.view.PausePanel;
 import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.NotificationPanel;
 import com.comp2042.view.SettingsPanel;
 import com.comp2042.view.MultiplayerScreen;
+import com.comp2042.view.SinglePlayerScreen;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
 import com.comp2042.util.MatrixOperations;
@@ -43,20 +43,19 @@ import javafx.scene.Parent;
 import javafx.application.Platform;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
 public class GuiController implements Initializable {
 
-    // Use constants from GameConstants instead of magic numbers
-    private static final int BRICK_SIZE = GameConstants.BRICK_SIZE;
-    private static final int BOARD_WIDTH = GameConstants.BOARD_WIDTH;
-    private static final int BOARD_HEIGHT = GameConstants.BOARD_HEIGHT;
-    private static final int GAME_PANEL_WIDTH = GameConstants.GAME_PANEL_WIDTH;
-    private static final int GAME_PANEL_HEIGHT = GameConstants.GAME_PANEL_HEIGHT;
-    private ViewData currentBrickData; // Store current brick data for countdown refresh
-
+    // Single player screen - manages all single player UI
+    private SinglePlayerScreen singlePlayerScreen;
+    
+    // Multiplayer fields
+    private boolean isMultiplayerMode = false;
+    private MultiplayerScreen multiplayerScreen;
+    
+    // FXML components - kept for initialization and access
     @FXML private BorderPane gameBoard;
     @FXML private StackPane gameStack;
     @FXML private GridPane gamePanel;
@@ -74,10 +73,6 @@ public class GuiController implements Initializable {
     @FXML private MainMenuPanel mainMenuPanel;
     @FXML private Label countdownLabel;
     @FXML private Label timerLabel;
-
-    // Multiplayer fields
-    private boolean isMultiplayerMode = false;
-    private MultiplayerScreen multiplayerScreen;
     
     // Multiplayer game controllers and timelines
     private GameController gameController1, gameController2;
@@ -94,7 +89,6 @@ public class GuiController implements Initializable {
     // Store original panels to restore later
     private VBox originalLeftPanel, originalRightPanel;
 
-    private Rectangle[][] displayMatrix;
     private InputEventListener eventListener;
     private Timeline timeLine;
     // Timer management - delegated to TimerManager
@@ -105,8 +99,6 @@ public class GuiController implements Initializable {
     private int currentLevel = 1;
     private javafx.beans.value.ChangeListener<? super Number> levelChangeListener;
 
-    private Rectangle[][] holdBrickRectangles;
-    private List<GridPane> nextBrickPanes = new ArrayList<>();
     private HighScoreManager highScoreManager = new HighScoreManager();
     
     // Audio management - delegated to AudioManager
@@ -130,10 +122,29 @@ public class GuiController implements Initializable {
             System.out.println("PublicPixel font not found, using default font");
         }
 
-        initializeGamePanel();
-        initializeHoldPanel();
-        initializeNextBricksPanel();
-        initializeInfoPanel();
+        // Initialize single player screen
+        singlePlayerScreen = new SinglePlayerScreen();
+        singlePlayerScreen.setGameBoard(gameBoard);
+        singlePlayerScreen.setGameStack(gameStack);
+        singlePlayerScreen.setGamePanel(gamePanel);
+        singlePlayerScreen.setGroupNotification(groupNotification);
+        singlePlayerScreen.setBrickPanel(brickPanel);
+        singlePlayerScreen.setGhostPanel(ghostPanel);
+        singlePlayerScreen.setGameOverPanel(gameOverPanel);
+        singlePlayerScreen.setPausePanel(pausePanel);
+        singlePlayerScreen.setNextBricksPanel(nextBricksPanel);
+        singlePlayerScreen.setHoldBrickPanel(holdBrickPanel);
+        singlePlayerScreen.setScoreLabel(scoreLabel);
+        singlePlayerScreen.setLevelLabel(levelLabel);
+        singlePlayerScreen.setLinesLabel(linesLabel);
+        singlePlayerScreen.setCountdownLabel(countdownLabel);
+        singlePlayerScreen.setTimerLabel(timerLabel);
+        
+        // Initialize single player UI panels
+        singlePlayerScreen.initializeGamePanel();
+        singlePlayerScreen.initializeHoldPanel();
+        singlePlayerScreen.initializeNextBricksPanel();
+        singlePlayerScreen.initializeInfoPanel();
         
         // Initialize audio manager
         audioManager.initialize();
@@ -174,6 +185,7 @@ public class GuiController implements Initializable {
         if (nextBricksPanel != null) {
             nextBricksPanel.setVisible(true);
             // Hide the individual brick panes - ensure they're hidden at main menu
+            List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
             if (nextBrickPanes != null && !nextBrickPanes.isEmpty()) {
                 for (GridPane pane : nextBrickPanes) {
                     if (pane != null) {
@@ -243,7 +255,9 @@ public class GuiController implements Initializable {
             
             @Override
             public void refreshBrick(ViewData viewData) {
-                GuiController.this.refreshBrick(viewData);
+                if (singlePlayerScreen != null) {
+                    singlePlayerScreen.refreshBrick(viewData, gameStarted);
+                }
             }
             
             @Override
@@ -950,7 +964,9 @@ public class GuiController implements Initializable {
         if (holdBrickPanel != null) {
             holdBrickPanel.setVisible(true);
             holdBrickPanel.setManaged(true);
-            initializeHoldPanel();
+            if (singlePlayerScreen != null) {
+                singlePlayerScreen.initializeHoldPanel();
+            }
         }
         
         // Keep next bricks panel container visible, but hide the brick previews when returning to main menu
@@ -958,12 +974,15 @@ public class GuiController implements Initializable {
             nextBricksPanel.setVisible(true);
             nextBricksPanel.setManaged(true);
             // Still initialize it so it's ready when game starts
-            initializeNextBricksPanel();
-            // Hide the individual brick panes
-            if (nextBrickPanes != null) {
-                for (GridPane pane : nextBrickPanes) {
-                    if (pane != null) {
-                        pane.setVisible(false);
+            if (singlePlayerScreen != null) {
+                singlePlayerScreen.initializeNextBricksPanel();
+                // Hide the individual brick panes
+                List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
+                if (nextBrickPanes != null) {
+                    for (GridPane pane : nextBrickPanes) {
+                        if (pane != null) {
+                            pane.setVisible(false);
+                        }
                     }
                 }
             }
@@ -1051,125 +1070,7 @@ public class GuiController implements Initializable {
     
     // Audio methods are now handled by AudioManager
 
-    private void initializeGamePanel() {
-        if (gamePanel != null) {
-            gamePanel.getChildren().clear();
-            gamePanel.getColumnConstraints().clear();
-            gamePanel.getRowConstraints().clear();
-            gamePanel.setPrefSize(GAME_PANEL_WIDTH, GAME_PANEL_HEIGHT);
-
-            for (int c = 0; c < BOARD_WIDTH; c++) {
-                ColumnConstraints cc = new ColumnConstraints(BRICK_SIZE);
-                cc.setPrefWidth(BRICK_SIZE);
-                cc.setMinWidth(BRICK_SIZE);
-                cc.setMaxWidth(BRICK_SIZE);
-                gamePanel.getColumnConstraints().add(cc);
-            }
-            for (int r = 0; r < BOARD_HEIGHT; r++) {
-                RowConstraints rc = new RowConstraints(BRICK_SIZE);
-                rc.setPrefHeight(BRICK_SIZE);
-                rc.setMinHeight(BRICK_SIZE);
-                rc.setMaxHeight(BRICK_SIZE);
-                gamePanel.getRowConstraints().add(rc);
-            }
-
-            displayMatrix = new Rectangle[BOARD_HEIGHT][BOARD_WIDTH];
-            for (int i = 0; i < BOARD_HEIGHT; i++) {
-                for (int j = 0; j < BOARD_WIDTH; j++) {
-                    Rectangle rect = new Rectangle(BRICK_SIZE, BRICK_SIZE);
-                    rect.setFill(Color.TRANSPARENT);
-                    rect.setStroke(Color.gray(0.2));
-                    rect.setStrokeWidth(0.5);
-                    displayMatrix[i][j] = rect;
-                    gamePanel.add(rect, j, i);
-                }
-            }
-        }
-
-        if (brickPanel != null) {
-            brickPanel.getChildren().clear();
-            brickPanel.getColumnConstraints().clear();
-            brickPanel.getRowConstraints().clear();
-            for (int c = 0; c < BOARD_WIDTH; c++) {
-                ColumnConstraints cc = new ColumnConstraints(BRICK_SIZE);
-                brickPanel.getColumnConstraints().add(cc);
-            }
-            for (int r = 0; r < BOARD_HEIGHT; r++) {
-                RowConstraints rc = new RowConstraints(BRICK_SIZE);
-                brickPanel.getRowConstraints().add(rc);
-            }
-            brickPanel.setMouseTransparent(true);
-        }
-
-        if (ghostPanel != null) {
-            ghostPanel.getChildren().clear();
-            ghostPanel.getColumnConstraints().clear();
-            ghostPanel.getRowConstraints().clear();
-            for (int c = 0; c < BOARD_WIDTH; c++) {
-                ColumnConstraints cc = new ColumnConstraints(BRICK_SIZE);
-                ghostPanel.getColumnConstraints().add(cc);
-            }
-            for (int r = 0; r < BOARD_HEIGHT; r++) {
-                RowConstraints rc = new RowConstraints(BRICK_SIZE);
-                ghostPanel.getRowConstraints().add(rc);
-            }
-            ghostPanel.setMouseTransparent(true);
-        }
-    }
-
-    private void initializeHoldPanel() {
-        if (holdBrickPanel != null) {
-            holdBrickPanel.getChildren().clear();
-            holdBrickRectangles = new Rectangle[4][4];
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
-                    rect.setFill(Color.TRANSPARENT);
-                    rect.setStroke(Color.gray(0.3));
-                    holdBrickRectangles[i][j] = rect;
-                    holdBrickPanel.add(rect, j, i);
-                }
-            }
-        }
-    }
-
-    private void initializeNextBricksPanel() {
-        if (nextBricksPanel != null) {
-            nextBrickPanes.clear();
-            nextBricksPanel.getChildren().clear();
-            for (int i = 0; i < 3; i++) {
-                GridPane pane = new GridPane();
-                pane.setVgap(1);
-                pane.setHgap(1);
-                pane.setPrefSize(80, 80);
-                // Hide panes initially - they'll be shown when game starts
-                pane.setVisible(false);
-                for (int r = 0; r < 4; r++) {
-                    for (int c = 0; c < 4; c++) {
-                        Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
-                        rect.setFill(Color.TRANSPARENT);
-                        pane.add(rect, c, r);
-                    }
-                }
-                nextBrickPanes.add(pane);
-                nextBricksPanel.getChildren().add(pane);
-            }
-        }
-    }
-
-    private void initializeInfoPanel() {
-        // Don't set text directly for scoreLabel - it will be bound to the score property
-        // Only set initial text if not already bound
-        if (scoreLabel != null && !scoreLabel.textProperty().isBound()) {
-            scoreLabel.setText("0");
-        }
-        if (levelLabel != null && !levelLabel.textProperty().isBound()) {
-            levelLabel.setText("1");
-        }
-        if (linesLabel != null && !linesLabel.textProperty().isBound()) {
-            linesLabel.setText("0");
-        }
-    }
+    // Single player UI initialization methods are now in SinglePlayerScreen
 
     // Key handling methods are now handled by InputHandler
 
@@ -1203,16 +1104,21 @@ public class GuiController implements Initializable {
             }
         } else {
             // Single player game view
-            refreshBrick(brick);
-            refreshGameBackground(boardMatrix);
-            
-            // Update next bricks display for single player (only if game has started)
-            // Don't show next bricks during main menu or countdown
-            if (gameStarted && eventListener instanceof GameController) {
-                GameController gameController = (GameController) eventListener;
-                if (gameController.getBoard() instanceof SimpleBoard) {
-                    SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    updateNextBricks(simpleBoard.getNextBricks(), 0);
+            if (singlePlayerScreen != null) {
+                singlePlayerScreen.refreshBrick(brick, gameStarted);
+                singlePlayerScreen.refreshGameBackground(boardMatrix);
+                
+                // Store brick data for countdown refresh
+                singlePlayerScreen.setCurrentBrickData(brick);
+                
+                // Update next bricks display for single player (only if game has started)
+                // Don't show next bricks during main menu or countdown
+                if (gameStarted && eventListener instanceof GameController) {
+                    GameController gameController = (GameController) eventListener;
+                    if (gameController.getBoard() instanceof SimpleBoard) {
+                        SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
+                        singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStarted);
+                    }
                 }
             }
 
@@ -1226,30 +1132,7 @@ public class GuiController implements Initializable {
         }
     }
 
-    private javafx.scene.paint.Paint getFillColor(int brickType) {
-        return ColorStrategy.getColorForBrickType(brickType);
-    }
-
-    private void refreshBrick(ViewData brick) {
-        refreshBrick(brick, 0);
-    }
-    
     private void refreshBrick(ViewData brick, int playerNumber) {
-        // Always store the current brick data
-        if (brick != null) {
-            if (playerNumber == 0) {
-                currentBrickData = brick;
-            }
-        }
-
-        // Don't show brick if game hasn't started (menu is visible)
-        if (!gameStarted && playerNumber == 0) {
-            return;
-        }
-        if (isMultiplayerMode && !gameStarted) {
-            return;
-        }
-
         // Use MultiplayerScreen for multiplayer mode
         if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
             if (!isPause.get()) {
@@ -1257,98 +1140,10 @@ public class GuiController implements Initializable {
             }
             return;
         }
-
-        GridPane currentBrickPanel = brickPanel;
-        GridPane currentGhostPanel = ghostPanel;
-        InputEventListener currentEventListener = eventListener;
-        int scaledBrickSize = BRICK_SIZE;
-
-        if (!isPause.get() && currentBrickPanel != null && brick != null) {
-            // Clear both panels
-            currentBrickPanel.getChildren().clear();
-            if (currentGhostPanel != null) {
-                currentGhostPanel.getChildren().clear();
-            }
-            
-            int[][] data = brick.getBrickData();
-            int offsetX = brick.getXPosition();
-            int offsetY = brick.getYPosition();
-            
-            // Draw ghost piece first (behind the actual brick)
-            if (currentGhostPanel != null && currentEventListener instanceof GameController) {
-                GameController gameController = (GameController) currentEventListener;
-                if (gameController.getBoard() instanceof SimpleBoard) {
-                    SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    java.awt.Point ghostPos = simpleBoard.getGhostPosition();
-                    
-                    int ghostX = (int) ghostPos.getX();
-                    int ghostY = (int) ghostPos.getY();
-                    
-                    // Only show ghost if it's below the current position
-                    // Individual cell bounds are checked inside the loop
-                    if (ghostY > offsetY) {
-                        for (int i = 0; i < data.length; i++) {
-                            for (int j = 0; j < data[i].length; j++) {
-                                if (data[j][i] != 0) {
-                                    int cellX = ghostX + i;
-                                    int cellY = ghostY + j;
-                                    
-                                    // Only draw if the cell is within the board bounds
-                                    // This allows partial ghost display when brick is at left/right walls
-                                    if (cellX >= 0 && cellY >= 0 && cellX < BOARD_WIDTH && cellY < BOARD_HEIGHT) {
-                                        Rectangle ghostRect = new Rectangle(scaledBrickSize, scaledBrickSize);
-                                        
-                                        // Get the brick's color and make it semi-transparent
-                                        javafx.scene.paint.Paint brickColor = getFillColor(data[j][i]);
-                                        if (brickColor instanceof javafx.scene.paint.Color) {
-                                            javafx.scene.paint.Color color = (javafx.scene.paint.Color) brickColor;
-                                            // Create a semi-transparent version (30% opacity)
-                                            javafx.scene.paint.Color ghostColor = new javafx.scene.paint.Color(
-                                                color.getRed(),
-                                                color.getGreen(),
-                                                color.getBlue(),
-                                                0.3
-                                            );
-                                            ghostRect.setFill(ghostColor);
-                                            // Use a slightly darker stroke for visibility
-                                            javafx.scene.paint.Color strokeColor = new javafx.scene.paint.Color(
-                                                color.getRed() * 0.7,
-                                                color.getGreen() * 0.7,
-                                                color.getBlue() * 0.7,
-                                                0.5
-                                            );
-                                            ghostRect.setStroke(strokeColor);
-                                            ghostRect.setStrokeWidth(1.5);
-                                        } else {
-                                            // Fallback if color is not a Color object
-                                            ghostRect.setFill(javafx.scene.paint.Color.rgb(255, 255, 255, 0.3));
-                                            ghostRect.setStroke(javafx.scene.paint.Color.rgb(200, 200, 200, 0.5));
-                                            ghostRect.setStrokeWidth(1.5);
-                                        }
-                                        
-                                        ghostRect.setArcHeight(5);
-                                        ghostRect.setArcWidth(5);
-                                        currentGhostPanel.add(ghostRect, cellX, cellY);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Draw actual brick on top
-            for (int i = 0; i < data.length; i++) {
-                for (int j = 0; j < data[i].length; j++) {
-                    if (data[j][i] != 0) {
-                        Rectangle rect = new Rectangle(scaledBrickSize, scaledBrickSize);
-                        rect.setFill(getFillColor(data[j][i]));
-                        rect.setArcHeight(5);
-                        rect.setArcWidth(5);
-                        currentBrickPanel.add(rect, offsetX + i, offsetY + j);
-                    }
-                }
-            }
+        
+        // Single player mode - use SinglePlayerScreen
+        if (singlePlayerScreen != null) {
+            singlePlayerScreen.refreshBrick(brick, gameStarted);
         }
     }
 
@@ -1360,12 +1155,9 @@ public class GuiController implements Initializable {
         if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.refreshGameBackground(board, playerNumber);
         } else {
-            if (displayMatrix != null) {
-                for (int i = 0; i < Math.min(BOARD_HEIGHT, board.length); i++) {
-                    for (int j = 0; j < Math.min(BOARD_WIDTH, board[i].length); j++) {
-                        if (displayMatrix[i][j] != null) displayMatrix[i][j].setFill(getFillColor(board[i][j]));
-                    }
-                }
+            // Single player mode - use SinglePlayerScreen
+            if (singlePlayerScreen != null) {
+                singlePlayerScreen.refreshGameBackground(board);
             }
         }
     }
@@ -1416,7 +1208,7 @@ public class GuiController implements Initializable {
                         // Play line clear sound
                         audioManager.playLineClear();
                     }
-                    refreshBrick(downData.getViewData());
+                    refreshBrick(downData.getViewData(), 0);
                 }
             }
             if (gameBoard != null) gameBoard.requestFocus();
@@ -1432,7 +1224,10 @@ public class GuiController implements Initializable {
     }
 
     public void setEventListener(InputEventListener listener) { 
-        this.eventListener = listener; 
+        this.eventListener = listener;
+        if (singlePlayerScreen != null) {
+            singlePlayerScreen.setEventListener(listener);
+        }
     }
     
     public void setEventListener(InputEventListener listener, int playerNumber) {
@@ -1453,9 +1248,9 @@ public class GuiController implements Initializable {
         if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.bindScore(score, playerNumber);
         } else if (playerNumber == 0) {
-            if (scoreLabel != null && score != null) {
-                scoreLabel.textProperty().unbind();
-                scoreLabel.textProperty().bind(score.asString("Score: %d"));
+            // Single player mode - use SinglePlayerScreen
+            if (singlePlayerScreen != null) {
+                singlePlayerScreen.bindScore(score);
             }
         }
     }
@@ -1468,10 +1263,9 @@ public class GuiController implements Initializable {
         if (isMultiplayerMode && playerNumber > 0 && multiplayerScreen != null) {
             multiplayerScreen.bindLevel(level, playerNumber);
         } else if (playerNumber == 0) {
-            // Single player (playerNumber == 0)
-            if (levelLabel != null && level != null) {
-                levelLabel.textProperty().unbind();
-                levelLabel.textProperty().bind(level.asString("Level: %d"));
+            // Single player mode - use SinglePlayerScreen
+            if (singlePlayerScreen != null && level != null) {
+                singlePlayerScreen.bindLevel(level);
                 
                 // Remove old listener if it exists to avoid duplicates
                 if (levelChangeListener != null) {
@@ -1498,9 +1292,8 @@ public class GuiController implements Initializable {
     
     public void bindLines(IntegerProperty lines, int playerNumber) {
         // For multiplayer, lines binding is not used in side panels, but we keep the method for compatibility
-        if (playerNumber == 0 && linesLabel != null && lines != null) {
-            linesLabel.textProperty().unbind();
-            linesLabel.textProperty().bind(lines.asString("Lines: %d"));
+        if (playerNumber == 0 && singlePlayerScreen != null && lines != null) {
+            singlePlayerScreen.bindLines(lines);
         }
     }
     
@@ -1748,37 +1541,42 @@ public class GuiController implements Initializable {
                     eventListener.createNewGame();
                 }
                 // Clear the game board display
-                if (displayMatrix != null) {
-                    for (int i = 0; i < displayMatrix.length; i++) {
-                        for (int j = 0; j < displayMatrix[i].length; j++) {
-                            if (displayMatrix[i][j] != null) {
-                                displayMatrix[i][j].setFill(getFillColor(0));
-                            }
-                        }
-                    }
-                }
-                // Clear next bricks display
-                if (nextBrickPanes != null) {
-                    for (GridPane pane : nextBrickPanes) {
-                        if (pane != null) {
-                            pane.getChildren().clear();
-                            // Re-initialize empty cells
-                            for (int r = 0; r < 4; r++) {
-                                for (int c = 0; c < 4; c++) {
-                                    Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
-                                    rect.setFill(Color.TRANSPARENT);
-                                    pane.add(rect, c, r);
+                if (singlePlayerScreen != null) {
+                    Rectangle[][] displayMatrix = singlePlayerScreen.getDisplayMatrix();
+                    if (displayMatrix != null) {
+                        for (int i = 0; i < displayMatrix.length; i++) {
+                            for (int j = 0; j < displayMatrix[i].length; j++) {
+                                if (displayMatrix[i][j] != null) {
+                                    displayMatrix[i][j].setFill(Color.TRANSPARENT);
                                 }
                             }
                         }
                     }
-                }
-                // Clear hold brick display
-                if (holdBrickRectangles != null) {
-                    for (int i = 0; i < holdBrickRectangles.length; i++) {
-                        for (int j = 0; j < holdBrickRectangles[i].length; j++) {
-                            if (holdBrickRectangles[i][j] != null) {
-                                holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                    // Clear next bricks display
+                    List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
+                    if (nextBrickPanes != null) {
+                        for (GridPane pane : nextBrickPanes) {
+                            if (pane != null) {
+                                pane.getChildren().clear();
+                                // Re-initialize empty cells
+                                for (int r = 0; r < 4; r++) {
+                                    for (int c = 0; c < 4; c++) {
+                                        Rectangle rect = new Rectangle(GameConstants.BRICK_SIZE - 10, GameConstants.BRICK_SIZE - 10);
+                                        rect.setFill(Color.TRANSPARENT);
+                                        pane.add(rect, c, r);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Clear hold brick display
+                    Rectangle[][] holdBrickRectangles = singlePlayerScreen.getHoldBrickRectangles();
+                    if (holdBrickRectangles != null) {
+                        for (int i = 0; i < holdBrickRectangles.length; i++) {
+                            for (int j = 0; j < holdBrickRectangles[i].length; j++) {
+                                if (holdBrickRectangles[i][j] != null) {
+                                    holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                                }
                             }
                         }
                     }
@@ -1925,10 +1723,13 @@ public class GuiController implements Initializable {
         }
         
         // Hide next bricks during countdown - they'll be shown after countdown completes
-        if (nextBrickPanes != null) {
-            for (GridPane pane : nextBrickPanes) {
-                if (pane != null) {
-                    pane.setVisible(false);
+        if (singlePlayerScreen != null) {
+            List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
+            if (nextBrickPanes != null) {
+                for (GridPane pane : nextBrickPanes) {
+                    if (pane != null) {
+                        pane.setVisible(false);
+                    }
                 }
             }
         }
@@ -2032,12 +1833,13 @@ public class GuiController implements Initializable {
         }
         
         // Show and initialize next bricks panel for single player mode
-        if (!isMultiplayerMode && nextBricksPanel != null) {
+        if (!isMultiplayerMode && nextBricksPanel != null && singlePlayerScreen != null) {
             nextBricksPanel.setVisible(true);
             nextBricksPanel.setManaged(true);
-            initializeNextBricksPanel();
+            singlePlayerScreen.initializeNextBricksPanel();
             
             // Show the brick preview panes now that game has started
+            List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
             if (nextBrickPanes != null) {
                 for (GridPane pane : nextBrickPanes) {
                     if (pane != null) {
@@ -2051,15 +1853,18 @@ public class GuiController implements Initializable {
                 GameController gameController = (GameController) eventListener;
                 if (gameController.getBoard() instanceof SimpleBoard) {
                     SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    updateNextBricks(simpleBoard.getNextBricks(), 0);
+                    singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStarted);
                 }
             }
         }
         
         // Refresh the brick display with stored brick data
         // The brick data was stored when initGameView was called
-        if (currentBrickData != null) {
-            refreshBrick(currentBrickData);
+        if (singlePlayerScreen != null) {
+            ViewData currentBrickData = singlePlayerScreen.getCurrentBrickData();
+            if (currentBrickData != null) {
+                singlePlayerScreen.refreshBrick(currentBrickData, gameStarted);
+            }
         }
         
         if (timeLine != null) {
@@ -2296,37 +2101,42 @@ public class GuiController implements Initializable {
                     eventListener.createNewGame();
                 }
                 // Clear the game board display
-                if (displayMatrix != null) {
-                    for (int i = 0; i < displayMatrix.length; i++) {
-                        for (int j = 0; j < displayMatrix[i].length; j++) {
-                            if (displayMatrix[i][j] != null) {
-                                displayMatrix[i][j].setFill(getFillColor(0));
-                            }
-                        }
-                    }
-                }
-                // Clear next bricks display
-                if (nextBrickPanes != null) {
-                    for (GridPane pane : nextBrickPanes) {
-                        if (pane != null) {
-                            pane.getChildren().clear();
-                            // Re-initialize empty cells
-                            for (int r = 0; r < 4; r++) {
-                                for (int c = 0; c < 4; c++) {
-                                    Rectangle rect = new Rectangle(BRICK_SIZE - 10, BRICK_SIZE - 10);
-                                    rect.setFill(Color.TRANSPARENT);
-                                    pane.add(rect, c, r);
+                if (singlePlayerScreen != null) {
+                    Rectangle[][] displayMatrix = singlePlayerScreen.getDisplayMatrix();
+                    if (displayMatrix != null) {
+                        for (int i = 0; i < displayMatrix.length; i++) {
+                            for (int j = 0; j < displayMatrix[i].length; j++) {
+                                if (displayMatrix[i][j] != null) {
+                                    displayMatrix[i][j].setFill(Color.TRANSPARENT);
                                 }
                             }
                         }
                     }
-                }
-                // Clear hold brick display
-                if (holdBrickRectangles != null) {
-                    for (int i = 0; i < holdBrickRectangles.length; i++) {
-                        for (int j = 0; j < holdBrickRectangles[i].length; j++) {
-                            if (holdBrickRectangles[i][j] != null) {
-                                holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                    // Clear next bricks display
+                    List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
+                    if (nextBrickPanes != null) {
+                        for (GridPane pane : nextBrickPanes) {
+                            if (pane != null) {
+                                pane.getChildren().clear();
+                                // Re-initialize empty cells
+                                for (int r = 0; r < 4; r++) {
+                                    for (int c = 0; c < 4; c++) {
+                                        Rectangle rect = new Rectangle(GameConstants.BRICK_SIZE - 10, GameConstants.BRICK_SIZE - 10);
+                                        rect.setFill(Color.TRANSPARENT);
+                                        pane.add(rect, c, r);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Clear hold brick display
+                    Rectangle[][] holdBrickRectangles = singlePlayerScreen.getHoldBrickRectangles();
+                    if (holdBrickRectangles != null) {
+                        for (int i = 0; i < holdBrickRectangles.length; i++) {
+                            for (int j = 0; j < holdBrickRectangles[i].length; j++) {
+                                if (holdBrickRectangles[i][j] != null) {
+                                    holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
+                                }
                             }
                         }
                     }
@@ -2447,9 +2257,10 @@ public class GuiController implements Initializable {
                     holdBrickPanel.setVisible(true);
                 }
                 // Keep next bricks panel container visible, but hide the brick previews
-                if (nextBricksPanel != null) {
+                if (nextBricksPanel != null && singlePlayerScreen != null) {
                     nextBricksPanel.setVisible(true);
                     // Hide the individual brick panes when main menu is visible
+                    List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
                     if (nextBrickPanes != null) {
                         for (GridPane pane : nextBrickPanes) {
                             if (pane != null) {
@@ -2473,10 +2284,13 @@ public class GuiController implements Initializable {
                 if (eventListener == null) {
                     new GameController(this);
                     // Hide next brick panes after GameController creation (it may have called updateNextBricks)
-                    if (nextBrickPanes != null) {
-                        for (GridPane pane : nextBrickPanes) {
-                            if (pane != null) {
-                                pane.setVisible(false);
+                    if (singlePlayerScreen != null) {
+                        List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
+                        if (nextBrickPanes != null) {
+                            for (GridPane pane : nextBrickPanes) {
+                                if (pane != null) {
+                                    pane.setVisible(false);
+                                }
                             }
                         }
                     }
@@ -2536,34 +2350,9 @@ public class GuiController implements Initializable {
             return;
         }
         
-        // Single player mode
-        if (nextBrickPanes == null || nextBrickPanes.isEmpty()) return;
-        int brickSize = BRICK_SIZE - 10;
-        int maxBricks = nextBrickPanes.size();
-        
-        for (int i = 0; i < Math.min(maxBricks, nextBrickPanes.size()); i++) {
-            GridPane pane = nextBrickPanes.get(i);
-            if (pane == null) continue;
-            pane.getChildren().clear();
-            // Only make pane visible when game has started (after countdown)
-            // Don't show bricks during main menu or countdown
-            if (gameStarted) {
-                pane.setVisible(true);
-            }
-            if (i < nextBricks.size()) {
-                int[][] shape = nextBricks.get(i).getShapeMatrix().get(0);
-                for (int r = 0; r < shape.length; r++) {
-                    for (int c = 0; c < shape[r].length; c++) {
-                        if (shape[r][c] != 0) {
-                            Rectangle rect = new Rectangle(brickSize, brickSize);
-                            rect.setFill(getFillColor(shape[r][c]));
-                            rect.setArcHeight(5);
-                            rect.setArcWidth(5);
-                            pane.add(rect, c, r);
-                        }
-                    }
-                }
-            }
+        // Single player mode - use SinglePlayerScreen
+        if (singlePlayerScreen != null) {
+            singlePlayerScreen.updateNextBricks(nextBricks, gameStarted);
         }
     }
 
@@ -2577,17 +2366,9 @@ public class GuiController implements Initializable {
             return;
         }
         
-        // Single player mode
-        if (holdBrickRectangles == null) return;
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                if (holdBrickRectangles[i][j] != null) holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
-        if (heldBrick != null) {
-            int[][] shape = heldBrick.getShapeMatrix().get(0);
-            for (int i = 0; i < shape.length; i++)
-                for (int j = 0; j < shape[i].length; j++)
-                    if (shape[i][j] != 0 && holdBrickRectangles[i][j] != null)
-                        holdBrickRectangles[i][j].setFill(getFillColor(shape[i][j]));
+        // Single player mode - use SinglePlayerScreen
+        if (singlePlayerScreen != null) {
+            singlePlayerScreen.updateHoldBrick(heldBrick);
         }
     }
 
