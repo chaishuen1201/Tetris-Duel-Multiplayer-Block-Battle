@@ -666,6 +666,13 @@ public class GuiController implements Initializable {
             if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                 // Hide pause overlay for multiplayer
                 multiplayerScreen.hidePausePanel();
+                // Remove settings panel from gameStack if it's there (needed for multiplayer)
+                if (gameStack != null && settingsPanel != null) {
+                    javafx.scene.Parent currentParent = settingsPanel.getParent();
+                    if (currentParent != null && currentParent == gameStack) {
+                        gameStack.getChildren().remove(settingsPanel);
+                    }
+                }
                 // Show settings overlay
                 multiplayerScreen.showSettingsOverlay(settingsPanel);
             } else {

@@ -426,12 +426,20 @@ public class MultiplayerScreen {
             if (!multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
                 multiplayerSettingsOverlay.getChildren().add(settingsPanel);
             }
+            // Constrain settings panel to preferred size (same as pause panel)
+            settingsPanel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+            // Ensure settings panel is visible and managed
+            settingsPanel.setVisible(true);
+            settingsPanel.setManaged(true);
             multiplayerSettingsOverlay.setVisible(true);
             multiplayerSettingsOverlay.setManaged(true);
             multiplayerSettingsOverlay.setMouseTransparent(false);
             
-            if (multiplayerWrapper != null && multiplayerWrapper.getChildren().contains(multiplayerSettingsOverlay)) {
-                multiplayerWrapper.getChildren().remove(multiplayerSettingsOverlay);
+            // Bring settings overlay to front to ensure it's on top
+            if (multiplayerWrapper != null) {
+                if (multiplayerWrapper.getChildren().contains(multiplayerSettingsOverlay)) {
+                    multiplayerWrapper.getChildren().remove(multiplayerSettingsOverlay);
+                }
                 multiplayerWrapper.getChildren().add(multiplayerSettingsOverlay);
             }
         }
