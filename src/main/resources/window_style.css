@@ -320,8 +320,8 @@
     -fx-background-color: #0a0a15;
     -fx-border-color: linear-gradient(to bottom, #667eea, #764ba2);
     -fx-border-width: 4;
-    -fx-border-radius: 12;
-    -fx-background-radius: 12;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
     -fx-effect: dropshadow(three-pass-box, rgba(102, 126, 234, 0.4), 20, 0, 0, 5);
 }
 

@@ -162,7 +162,7 @@ public class PausePanelActionHandler {
         
         // If multiplayer, use the same method as winning panel (it handles timeline updates)
         if (wasMultiplayer) {
-            guiController.quitToMainMenuFromMultiplayer();
+            guiController.getMultiplayerViewManager().quitToMainMenuFromMultiplayer();
             return;
         }
         
