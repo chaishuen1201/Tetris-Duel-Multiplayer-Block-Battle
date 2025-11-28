@@ -21,6 +21,7 @@ import com.comp2042.controller.manager.GameLoopManager;
 import com.comp2042.controller.manager.PanelCoordinator;
 import com.comp2042.controller.manager.GarbageManager;
 import com.comp2042.controller.manager.MultiplayerViewManager;
+import com.comp2042.controller.manager.CountdownManager;
 import com.comp2042.controller.input.InputHandler;
 import javafx.animation.Timeline;
 import javafx.beans.property.IntegerProperty;
@@ -105,6 +106,9 @@ public class GuiController implements Initializable {
     
     // Multiplayer view management - delegated to MultiplayerViewManager
     private final MultiplayerViewManager multiplayerViewManager;
+    
+    // Countdown management - delegated to CountdownManager
+    private CountdownManager countdownManager;
     
     // Initialize GameStateManager with dependencies
     {
@@ -231,6 +235,15 @@ public class GuiController implements Initializable {
             pausePanel.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
             initializePausePanel();
         }
+        
+        // Initialize countdown manager
+        countdownManager = new CountdownManager(audioManager, panelCoordinator, gameLoopManager);
+        countdownManager.setCountdownLabel(countdownLabel);
+        countdownManager.setGameStack(gameStack);
+        countdownManager.setGhostPanel(ghostPanel);
+        countdownManager.setSinglePlayerScreen(singlePlayerScreen);
+        countdownManager.setSettingsController(settingsController);
+        countdownManager.setOnCountdownComplete(this::actuallyStartGame);
         
         // Initialize countdown label
         if (countdownLabel != null) {
@@ -453,21 +466,7 @@ public class GuiController implements Initializable {
             garbageManager.processGarbageQueue(playerNumber);
         });
         
-        // Set up callbacks for countdown
-        gameLoopManager.setCountdownCallbacks(new GameLoopManager.CountdownCallbacks() {
-            @Override
-            public void onCountdownComplete() {
-                panelCoordinator.hideCountdownLabel();
-                actuallyStartGame();
-            }
-            
-            @Override
-            public void onCountdownTick(int count) {
-                if (countdownLabel != null && count > 0) {
-                    countdownLabel.setText(String.valueOf(count));
-                }
-            }
-        });
+        // Countdown callbacks are now handled by CountdownManager
     }
     
     private void initializeInputHandler() {
@@ -962,60 +961,9 @@ public class GuiController implements Initializable {
         gameStateManager.startGame();
         if (!gameStateManager.isGameStarted() && mainMenuPanel != null) {
             panelCoordinator.hideMainMenuPanel();
-            // Start countdown
-            startCountdown();
+            // Start countdown - delegated to CountdownManager
+            countdownManager.startCountdown();
         }
-    }
-    
-    private void startCountdown() {
-        if (countdownLabel == null) {
-            // If countdown label doesn't exist, start game immediately
-            actuallyStartGame();
-            return;
-        }
-        
-        // Stop main menu music during countdown
-        audioManager.stopMainMenuMusic();
-        
-        // Make game panel visible during countdown so grid is visible
-        panelCoordinator.showGamePanel();
-        // Make brick panel and ghost panel visible during countdown
-        panelCoordinator.showBrickPanel();
-        if (ghostPanel != null) {
-            // Check if ghost piece checkbox is selected
-            boolean showGhost = settingsController.isGhostPieceEnabled();
-            panelCoordinator.showGhostPanel(showGhost);
-        }
-        
-        // Hide next bricks during countdown - they'll be shown after countdown completes
-        if (singlePlayerScreen != null) {
-            List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
-            if (nextBrickPanes != null) {
-                panelCoordinator.hideNextBrickPanes(nextBrickPanes);
-            }
-        }
-        
-        // Play countdown sound
-        audioManager.playCountdown();
-        
-        // Make countdown label visible and center it
-        panelCoordinator.showCountdownLabel();
-        countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
-        
-        // Center the label in the StackPane
-        if (gameStack != null) {
-            StackPane.setAlignment(countdownLabel, javafx.geometry.Pos.CENTER);
-        }
-        
-        // Ensure label fills the StackPane for proper centering
-        countdownLabel.setMaxWidth(Double.MAX_VALUE);
-        countdownLabel.setMaxHeight(Double.MAX_VALUE);
-        
-        // Show initial countdown number (3)
-        countdownLabel.setText("3");
-        
-        // Create countdown timeline using GameLoopManager
-        gameLoopManager.createCountdownTimeline();
     }
     
     private void actuallyStartGame() {
