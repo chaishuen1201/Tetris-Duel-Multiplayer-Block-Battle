@@ -31,7 +31,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.control.Label;
-import javafx.scene.control.Button;
 import javafx.scene.Parent;
 import javafx.application.Platform;
 
@@ -97,6 +96,9 @@ public class GuiController implements Initializable {
     
     // Panel visibility management - delegated to PanelCoordinator
     private final PanelCoordinator panelCoordinator = new PanelCoordinator();
+    
+    // Settings management - delegated to SettingsController
+    private final SettingsController settingsController = new SettingsController();
     
     // Initialize GameStateManager with dependencies
     {
@@ -173,6 +175,8 @@ public class GuiController implements Initializable {
         
         // Initialize multiplayer screen
         multiplayerScreen = new MultiplayerScreen();
+        // Update settings controller with multiplayer screen reference
+        settingsController.setMultiplayerScreen(multiplayerScreen);
         setupMultiplayerScreenCallbacks();
 
         // Initialize panel states
@@ -205,12 +209,21 @@ public class GuiController implements Initializable {
         if (mainMenuPanel != null) {
             mainMenuPanel.getPlayButton().setOnAction(e -> startGame());
             mainMenuPanel.getMultiButton().setOnAction(e -> showMultiplayer());
-            mainMenuPanel.getSettingsButton().setOnAction(e -> showSettings());
+            mainMenuPanel.getSettingsButton().setOnAction(e -> settingsController.showSettings());
             mainMenuPanel.getQuitButton().setOnAction(e -> quitGame());
         }
         
-        // Initialize settings panel
-        initializeSettingsPanel();
+        // Initialize settings controller
+        settingsController.initialize(
+            settingsPanel,
+            audioManager,
+            panelCoordinator,
+            gameStateManager,
+            multiplayerScreen,
+            gameStack,
+            mainMenuPanel,
+            ghostPanel
+        );
         
         // Initialize input handler with callbacks
         initializeInputHandler();
@@ -616,7 +629,7 @@ public class GuiController implements Initializable {
             (r) -> restartMultiplayerGame(), // onRestartGame
             (r) -> quitToMainMenuFromMultiplayer(), // onQuitToMenu
             (r) -> resumeMultiplayerGame(), // onResumeGame
-            (r) -> showSettingsFromPause(), // onShowSettings
+            (r) -> settingsController.showSettingsFromPause(), // onShowSettings
             () -> multiplayerScreen.updateReadyLabels(), // onUpdateReadyLabels
             () -> multiplayerScreen.checkBothReady(), // onCheckBothReady
             (ready) -> {}, // onSetPlayer1Ready (handled internally)
@@ -625,119 +638,6 @@ public class GuiController implements Initializable {
             (parent) -> {}, // onGetRootBorderPane (not needed)
             (panel) -> {} // onSetSettingsPanel (not needed)
         );
-    }
-    
-    private void initializeSettingsPanel() {
-        if (settingsPanel != null) {
-            panelCoordinator.hideSettingsPanel();
-            
-            // Set up volume slider
-            javafx.scene.control.Slider volumeSlider = settingsPanel.getVolumeSlider();
-            volumeSlider.setValue(audioManager.getVolume() * 100); // Convert to percentage
-            volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
-                double newVolume = newVal.doubleValue() / 100.0;
-                audioManager.setVolume(newVolume);
-                // If user moves slider while muted, unmute
-                if (audioManager.isMuted() && newVal.doubleValue() != oldVal.doubleValue()) {
-                    audioManager.toggleMute();
-                    Button muteBtn = settingsPanel.getMuteButton();
-                    if (muteBtn != null) {
-                        muteBtn.setText("🔊");
-                    }
-                }
-            });
-            
-            // Set up mute button
-            Button muteButton = settingsPanel.getMuteButton();
-            muteButton.setOnAction(e -> {
-                boolean isMuted = audioManager.toggleMute();
-                muteButton.setText(isMuted ? "🔇" : "🔊");
-            });
-            
-            // Set up ghost piece checkbox
-            javafx.scene.control.CheckBox ghostPieceCheckBox = settingsPanel.getGhostPieceCheckBox();
-            ghostPieceCheckBox.setSelected(true); // Default to checked
-                    ghostPieceCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
-                // Update ghost panel for single player
-                panelCoordinator.showGhostPanel(newVal && gameStateManager.isGameStarted());
-                // Update ghost panels for multiplayer
-                if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
-                    multiplayerScreen.setBrickPanelsVisible(newVal && gameStateManager.isGameStarted(), settingsPanel);
-                }
-            });
-            
-            // Set up back button
-            settingsPanel.setOnBackAction(() -> hideSettings());
-        }
-    }
-    
-    // Volume and mute operations are now handled by AudioManager
-    
-    private void showSettings() {
-        if (settingsPanel != null && mainMenuPanel != null) {
-            panelCoordinator.hideMainMenuPanel();
-            panelCoordinator.showSettingsPanel();
-            // Refresh controls display to show current bindings
-            settingsPanel.updateControlsDisplay();
-            // Request focus on settings panel to receive key events
-            settingsPanel.requestFocus();
-        }
-    }
-    
-    void showSettingsFromPause() {
-            if (settingsPanel != null) {
-            // Refresh controls display to show current bindings
-            settingsPanel.updateControlsDisplay();
-            // Request focus on settings panel to receive key events
-            settingsPanel.requestFocus();
-            
-            if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
-                // Hide pause overlay for multiplayer
-                multiplayerScreen.hidePausePanel();
-                // Remove settings panel from gameStack if it's there (needed for multiplayer)
-                if (gameStack != null && settingsPanel != null) {
-                    javafx.scene.Parent currentParent = settingsPanel.getParent();
-                    if (currentParent != null && currentParent == gameStack) {
-                        gameStack.getChildren().remove(settingsPanel);
-                    }
-                }
-                // Show settings overlay
-                multiplayerScreen.showSettingsOverlay(settingsPanel);
-            } else {
-                // Hide pause panel for single player
-                panelCoordinator.hidePausePanel();
-                // Ensure settings panel is in gameStack for single player
-                if (gameStack != null && settingsPanel != null) {
-                    // Remove from any other parent first (defensive check)
-                    javafx.scene.Parent currentParent = settingsPanel.getParent();
-                    if (currentParent != null && currentParent != gameStack) {
-                        if (currentParent instanceof javafx.scene.layout.Pane) {
-                            ((javafx.scene.layout.Pane) currentParent).getChildren().remove(settingsPanel);
-                        }
-                    }
-                    // Remove from multiplayer overlay if it's there (defensive check)
-                    if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
-                        multiplayerScreen.hideSettingsOverlay();
-                    }
-                    // Add back to gameStack if not already there (defensive check)
-                    if (!gameStack.getChildren().contains(settingsPanel)) {
-                        gameStack.getChildren().add(settingsPanel);
-                    }
-                    // Bring settings panel to front in gameStack (so it's on top of other elements)
-                    gameStack.getChildren().remove(settingsPanel);
-                    gameStack.getChildren().add(settingsPanel);
-                }
-                // Show settings panel (it's in gameStack for single player)
-                if (settingsPanel != null) {
-                    // Ensure it's managed and visible
-                    panelCoordinator.showSettingsPanelManaged();
-                    // Force a layout update to ensure it's displayed
-                    if (gameStack != null) {
-                        gameStack.requestLayout();
-                    }
-                }
-            }
-        }
     }
     
     private void showWinningPanel(int winnerPlayerNumber) {
@@ -755,39 +655,6 @@ public class GuiController implements Initializable {
     void hideWinningPanel() {
         if (multiplayerScreen != null) {
             multiplayerScreen.hideWinningPanel();
-        }
-    }
-    
-    private void hideSettings() {
-        if (settingsPanel != null) {
-            if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
-                // Hide settings overlay for multiplayer
-                multiplayerScreen.hideSettingsOverlay();
-                panelCoordinator.hideSettingsPanel();
-            } else {
-                // Hide settings panel for single player
-                panelCoordinator.hideSettingsPanel();
-                // Note: Keep settingsPanel in gameStack for next time
-            }
-            
-            // If main menu is visible, show it
-            if (mainMenuPanel != null && !mainMenuPanel.isVisible()) {
-                // Check if we should return to pause menu or main menu
-                if (gameStateManager.isPaused() && gameStateManager.isGameStarted()) {
-                    // Return to pause menu
-                    if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
-                        // Make sure pause overlay is restored properly
-                        multiplayerScreen.showPausePanel();
-                    } else {
-                        panelCoordinator.showPausePanel();
-                    }
-                } else {
-                    // Return to main menu
-                    panelCoordinator.showMainMenuPanel();
-                }
-            } else if (mainMenuPanel != null) {
-                panelCoordinator.showMainMenuPanel();
-            }
         }
     }
     
@@ -1465,26 +1332,14 @@ public class GuiController implements Initializable {
         }
         
         // Ensure settings panel is in gameStack for single player mode (defensive check)
-        if (!gameStateManager.isMultiplayerMode() && gameStack != null && settingsPanel != null) {
-            // Remove from multiplayer overlay if it's there
-            if (multiplayerScreen != null) {
-                multiplayerScreen.hideSettingsOverlay();
-            }
-            // Ensure it's in gameStack
-            if (!gameStack.getChildren().contains(settingsPanel)) {
-                gameStack.getChildren().add(settingsPanel);
-            }
-            // Hide settings panel (it will be shown when needed)
-            panelCoordinator.hideSettingsPanel();
-        }
+        settingsController.ensureSettingsPanelInGameStack();
         
         // Make game panel and brick panel visible for new game
         panelCoordinator.showGamePanel();
         panelCoordinator.showBrickPanel();
-        if (ghostPanel != null && settingsPanel != null) {
+        if (ghostPanel != null) {
             // Check if ghost piece checkbox is selected
-            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
-            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            boolean showGhost = settingsController.isGhostPieceEnabled();
             panelCoordinator.showGhostPanel(showGhost);
         }
     }
@@ -1512,10 +1367,9 @@ public class GuiController implements Initializable {
         panelCoordinator.showGamePanel();
         // Make brick panel and ghost panel visible during countdown
         panelCoordinator.showBrickPanel();
-        if (ghostPanel != null && settingsPanel != null) {
+        if (ghostPanel != null) {
             // Check if ghost piece checkbox is selected
-            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
-            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            boolean showGhost = settingsController.isGhostPieceEnabled();
             panelCoordinator.showGhostPanel(showGhost);
         }
         
@@ -1572,26 +1426,14 @@ public class GuiController implements Initializable {
         }
         
         // Ensure settings panel is in gameStack for single player mode (defensive check)
-        if (!gameStateManager.isMultiplayerMode() && gameStack != null && settingsPanel != null) {
-            // Remove from multiplayer overlay if it's there
-            if (multiplayerScreen != null) {
-                multiplayerScreen.hideSettingsOverlay();
-            }
-            // Ensure it's in gameStack
-            if (!gameStack.getChildren().contains(settingsPanel)) {
-                gameStack.getChildren().add(settingsPanel);
-            }
-            // Hide settings panel (it will be shown when needed)
-            panelCoordinator.hideSettingsPanel();
-        }
+        settingsController.ensureSettingsPanelInGameStack();
         
         // Make game panel, brick panel and ghost panel visible
         panelCoordinator.showGamePanel();
         panelCoordinator.showBrickPanel();
-        if (ghostPanel != null && settingsPanel != null) {
+        if (ghostPanel != null) {
             // Check if ghost piece checkbox is selected
-            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
-            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            boolean showGhost = settingsController.isGhostPieceEnabled();
             panelCoordinator.showGhostPanel(showGhost);
         }
         
@@ -1831,6 +1673,10 @@ public class GuiController implements Initializable {
     
     public SettingsPanel getSettingsPanel() {
         return settingsPanel;
+    }
+    
+    public SettingsController getSettingsController() {
+        return settingsController;
     }
     
     public MainMenuPanel getMainMenuPanel() {

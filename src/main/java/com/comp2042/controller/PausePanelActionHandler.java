@@ -47,7 +47,7 @@ public class PausePanelActionHandler {
         
         // Settings action - show settings panel
         panel.setOnSettingsAction(() -> {
-            guiController.showSettingsFromPause();
+            guiController.getSettingsController().showSettingsFromPause();
         });
         
         // Restart action - start a new game
@@ -74,7 +74,7 @@ public class PausePanelActionHandler {
         
         // Settings action - show settings panel
         panel.setOnSettingsAction(() -> {
-            guiController.showSettingsFromPause();
+            guiController.getSettingsController().showSettingsFromPause();
         });
         
         // Restart action - start a new game
