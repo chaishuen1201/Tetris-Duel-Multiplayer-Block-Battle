@@ -20,6 +20,7 @@ import com.comp2042.util.KeyBindingsManager;
 import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.TimerManager;
 import com.comp2042.controller.manager.GameStateManager;
+import com.comp2042.controller.manager.PanelCoordinator;
 import com.comp2042.controller.input.InputHandler;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -98,6 +99,9 @@ public class GuiController implements Initializable {
     // Input handling - delegated to InputHandler (dependency injection)
     private final InputHandler inputHandler = new InputHandler(KeyBindingsManager.getInstance());
     
+    // Panel visibility management - delegated to PanelCoordinator
+    private final PanelCoordinator panelCoordinator = new PanelCoordinator();
+    
     // Initialize GameStateManager with dependencies
     {
         gameStateManager = new GameStateManager(audioManager, timerManager);
@@ -148,6 +152,22 @@ public class GuiController implements Initializable {
         // Initialize timer manager
         timerManager.setSinglePlayerTimerLabel(timerLabel);
         
+        // Initialize panel coordinator with all panel references
+        panelCoordinator.setGameBoard(gameBoard);
+        panelCoordinator.setGamePanel(gamePanel);
+        panelCoordinator.setBrickPanel(brickPanel);
+        panelCoordinator.setGhostPanel(ghostPanel);
+        panelCoordinator.setGameOverPanel(gameOverPanel);
+        panelCoordinator.setPausePanel(pausePanel);
+        panelCoordinator.setSettingsPanel(settingsPanel);
+        panelCoordinator.setNextBricksPanel(nextBricksPanel);
+        panelCoordinator.setHoldBrickPanel(holdBrickPanel);
+        panelCoordinator.setScoreLabel(scoreLabel);
+        panelCoordinator.setLevelLabel(levelLabel);
+        panelCoordinator.setLinesLabel(linesLabel);
+        panelCoordinator.setMainMenuPanel(mainMenuPanel);
+        panelCoordinator.setCountdownLabel(countdownLabel);
+        
         // Initialize game state manager
         initializeGameStateManager();
         
@@ -155,9 +175,10 @@ public class GuiController implements Initializable {
         multiplayerScreen = new MultiplayerScreen();
         setupMultiplayerScreenCallbacks();
 
-        if (gameOverPanel != null) gameOverPanel.setVisible(false);
+        // Initialize panel states
+        panelCoordinator.initializePanelStates();
+        
         if (pausePanel != null) {
-            pausePanel.setVisible(false);
             // Constrain pause panel to preferred size (same as multiplayer)
             pausePanel.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
             initializePausePanel();
@@ -165,33 +186,18 @@ public class GuiController implements Initializable {
         
         // Initialize countdown label
         if (countdownLabel != null) {
-            countdownLabel.setVisible(false);
             countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
         }
         
         // Timer label initialization is handled by TimerManager
-
-        // Hide brick panel and ghost panel when main menu is visible
-        if (brickPanel != null) {
-            brickPanel.setVisible(false);
-        }
-        if (ghostPanel != null) {
-            ghostPanel.setVisible(false);
-        }
         
         // Keep next bricks panel container visible, but hide the brick previews until game starts
         // This must be done after initializeNextBricksPanel() to ensure panes exist
         if (nextBricksPanel != null) {
-            nextBricksPanel.setVisible(true);
             // Hide the individual brick panes - ensure they're hidden at main menu
             List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
             if (nextBrickPanes != null && !nextBrickPanes.isEmpty()) {
-                for (GridPane pane : nextBrickPanes) {
-                    if (pane != null) {
-                        pane.setVisible(false);
-                        pane.setManaged(true); // Keep managed so layout works, just hide visually
-                    }
-                }
+                panelCoordinator.hideNextBrickPanesManaged(nextBrickPanes);
             }
         }
 
@@ -225,11 +231,11 @@ public class GuiController implements Initializable {
     private void initializeGameStateManager() {
         // Set up callbacks for UI updates
         gameStateManager.setOnShowPausePanel(() -> {
-            if (pausePanel != null) pausePanel.setVisible(true);
+            panelCoordinator.showPausePanel();
         });
         
         gameStateManager.setOnHidePausePanel(() -> {
-            if (pausePanel != null) pausePanel.setVisible(false);
+            panelCoordinator.hidePausePanel();
         });
         
         gameStateManager.setOnShowMultiplayerPausePanel(() -> {
@@ -307,16 +313,16 @@ public class GuiController implements Initializable {
                     // Clear current brick display and ghost panel
                     if (brickPanel != null) {
                         brickPanel.getChildren().clear();
-                        brickPanel.setVisible(false);
                     }
                     if (ghostPanel != null) {
                         ghostPanel.getChildren().clear();
-                        ghostPanel.setVisible(false);
                     }
                     
                     // Hide game over panel and show main menu
-                    if (gameOverPanel != null) gameOverPanel.setVisible(false);
-                    if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
+                    panelCoordinator.hideGameOverPanel();
+                    panelCoordinator.hideBrickPanel();
+                    panelCoordinator.hideGhostPanel();
+                    panelCoordinator.showMainMenuPanel();
                     gameStateManager.resetGameStates();
                     if (timeLine != null) timeLine.stop();
                     
@@ -327,20 +333,20 @@ public class GuiController implements Initializable {
                     audioManager.playMainMenuMusic();
                 });
                 
-                gameOverPanel.setVisible(true);
+                panelCoordinator.showGameOverPanel();
             }
         });
         
         gameStateManager.setOnHideGameOverPanel(() -> {
-            if (gameOverPanel != null) gameOverPanel.setVisible(false);
+            panelCoordinator.hideGameOverPanel();
         });
         
         gameStateManager.setOnShowMainMenu(() -> {
-            if (mainMenuPanel != null) mainMenuPanel.setVisible(true);
+            panelCoordinator.showMainMenuPanel();
         });
         
         gameStateManager.setOnHideMainMenu(() -> {
-            if (mainMenuPanel != null) mainMenuPanel.setVisible(false);
+            panelCoordinator.hideMainMenuPanel();
         });
         
         gameStateManager.setOnRequestFocus(() -> {
@@ -564,7 +570,7 @@ public class GuiController implements Initializable {
     
     private void initializeSettingsPanel() {
         if (settingsPanel != null) {
-            settingsPanel.setVisible(false);
+            panelCoordinator.hideSettingsPanel();
             
             // Set up volume slider
             javafx.scene.control.Slider volumeSlider = settingsPanel.getVolumeSlider();
@@ -594,9 +600,7 @@ public class GuiController implements Initializable {
             ghostPieceCheckBox.setSelected(true); // Default to checked
                     ghostPieceCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 // Update ghost panel for single player
-                if (ghostPanel != null) {
-                    ghostPanel.setVisible(newVal && gameStateManager.isGameStarted());
-                }
+                panelCoordinator.showGhostPanel(newVal && gameStateManager.isGameStarted());
                 // Update ghost panels for multiplayer
                 if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                     multiplayerScreen.setBrickPanelsVisible(newVal && gameStateManager.isGameStarted(), settingsPanel);
@@ -612,8 +616,8 @@ public class GuiController implements Initializable {
     
     private void showSettings() {
         if (settingsPanel != null && mainMenuPanel != null) {
-            mainMenuPanel.setVisible(false);
-            settingsPanel.setVisible(true);
+            panelCoordinator.hideMainMenuPanel();
+            panelCoordinator.showSettingsPanel();
             // Refresh controls display to show current bindings
             settingsPanel.updateControlsDisplay();
             // Request focus on settings panel to receive key events
@@ -642,9 +646,7 @@ public class GuiController implements Initializable {
                 multiplayerScreen.showSettingsOverlay(settingsPanel);
             } else {
                 // Hide pause panel for single player
-                if (pausePanel != null) {
-                    pausePanel.setVisible(false);
-                }
+                panelCoordinator.hidePausePanel();
                 // Ensure settings panel is in gameStack for single player
                 if (gameStack != null && settingsPanel != null) {
                     // Remove from any other parent first (defensive check)
@@ -669,8 +671,7 @@ public class GuiController implements Initializable {
                 // Show settings panel (it's in gameStack for single player)
                 if (settingsPanel != null) {
                     // Ensure it's managed and visible
-                    settingsPanel.setManaged(true);
-                    settingsPanel.setVisible(true);
+                    panelCoordinator.showSettingsPanelManaged();
                     // Force a layout update to ensure it's displayed
                     if (gameStack != null) {
                         gameStack.requestLayout();
@@ -703,10 +704,10 @@ public class GuiController implements Initializable {
             if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
                 // Hide settings overlay for multiplayer
                 multiplayerScreen.hideSettingsOverlay();
-                settingsPanel.setVisible(false);
+                panelCoordinator.hideSettingsPanel();
             } else {
                 // Hide settings panel for single player
-                settingsPanel.setVisible(false);
+                panelCoordinator.hideSettingsPanel();
                 // Note: Keep settingsPanel in gameStack for next time
             }
             
@@ -719,26 +720,20 @@ public class GuiController implements Initializable {
                         // Make sure pause overlay is restored properly
                         multiplayerScreen.showPausePanel();
                     } else {
-                        if (pausePanel != null) {
-                            pausePanel.setVisible(true);
-                        }
+                        panelCoordinator.showPausePanel();
                     }
                 } else {
                     // Return to main menu
-                    if (mainMenuPanel != null) {
-                        mainMenuPanel.setVisible(true);
-                    }
+                    panelCoordinator.showMainMenuPanel();
                 }
             } else if (mainMenuPanel != null) {
-                mainMenuPanel.setVisible(true);
+                panelCoordinator.showMainMenuPanel();
             }
         }
     }
     
     private void showMultiplayer() {
-        if (mainMenuPanel != null) {
-            mainMenuPanel.setVisible(false);
-        }
+        panelCoordinator.hideMainMenuPanel();
         
         gameStateManager.setMultiplayerMode(true);
         
@@ -761,44 +756,23 @@ public class GuiController implements Initializable {
             // Store original panels if not already stored
             if (originalLeftPanel == null && rootPane.getLeft() instanceof VBox) {
                 originalLeftPanel = (VBox) rootPane.getLeft();
+                panelCoordinator.setOriginalLeftPanel(originalLeftPanel);
             }
             if (originalRightPanel == null && rootPane.getRight() instanceof VBox) {
                 originalRightPanel = (VBox) rootPane.getRight();
+                panelCoordinator.setOriginalRightPanel(originalRightPanel);
             }
             
             // Hide original left and right panels
-            if (rootPane.getLeft() != null) {
-                rootPane.getLeft().setVisible(false);
-                rootPane.getLeft().setManaged(false);
-            }
-            if (rootPane.getRight() != null) {
-                rootPane.getRight().setVisible(false);
-                rootPane.getRight().setManaged(false);
-            }
+            panelCoordinator.hideOriginalLeftPanel(rootPane);
+            panelCoordinator.hideOriginalRightPanel(rootPane);
         }
         
         // Hide single player game board
-        if (gameBoard != null) {
-            gameBoard.setVisible(false);
-            gameBoard.setManaged(false);
-        }
+        panelCoordinator.hideGameBoard();
         
         // Hide original single player panels
-        if (holdBrickPanel != null) {
-            holdBrickPanel.setVisible(false);
-        }
-        if (nextBricksPanel != null) {
-            nextBricksPanel.setVisible(false);
-        }
-        if (scoreLabel != null) {
-            scoreLabel.setVisible(false);
-        }
-        if (levelLabel != null) {
-            levelLabel.setVisible(false);
-        }
-        if (linesLabel != null) {
-            linesLabel.setVisible(false);
-        }
+        panelCoordinator.hideSinglePlayerPanels();
         
         // Show multiplayer container in the center area
         if (gameBoard != null && gameBoard.getParent() != null) {
@@ -1011,36 +985,19 @@ public class GuiController implements Initializable {
                     }
                 }
                 // Ensure gameBoard is visible and request layout update
-                if (gameBoard != null) {
-                    gameBoard.setVisible(true);
-                    gameBoard.setManaged(true);
-                }
+                panelCoordinator.showGameBoard();
                 centerVBox.requestLayout();
             }
         }
         
         // Hide pause panels
-        if (pausePanel != null) {
-            pausePanel.setVisible(false);
-        }
+        panelCoordinator.hidePausePanel();
         
         // Restore original panels
         BorderPane rootPane = getRootBorderPane();
         if (rootPane != null) {
-            if (originalLeftPanel != null) {
-                originalLeftPanel.setVisible(true);
-                originalLeftPanel.setManaged(true);
-                rootPane.setLeft(originalLeftPanel);
-                // Force layout update to ensure panel is properly displayed
-                originalLeftPanel.requestLayout();
-            }
-            if (originalRightPanel != null) {
-                originalRightPanel.setVisible(true);
-                originalRightPanel.setManaged(true);
-                rootPane.setRight(originalRightPanel);
-                // Force layout update to ensure panel is properly displayed
-                originalRightPanel.requestLayout();
-            }
+            panelCoordinator.showOriginalLeftPanel(rootPane);
+            panelCoordinator.showOriginalRightPanel(rootPane);
             
             // Ensure all children of left panel VBox are visible
             VBox leftPanelToProcess = null;
@@ -1050,10 +1007,7 @@ public class GuiController implements Initializable {
                 leftPanelToProcess = (VBox) rootPane.getLeft();
             }
             if (leftPanelToProcess != null) {
-                for (javafx.scene.Node child : leftPanelToProcess.getChildren()) {
-                    child.setVisible(true);
-                    child.setManaged(true);
-                }
+                panelCoordinator.showAllChildrenOfPanel(leftPanelToProcess);
             }
             
             // Ensure all children of right panel VBox are visible
@@ -1064,10 +1018,7 @@ public class GuiController implements Initializable {
                 rightPanelToProcess = (VBox) rootPane.getRight();
             }
             if (rightPanelToProcess != null) {
-                for (javafx.scene.Node child : rightPanelToProcess.getChildren()) {
-                    child.setVisible(true);
-                    child.setManaged(true);
-                }
+                panelCoordinator.showAllChildrenOfPanel(rightPanelToProcess);
             }
             
             // Force root pane to update layout
@@ -1076,8 +1027,7 @@ public class GuiController implements Initializable {
         
         // Re-initialize hold panel (left panel)
         if (holdBrickPanel != null) {
-            holdBrickPanel.setVisible(true);
-            holdBrickPanel.setManaged(true);
+            panelCoordinator.showHoldBrickPanelManaged();
             if (singlePlayerScreen != null) {
                 singlePlayerScreen.initializeHoldPanel();
             }
@@ -1085,27 +1035,21 @@ public class GuiController implements Initializable {
         
         // Keep next bricks panel container visible, but hide the brick previews when returning to main menu
         if (nextBricksPanel != null) {
-            nextBricksPanel.setVisible(true);
-            nextBricksPanel.setManaged(true);
+            panelCoordinator.showNextBricksPanelManaged();
             // Still initialize it so it's ready when game starts
             if (singlePlayerScreen != null) {
                 singlePlayerScreen.initializeNextBricksPanel();
                 // Hide the individual brick panes
                 List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
                 if (nextBrickPanes != null) {
-                    for (GridPane pane : nextBrickPanes) {
-                        if (pane != null) {
-                            pane.setVisible(false);
-                        }
-                    }
+                    panelCoordinator.hideNextBrickPanes(nextBrickPanes);
                 }
             }
         }
         
         // Show single player labels and reset them
         if (scoreLabel != null) {
-            scoreLabel.setVisible(true);
-            scoreLabel.setManaged(true);
+            panelCoordinator.showScoreLabel();
             // Unbind if bound to clear any old bindings
             if (scoreLabel.textProperty().isBound()) {
                 scoreLabel.textProperty().unbind();
@@ -1113,8 +1057,7 @@ public class GuiController implements Initializable {
             scoreLabel.setText("0");
         }
         if (levelLabel != null) {
-            levelLabel.setVisible(true);
-            levelLabel.setManaged(true);
+            panelCoordinator.showLevelLabel();
             // Unbind if bound to clear any old bindings
             if (levelLabel.textProperty().isBound()) {
                 levelLabel.textProperty().unbind();
@@ -1122,8 +1065,7 @@ public class GuiController implements Initializable {
             levelLabel.setText("1");
         }
         if (linesLabel != null) {
-            linesLabel.setVisible(true);
-            linesLabel.setManaged(true);
+            panelCoordinator.showLinesLabel();
             // Unbind if bound to clear any old bindings
             if (linesLabel.textProperty().isBound()) {
                 linesLabel.textProperty().unbind();
@@ -1132,15 +1074,10 @@ public class GuiController implements Initializable {
         }
         
         // Show single player game board
-        if (gameBoard != null) {
-            gameBoard.setVisible(true);
-            gameBoard.setManaged(true);
-        }
+        panelCoordinator.showGameBoard();
         
         // Show main menu
-        if (mainMenuPanel != null) {
-            mainMenuPanel.setVisible(true);
-        }
+        panelCoordinator.showMainMenuPanel();
         
         // Stop game music and play main menu music
         audioManager.stopGameMusic();
@@ -1570,28 +1507,24 @@ public class GuiController implements Initializable {
                 gameStack.getChildren().add(settingsPanel);
             }
             // Hide settings panel (it will be shown when needed)
-            settingsPanel.setVisible(false);
+            panelCoordinator.hideSettingsPanel();
         }
         
         // Make game panel and brick panel visible for new game
-        if (gamePanel != null) {
-            gamePanel.setVisible(true);
-        }
-        if (brickPanel != null) {
-            brickPanel.setVisible(true);
-        }
+        panelCoordinator.showGamePanel();
+        panelCoordinator.showBrickPanel();
         if (ghostPanel != null && settingsPanel != null) {
             // Check if ghost piece checkbox is selected
             javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
             boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
-            ghostPanel.setVisible(showGhost);
+            panelCoordinator.showGhostPanel(showGhost);
         }
     }
 
     public void startGame() {
         gameStateManager.startGame();
         if (!gameStateManager.isGameStarted() && mainMenuPanel != null) {
-            mainMenuPanel.setVisible(false);
+            panelCoordinator.hideMainMenuPanel();
             // Start countdown
             startCountdown();
         }
@@ -1608,29 +1541,21 @@ public class GuiController implements Initializable {
         audioManager.stopMainMenuMusic();
         
         // Make game panel visible during countdown so grid is visible
-        if (gamePanel != null) {
-            gamePanel.setVisible(true);
-        }
+        panelCoordinator.showGamePanel();
         // Make brick panel and ghost panel visible during countdown
-        if (brickPanel != null) {
-            brickPanel.setVisible(true);
-        }
+        panelCoordinator.showBrickPanel();
         if (ghostPanel != null && settingsPanel != null) {
             // Check if ghost piece checkbox is selected
             javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
             boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
-            ghostPanel.setVisible(showGhost);
+            panelCoordinator.showGhostPanel(showGhost);
         }
         
         // Hide next bricks during countdown - they'll be shown after countdown completes
         if (singlePlayerScreen != null) {
             List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
             if (nextBrickPanes != null) {
-                for (GridPane pane : nextBrickPanes) {
-                    if (pane != null) {
-                        pane.setVisible(false);
-                    }
-                }
+                panelCoordinator.hideNextBrickPanes(nextBrickPanes);
             }
         }
         
@@ -1638,7 +1563,7 @@ public class GuiController implements Initializable {
         audioManager.playCountdown();
         
         // Make countdown label visible and center it
-        countdownLabel.setVisible(true);
+        panelCoordinator.showCountdownLabel();
         countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
         
         // Center the label in the StackPane
@@ -1674,9 +1599,7 @@ public class GuiController implements Initializable {
         KeyFrame startGameFrame = new KeyFrame(
             Duration.seconds(3),
             e -> {
-                if (countdownLabel != null) {
-                    countdownLabel.setVisible(false);
-                }
+                panelCoordinator.hideCountdownLabel();
                 actuallyStartGame();
             }
         );
@@ -1717,37 +1640,28 @@ public class GuiController implements Initializable {
                 gameStack.getChildren().add(settingsPanel);
             }
             // Hide settings panel (it will be shown when needed)
-            settingsPanel.setVisible(false);
+            panelCoordinator.hideSettingsPanel();
         }
         
         // Make game panel, brick panel and ghost panel visible
-        if (gamePanel != null) {
-            gamePanel.setVisible(true);
-        }
-        if (brickPanel != null) {
-            brickPanel.setVisible(true);
-        }
+        panelCoordinator.showGamePanel();
+        panelCoordinator.showBrickPanel();
         if (ghostPanel != null && settingsPanel != null) {
             // Check if ghost piece checkbox is selected
             javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
             boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
-            ghostPanel.setVisible(showGhost);
+            panelCoordinator.showGhostPanel(showGhost);
         }
         
         // Show and initialize next bricks panel for single player mode
         if (!gameStateManager.isMultiplayerMode() && nextBricksPanel != null && singlePlayerScreen != null) {
-            nextBricksPanel.setVisible(true);
-            nextBricksPanel.setManaged(true);
+            panelCoordinator.showNextBricksPanelManaged();
             singlePlayerScreen.initializeNextBricksPanel();
             
             // Show the brick preview panes now that game has started
             List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
             if (nextBrickPanes != null) {
-                for (GridPane pane : nextBrickPanes) {
-                    if (pane != null) {
-                        pane.setVisible(true);
-                    }
-                }
+                panelCoordinator.showNextBrickPanes(nextBrickPanes);
             }
             
             // Update next bricks with initial bricks from the board
@@ -2052,7 +1966,5 @@ public class GuiController implements Initializable {
     public void setSceneKeyReleasedHandler(javafx.event.EventHandler<KeyEvent> sceneKeyReleasedHandler) {
         this.sceneKeyReleasedHandler = sceneKeyReleasedHandler;
     }
-    
-
     
 }
