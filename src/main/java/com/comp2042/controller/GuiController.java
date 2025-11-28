@@ -1,7 +1,5 @@
 package com.comp2042.controller;
 
-import com.comp2042.event.EventSource;
-import com.comp2042.event.EventType;
 import com.comp2042.event.InputEventListener;
 import com.comp2042.event.MoveEvent;
 import com.comp2042.model.DownData;
@@ -20,9 +18,9 @@ import com.comp2042.util.KeyBindingsManager;
 import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.TimerManager;
 import com.comp2042.controller.manager.GameStateManager;
+import com.comp2042.controller.manager.GameLoopManager;
 import com.comp2042.controller.manager.PanelCoordinator;
 import com.comp2042.controller.input.InputHandler;
-import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.IntegerProperty;
 import javafx.event.ActionEvent;
@@ -33,7 +31,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.control.Label;
-import javafx.util.Duration;
 import javafx.scene.control.Button;
 import javafx.scene.Parent;
 import javafx.application.Platform;
@@ -69,10 +66,8 @@ public class GuiController implements Initializable {
     @FXML private Label countdownLabel;
     @FXML private Label timerLabel;
     
-    // Multiplayer game controllers and timelines
+    // Multiplayer game controllers
     private GameController gameController1, gameController2;
-    private Timeline timeLine1, timeLine2;
-    private Timeline garbageProcessTimeline1, garbageProcessTimeline2; // Timelines for processing garbage queues
     private InputEventListener eventListener1, eventListener2;
     
     // Store scene filter handlers to avoid duplicates
@@ -83,11 +78,12 @@ public class GuiController implements Initializable {
     private VBox originalLeftPanel, originalRightPanel;
 
     private InputEventListener eventListener;
-    private Timeline timeLine;
     // Timer management - delegated to TimerManager
     private final TimerManager timerManager = new TimerManager();
     // Game state management - delegated to GameStateManager
     private final GameStateManager gameStateManager;
+    // Game loop management - delegated to GameLoopManager
+    private final GameLoopManager gameLoopManager;
     private int currentLevel = 1;
     private javafx.beans.value.ChangeListener<? super Number> levelChangeListener;
 
@@ -105,6 +101,7 @@ public class GuiController implements Initializable {
     // Initialize GameStateManager with dependencies
     {
         gameStateManager = new GameStateManager(audioManager, timerManager);
+        gameLoopManager = new GameLoopManager(gameStateManager);
     }
 
     @Override
@@ -170,6 +167,9 @@ public class GuiController implements Initializable {
         
         // Initialize game state manager
         initializeGameStateManager();
+        
+        // Initialize game loop manager
+        initializeGameLoopManager();
         
         // Initialize multiplayer screen
         multiplayerScreen = new MultiplayerScreen();
@@ -246,8 +246,8 @@ public class GuiController implements Initializable {
             if (multiplayerScreen != null) multiplayerScreen.hidePausePanel();
         });
         
-        gameStateManager.setOnStartGarbageProcessingTimelines(this::startGarbageProcessingTimelines);
-        gameStateManager.setOnStopGarbageProcessingTimelines(this::stopGarbageProcessingTimelines);
+        gameStateManager.setOnStartGarbageProcessingTimelines(() -> gameLoopManager.startGarbageProcessingTimelines());
+        gameStateManager.setOnStopGarbageProcessingTimelines(() -> gameLoopManager.stopGarbageProcessingTimelines());
         
         gameStateManager.setOnStartMultiplayerTimer(this::startMultiplayerTimer);
         gameStateManager.setOnStopMultiplayerTimer(this::stopMultiplayerTimer);
@@ -261,9 +261,9 @@ public class GuiController implements Initializable {
         gameStateManager.setOnResumeSinglePlayerTimer(this::resumeTimer);
         gameStateManager.setOnResetSinglePlayerTimer(this::resetTimer);
         
-        gameStateManager.setOnUpdateTimelineRate(this::updateTimelineRate);
-        gameStateManager.setOnUpdateTimelineRate1(() -> updateTimelineRate(1));
-        gameStateManager.setOnUpdateTimelineRate2(() -> updateTimelineRate(2));
+        gameStateManager.setOnUpdateTimelineRate(() -> gameLoopManager.updateTimelineRate());
+        gameStateManager.setOnUpdateTimelineRate1(() -> gameLoopManager.updateTimelineRate(1));
+        gameStateManager.setOnUpdateTimelineRate2(() -> gameLoopManager.updateTimelineRate(2));
         
         gameStateManager.setOnShowWinningPanel(() -> {
             int winnerPlayerNumber = gameStateManager.isGameOver1() ? 2 : 1;
@@ -324,7 +324,7 @@ public class GuiController implements Initializable {
                     panelCoordinator.hideGhostPanel();
                     panelCoordinator.showMainMenuPanel();
                     gameStateManager.resetGameStates();
-                    if (timeLine != null) timeLine.stop();
+                    if (gameLoopManager.getTimeLine() != null) gameLoopManager.getTimeLine().stop();
                     
                     // Reset timer
                     resetTimer();
@@ -354,6 +354,65 @@ public class GuiController implements Initializable {
         });
     }
     
+    private void initializeGameLoopManager() {
+        // Set up callbacks for move down operations
+        gameLoopManager.setMoveDownCallbacks(new GameLoopManager.MoveDownCallbacks() {
+            @Override
+            public void onMultiplayerMoveDown(DownData downData, int playerNumber) {
+                if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
+                    if (!gameStateManager.isPaused()) {
+                        multiplayerScreen.refreshBrick(downData.getViewData(), playerNumber);
+                    }
+                } else if (singlePlayerScreen != null) {
+                    singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
+                }
+            }
+            
+            @Override
+            public void onSinglePlayerMoveDown(DownData downData) {
+                if (singlePlayerScreen != null) {
+                    singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
+                }
+            }
+            
+            @Override
+            public void onRequestFocus() {
+                if (gameBoard != null) gameBoard.requestFocus();
+            }
+            
+            @Override
+            public void onShowNotification(String message) {
+                showNotification(message);
+            }
+            
+            @Override
+            public void onPlayLineClear() {
+                audioManager.playLineClear();
+            }
+        });
+        
+        // Set up callbacks for garbage processing
+        gameLoopManager.setGarbageProcessingCallbacks(playerNumber -> {
+            processGarbageQueue(playerNumber);
+        });
+        
+        // Set up callbacks for countdown
+        gameLoopManager.setCountdownCallbacks(new GameLoopManager.CountdownCallbacks() {
+            @Override
+            public void onCountdownComplete() {
+                panelCoordinator.hideCountdownLabel();
+                actuallyStartGame();
+            }
+            
+            @Override
+            public void onCountdownTick(int count) {
+                if (countdownLabel != null && count > 0) {
+                    countdownLabel.setText(String.valueOf(count));
+                }
+            }
+        });
+    }
+    
     private void initializeInputHandler() {
         inputHandler.setSettingsPanel(settingsPanel);
         
@@ -366,7 +425,7 @@ public class GuiController implements Initializable {
             
             @Override
             public Timeline getTimeline() {
-                return timeLine;
+                return gameLoopManager.getTimeLine();
             }
             
             @Override
@@ -393,7 +452,7 @@ public class GuiController implements Initializable {
             
             @Override
             public void moveDown(MoveEvent event) {
-                GuiController.this.moveDown(event);
+                gameLoopManager.moveDown(event);
             }
             
             @Override
@@ -423,7 +482,7 @@ public class GuiController implements Initializable {
             
             @Override
             public void updateTimelineRate() {
-                GuiController.this.updateTimelineRate();
+                gameLoopManager.updateTimelineRate();
             }
         });
         
@@ -490,12 +549,12 @@ public class GuiController implements Initializable {
             
             @Override
             public Timeline getTimeline1() {
-                return timeLine1;
+                return gameLoopManager.getTimeLine1();
             }
             
             @Override
             public Timeline getTimeline2() {
-                return timeLine2;
+                return gameLoopManager.getTimeLine2();
             }
             
             @Override
@@ -511,7 +570,7 @@ public class GuiController implements Initializable {
             
             @Override
             public void moveDown(MoveEvent event, int playerNumber) {
-                GuiController.this.moveDown(event, playerNumber);
+                gameLoopManager.moveDown(event, playerNumber);
             }
             
             @Override
@@ -526,7 +585,7 @@ public class GuiController implements Initializable {
             
             @Override
             public void updateTimelineRate(int playerNumber) {
-                GuiController.this.updateTimelineRate(playerNumber);
+                gameLoopManager.updateTimelineRate(playerNumber);
             }
             
             @Override
@@ -868,15 +927,21 @@ public class GuiController implements Initializable {
         gameController1 = new GameController(this, 1);
         gameController2 = new GameController(this, 2);
         
+        // Update GameLoopManager with controllers and listeners
+        gameLoopManager.setGameController1(gameController1);
+        gameLoopManager.setGameController2(gameController2);
+        gameLoopManager.setEventListener1(eventListener1);
+        gameLoopManager.setEventListener2(eventListener2);
+        
         // Update GameStateManager with controllers and listeners
         gameStateManager.setGameController1(gameController1);
         gameStateManager.setGameController2(gameController2);
         gameStateManager.setEventListener1(eventListener1);
         gameStateManager.setEventListener2(eventListener2);
-        gameStateManager.setTimeLine1(timeLine1);
-        gameStateManager.setTimeLine2(timeLine2);
-        gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
-        gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
+        gameStateManager.setTimeLine1(gameLoopManager.getTimeLine1());
+        gameStateManager.setTimeLine2(gameLoopManager.getTimeLine2());
+        gameStateManager.setGarbageProcessTimeline1(gameLoopManager.getGarbageProcessTimeline1());
+        gameStateManager.setGarbageProcessTimeline2(gameLoopManager.getGarbageProcessTimeline2());
         gameStateManager.setMultiplayerMode(true);
         
         if (multiplayerScreen != null) {
@@ -933,10 +998,10 @@ public class GuiController implements Initializable {
         // Update GameStateManager with current references
         gameStateManager.setGameController1(gameController1);
         gameStateManager.setGameController2(gameController2);
-        gameStateManager.setTimeLine1(timeLine1);
-        gameStateManager.setTimeLine2(timeLine2);
-        gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
-        gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
+        gameStateManager.setTimeLine1(gameLoopManager.getTimeLine1());
+        gameStateManager.setTimeLine2(gameLoopManager.getTimeLine2());
+        gameStateManager.setGarbageProcessTimeline1(gameLoopManager.getGarbageProcessTimeline1());
+        gameStateManager.setGarbageProcessTimeline2(gameLoopManager.getGarbageProcessTimeline2());
         
         // Delegate to GameStateManager
         gameStateManager.restartMultiplayerGame();
@@ -949,9 +1014,9 @@ public class GuiController implements Initializable {
         }
         
         // Update GameStateManager with current references
-        gameStateManager.setTimeLine(timeLine);
-        gameStateManager.setTimeLine1(timeLine1);
-        gameStateManager.setTimeLine2(timeLine2);
+        gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
+        gameStateManager.setTimeLine1(gameLoopManager.getTimeLine1());
+        gameStateManager.setTimeLine2(gameLoopManager.getTimeLine2());
         
         // Delegate state management to GameStateManager
         gameStateManager.quitToMainMenu();
@@ -1134,16 +1199,8 @@ public class GuiController implements Initializable {
                 }
             }
             
-            if (playerNumber == 1) {
-                if (timeLine1 != null) timeLine1.stop();
-                timeLine1 = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD), 1)));
-                timeLine1.setCycleCount(Timeline.INDEFINITE);
-                updateTimelineRate(1);
-            } else if (playerNumber == 2) {
-                if (timeLine2 != null) timeLine2.stop();
-                timeLine2 = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD), 2)));
-                timeLine2.setCycleCount(Timeline.INDEFINITE);
-                updateTimelineRate(2);
+            if (playerNumber == 1 || playerNumber == 2) {
+                gameLoopManager.createMultiplayerTimeline(playerNumber);
             }
         } else {
             // Single player game view
@@ -1165,21 +1222,13 @@ public class GuiController implements Initializable {
                 }
             }
 
-            if (timeLine != null) timeLine.stop();
-            timeLine = new Timeline(new KeyFrame(Duration.millis(400), ae -> moveDown(new MoveEvent(EventType.DOWN, EventSource.THREAD))));
-            timeLine.setCycleCount(Timeline.INDEFINITE);
-
-            updateTimelineRate();
+            gameLoopManager.createSinglePlayerTimeline();
 
             if (gameBoard != null) gameBoard.requestFocus();
         }
     }
 
 
-    private void moveDown(MoveEvent event) {
-        moveDown(event, 0);
-    }
-    
     /**
      * Clears all multiplayer game panels (game panels, brick panels, ghost panels)
      * and side panels (hold, next, score, level) by setting all rectangles to transparent/empty state
@@ -1191,49 +1240,11 @@ public class GuiController implements Initializable {
         }
     }
     
-    private void moveDown(MoveEvent event, int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
-            boolean isGameOver = (playerNumber == 1) ? gameStateManager.isGameOver1() : gameStateManager.isGameOver2();
-            InputEventListener listener = (playerNumber == 1) ? eventListener1 : eventListener2;
-            
-            if (!gameStateManager.isGameStarted() || gameStateManager.isPaused() || isGameOver) {
-                return;
-            }
-            if (listener != null) {
-                DownData downData = listener.onDownEvent(event);
-                if (downData != null) {
-                    if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                        // Play line clear sound
-                        audioManager.playLineClear();
-                    }
-                    if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-                        if (!gameStateManager.isPaused()) {
-                            multiplayerScreen.refreshBrick(downData.getViewData(), playerNumber);
-                        }
-                    } else if (singlePlayerScreen != null) {
-                        singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
-                    }
-                }
-            }
-        } else {
-            if (!gameStateManager.isGameStarted() || gameStateManager.isPaused() || gameStateManager.isGameOver()) {
-                return;
-            }
-            if (eventListener != null) {
-                DownData downData = eventListener.onDownEvent(event);
-                if (downData != null) {
-                    if (downData.getClearRow() != null && downData.getClearRow().getLinesRemoved() > 0) {
-                        showNotification("+" + downData.getClearRow().getScoreBonus());
-                        // Play line clear sound
-                        audioManager.playLineClear();
-                    }
-                    if (singlePlayerScreen != null) {
-                        singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
-                    }
-                }
-            }
-            if (gameBoard != null) gameBoard.requestFocus();
-        }
+    /**
+     * Stops garbage processing timelines (delegates to GameLoopManager).
+     */
+    void stopGarbageProcessingTimelines() {
+        gameLoopManager.stopGarbageProcessingTimelines();
     }
 
     private void showNotification(String message) {
@@ -1246,6 +1257,7 @@ public class GuiController implements Initializable {
 
     public void setEventListener(InputEventListener listener) { 
         this.eventListener = listener;
+        gameLoopManager.setEventListener(listener);
         if (singlePlayerScreen != null) {
             singlePlayerScreen.setEventListener(listener);
         }
@@ -1254,10 +1266,13 @@ public class GuiController implements Initializable {
     public void setEventListener(InputEventListener listener, int playerNumber) {
         if (playerNumber == 1) {
             this.eventListener1 = listener;
+            gameLoopManager.setEventListener1(listener);
         } else if (playerNumber == 2) {
             this.eventListener2 = listener;
+            gameLoopManager.setEventListener2(listener);
         } else {
             this.eventListener = listener;
+            gameLoopManager.setEventListener(listener);
             // For single player, also set the eventListener in SinglePlayerScreen
             // This is needed for ghost piece rendering
             if (singlePlayerScreen != null) {
@@ -1296,11 +1311,13 @@ public class GuiController implements Initializable {
                 // Create and store new listener
                 levelChangeListener = (obs, oldVal, newVal) -> {
                     currentLevel = newVal.intValue();
-                    updateTimelineRate();
+                    gameLoopManager.setCurrentLevel(currentLevel);
+                    gameLoopManager.updateTimelineRate();
                 };
                 level.addListener(levelChangeListener);
                 currentLevel = level.get();
-                updateTimelineRate();
+                gameLoopManager.setCurrentLevel(currentLevel);
+                gameLoopManager.updateTimelineRate();
             }
         }
     }
@@ -1401,55 +1418,6 @@ public class GuiController implements Initializable {
         }
     }
     
-    /**
-     * Starts garbage processing timelines for both players in multiplayer mode.
-     * Garbage lines appear gradually (one every 2 seconds) to give players time to react.
-     */
-    private void startGarbageProcessingTimelines() {
-        if (!gameStateManager.isMultiplayerMode()) {
-            return;
-        }
-        
-        // Stop existing timelines if any
-        if (garbageProcessTimeline1 != null) {
-            garbageProcessTimeline1.stop();
-        }
-        if (garbageProcessTimeline2 != null) {
-            garbageProcessTimeline2.stop();
-        }
-        
-        // Create timeline for player 1 - process garbage every 2 seconds
-        garbageProcessTimeline1 = new Timeline(new KeyFrame(Duration.seconds(2), ae -> {
-            if (!gameStateManager.isPaused() && !gameStateManager.isGameOver1()) {
-                processGarbageQueue(1);
-            }
-        }));
-        garbageProcessTimeline1.setCycleCount(Timeline.INDEFINITE);
-        
-        // Create timeline for player 2 - process garbage every 2 seconds
-        garbageProcessTimeline2 = new Timeline(new KeyFrame(Duration.seconds(2), ae -> {
-            if (!gameStateManager.isPaused() && !gameStateManager.isGameOver2()) {
-                processGarbageQueue(2);
-            }
-        }));
-        garbageProcessTimeline2.setCycleCount(Timeline.INDEFINITE);
-        
-        // Start both timelines
-        garbageProcessTimeline1.play();
-        garbageProcessTimeline2.play();
-    }
-    
-    /**
-     * Stops garbage processing timelines.
-     */
-    void stopGarbageProcessingTimelines() {
-        if (garbageProcessTimeline1 != null) {
-            garbageProcessTimeline1.stop();
-        }
-        if (garbageProcessTimeline2 != null) {
-            garbageProcessTimeline2.stop();
-        }
-    }
 
     public void gameOver() {
         gameOver(0);
@@ -1457,9 +1425,9 @@ public class GuiController implements Initializable {
     
     public void gameOver(int playerNumber) {
         // Update GameStateManager with current timeline references
-        gameStateManager.setTimeLine(timeLine);
-        gameStateManager.setTimeLine1(timeLine1);
-        gameStateManager.setTimeLine2(timeLine2);
+        gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
+        gameStateManager.setTimeLine1(gameLoopManager.getTimeLine1());
+        gameStateManager.setTimeLine2(gameLoopManager.getTimeLine2());
         
         // Delegate to GameStateManager
         gameStateManager.gameOver(playerNumber);
@@ -1467,7 +1435,7 @@ public class GuiController implements Initializable {
 
     public void newGame(ActionEvent actionEvent) {
         // Update GameStateManager with current timeline reference
-        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
         gameStateManager.setEventListener(eventListener);
         
         // Delegate to GameStateManager
@@ -1578,39 +1546,13 @@ public class GuiController implements Initializable {
         // Show initial countdown number (3)
         countdownLabel.setText("3");
         
-        // Create countdown timeline: 3, 2, 1, then start game
-        Timeline countdownTimeline = new Timeline();
-        
-        // Countdown from 3 to 1 (each number shows for 1 second)
-        for (int i = 3; i >= 1; i--) {
-            final int count = i;
-            KeyFrame keyFrame = new KeyFrame(
-                Duration.seconds(3 - count + 1), 
-                e -> {
-                    if (countdownLabel != null && count > 1) {
-                        countdownLabel.setText(String.valueOf(count - 1));
-                    }
-                }
-            );
-            countdownTimeline.getKeyFrames().add(keyFrame);
-        }
-        
-        // After countdown, start the game
-        KeyFrame startGameFrame = new KeyFrame(
-            Duration.seconds(3),
-            e -> {
-                panelCoordinator.hideCountdownLabel();
-                actuallyStartGame();
-            }
-        );
-        countdownTimeline.getKeyFrames().add(startGameFrame);
-        
-        countdownTimeline.play();
+        // Create countdown timeline using GameLoopManager
+        gameLoopManager.createCountdownTimeline();
     }
     
     private void actuallyStartGame() {
         // Update GameStateManager with current timeline reference
-        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
         
         // Delegate state management to GameStateManager
         gameStateManager.actuallyStartGame();
@@ -1684,7 +1626,7 @@ public class GuiController implements Initializable {
         }
         
         // Update GameStateManager with current timeline reference
-        gameStateManager.setTimeLine(timeLine);
+        gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
         
         // Start timer for single player mode (handled by GameStateManager callback)
         if (!gameStateManager.isMultiplayerMode()) {
@@ -1708,11 +1650,11 @@ public class GuiController implements Initializable {
 
     public void pauseGame(ActionEvent actionEvent) {
         // Update GameStateManager with current timeline references
-        gameStateManager.setTimeLine(timeLine);
-        gameStateManager.setTimeLine1(timeLine1);
-        gameStateManager.setTimeLine2(timeLine2);
-        gameStateManager.setGarbageProcessTimeline1(garbageProcessTimeline1);
-        gameStateManager.setGarbageProcessTimeline2(garbageProcessTimeline2);
+        gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
+        gameStateManager.setTimeLine1(gameLoopManager.getTimeLine1());
+        gameStateManager.setTimeLine2(gameLoopManager.getTimeLine2());
+        gameStateManager.setGarbageProcessTimeline1(gameLoopManager.getGarbageProcessTimeline1());
+        gameStateManager.setGarbageProcessTimeline2(gameLoopManager.getGarbageProcessTimeline2());
         
         // Delegate to GameStateManager
         gameStateManager.pauseGame();
@@ -1722,31 +1664,6 @@ public class GuiController implements Initializable {
         if (pausePanel == null) return;
         PausePanelActionHandler handler = new PausePanelActionHandler(this);
         handler.setupPausePanelActions(pausePanel);
-    }
-    
-
-
-    private void updateTimelineRate() {
-        updateTimelineRate(0);
-    }
-    
-    private void updateTimelineRate(int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
-            Timeline timeline = (playerNumber == 1) ? timeLine1 : timeLine2;
-            GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
-            
-            if (timeline != null && controller != null && controller.getBoard() instanceof SimpleBoard) {
-                SimpleBoard board = (SimpleBoard) controller.getBoard();
-                int level = board.levelProperty().get();
-                double rate = 1.0 + (Math.max(1, level) - 1) * 0.25;
-                timeline.setRate(rate);
-            }
-        } else {
-            if (timeLine != null) {
-                double rate = 1.0 + (Math.max(1, currentLevel) - 1) * 0.25;
-                timeLine.setRate(rate);
-            }
-        }
     }
     
     // Timer methods are now handled by TimerManager
@@ -1820,15 +1737,15 @@ public class GuiController implements Initializable {
     }
     
     public Timeline getTimeLine() {
-        return timeLine;
+        return gameLoopManager.getTimeLine();
     }
     
     public Timeline getTimeLine1() {
-        return timeLine1;
+        return gameLoopManager.getTimeLine1();
     }
     
     public Timeline getTimeLine2() {
-        return timeLine2;
+        return gameLoopManager.getTimeLine2();
     }
     
     public GameController getGameController1() {
@@ -1868,27 +1785,28 @@ public class GuiController implements Initializable {
     }
     
     public Timeline getGarbageProcessTimeline1() {
-        return garbageProcessTimeline1;
+        return gameLoopManager.getGarbageProcessTimeline1();
     }
     
     public Timeline getGarbageProcessTimeline2() {
-        return garbageProcessTimeline2;
+        return gameLoopManager.getGarbageProcessTimeline2();
     }
     
-    public void setGarbageProcessTimeline1(Timeline garbageProcessTimeline1) {
-        this.garbageProcessTimeline1 = garbageProcessTimeline1;
-    }
-    
-    public void setGarbageProcessTimeline2(Timeline garbageProcessTimeline2) {
-        this.garbageProcessTimeline2 = garbageProcessTimeline2;
-    }
-    
+    // Setters for compatibility (no-op since GameLoopManager manages timelines)
     public void setTimeLine1(Timeline timeLine1) {
-        this.timeLine1 = timeLine1;
+        // No-op: GameLoopManager manages timelines
     }
     
     public void setTimeLine2(Timeline timeLine2) {
-        this.timeLine2 = timeLine2;
+        // No-op: GameLoopManager manages timelines
+    }
+    
+    public void setGarbageProcessTimeline1(Timeline garbageProcessTimeline1) {
+        // No-op: GameLoopManager manages timelines
+    }
+    
+    public void setGarbageProcessTimeline2(Timeline garbageProcessTimeline2) {
+        // No-op: GameLoopManager manages timelines
     }
     
     public BorderPane getGameBoard() {
