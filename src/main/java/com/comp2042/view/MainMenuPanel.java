@@ -23,12 +23,17 @@ public class MainMenuPanel extends BorderPane {
         
         // Load and apply PublicPixel font
         try {
-            Font publicPixelFont = Font.loadFont(getClass().getClassLoader().getResource("PublicPixel-rv0pA.ttf").toExternalForm(), 48);
-            if (publicPixelFont != null) {
-                titleLabel.setFont(publicPixelFont);
-                // Also set the font family name for CSS compatibility
-                String fontFamily = publicPixelFont.getFamily();
-                titleLabel.setStyle("-fx-font-family: '" + fontFamily + "';");
+            java.net.URL fontUrl = getClass().getClassLoader().getResource("font/PublicPixel-rv0pA.ttf");
+            if (fontUrl != null) {
+                Font publicPixelFont = Font.loadFont(fontUrl.toExternalForm(), 48);
+                if (publicPixelFont != null) {
+                    titleLabel.setFont(publicPixelFont);
+                    // Also set the font family name for CSS compatibility
+                    String fontFamily = publicPixelFont.getFamily();
+                    titleLabel.setStyle("-fx-font-family: '" + fontFamily + "';");
+                }
+            } else {
+                System.out.println("PublicPixel font not found: font/PublicPixel-rv0pA.ttf");
             }
         } catch (Exception e) {
             System.out.println("PublicPixel font not found, using default font: " + e.getMessage());

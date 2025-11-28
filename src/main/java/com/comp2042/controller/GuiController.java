@@ -130,15 +130,25 @@ public class GuiController implements Initializable {
     public void initialize(URL _location, ResourceBundle _resources) {
         // Parameters are required by Initializable interface but not used
         try {
-            Font.loadFont(getClass().getClassLoader().getResource("digital.ttf").toExternalForm(), 38);
+            URL fontUrl = getClass().getClassLoader().getResource("font/digital.ttf");
+            if (fontUrl != null) {
+                Font.loadFont(fontUrl.toExternalForm(), 38);
+            } else {
+                System.out.println("Font not found: font/digital.ttf");
+            }
         } catch (Exception e) {
-            System.out.println("Font not found, using default font");
+            System.out.println("Font not found, using default font: " + e.getMessage());
         }
         
         try {
-            Font.loadFont(getClass().getClassLoader().getResource("PublicPixel-rv0pA.ttf").toExternalForm(), 48);
+            URL fontUrl = getClass().getClassLoader().getResource("font/PublicPixel-rv0pA.ttf");
+            if (fontUrl != null) {
+                Font.loadFont(fontUrl.toExternalForm(), 48);
+            } else {
+                System.out.println("Font not found: font/PublicPixel-rv0pA.ttf");
+            }
         } catch (Exception e) {
-            System.out.println("PublicPixel font not found, using default font");
+            System.out.println("PublicPixel font not found, using default font: " + e.getMessage());
         }
 
         // Initialize single player screen
@@ -429,13 +439,7 @@ public class GuiController implements Initializable {
         gameLoopManager.setMoveDownCallbacks(new GameLoopManager.MoveDownCallbacks() {
             @Override
             public void onMultiplayerMoveDown(DownData downData, int playerNumber) {
-                if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-                    if (!gameStateManager.isPaused()) {
-                        multiplayerScreen.refreshBrick(downData.getViewData(), playerNumber);
-                    }
-                } else if (singlePlayerScreen != null) {
-                    singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
-                }
+                refreshBrickForPlayer(downData.getViewData(), playerNumber);
             }
             
             @Override
@@ -615,13 +619,7 @@ public class GuiController implements Initializable {
             
             @Override
             public void refreshBrick(ViewData viewData, int playerNumber) {
-                if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-                    if (!gameStateManager.isPaused()) {
-                        multiplayerScreen.refreshBrick(viewData, playerNumber);
-                    }
-                } else if (singlePlayerScreen != null) {
-                    singlePlayerScreen.refreshBrick(viewData, gameStateManager.isGameStarted());
-                }
+                refreshBrickForPlayer(viewData, playerNumber);
             }
             
             @Override
@@ -798,6 +796,23 @@ public class GuiController implements Initializable {
      */
     void stopGarbageProcessingTimelines() {
         gameLoopManager.stopGarbageProcessingTimelines();
+    }
+
+    /**
+     * Helper method to refresh brick display for a player.
+     * Handles both single player and multiplayer modes.
+     * 
+     * @param viewData The view data containing brick information
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
+    private void refreshBrickForPlayer(ViewData viewData, int playerNumber) {
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
+            if (!gameStateManager.isPaused()) {
+                multiplayerScreen.refreshBrick(viewData, playerNumber);
+            }
+        } else if (singlePlayerScreen != null) {
+            singlePlayerScreen.refreshBrick(viewData, gameStateManager.isGameStarted());
+        }
     }
 
     private void showNotification(String message) {

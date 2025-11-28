@@ -10,9 +10,9 @@ class DownDataTest {
     void testDownDataCreation() {
         ClearRow clearRow = new ClearRow(1, new int[5][5], 50);
         ViewData viewData = new ViewData(new int[2][2], 0, 0, new int[2][2]);
-
+        
         DownData downData = new DownData(clearRow, viewData);
-
+        
         assertSame(clearRow, downData.getClearRow());
         assertSame(viewData, downData.getViewData());
     }
@@ -20,10 +20,11 @@ class DownDataTest {
     @Test
     void testDownDataWithNullClearRow() {
         ViewData viewData = new ViewData(new int[2][2], 0, 0, new int[2][2]);
-
+        
         DownData downData = new DownData(null, viewData);
-
+        
         assertNull(downData.getClearRow());
         assertSame(viewData, downData.getViewData());
     }
 }
+

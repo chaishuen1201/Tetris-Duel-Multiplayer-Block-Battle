@@ -10,10 +10,11 @@ public final class ViewData {
     private final int[][] nextBrickData;
 
     public ViewData(int[][] brickData, int xPosition, int yPosition, int[][] nextBrickData) {
-        this.brickData = brickData;
+        // Copy arrays to ensure immutability - external modifications shouldn't affect ViewData
+        this.brickData = MatrixOperations.copy(brickData);
         this.xPosition = xPosition;
         this.yPosition = yPosition;
-        this.nextBrickData = nextBrickData;
+        this.nextBrickData = MatrixOperations.copy(nextBrickData);
     }
 
     public int[][] getBrickData() {
