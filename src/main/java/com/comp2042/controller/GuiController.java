@@ -13,13 +13,13 @@ import com.comp2042.view.MultiplayerScreen;
 import com.comp2042.view.SinglePlayerScreen;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
-import com.comp2042.util.MatrixOperations;
 import com.comp2042.util.KeyBindingsManager;
 import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.TimerManager;
 import com.comp2042.controller.manager.GameStateManager;
 import com.comp2042.controller.manager.GameLoopManager;
 import com.comp2042.controller.manager.PanelCoordinator;
+import com.comp2042.controller.manager.GarbageManager;
 import com.comp2042.controller.input.InputHandler;
 import javafx.animation.Timeline;
 import javafx.beans.property.IntegerProperty;
@@ -100,10 +100,14 @@ public class GuiController implements Initializable {
     // Settings management - delegated to SettingsController
     private final SettingsController settingsController = new SettingsController();
     
+    // Garbage management - delegated to GarbageManager
+    private final GarbageManager garbageManager;
+    
     // Initialize GameStateManager with dependencies
     {
         gameStateManager = new GameStateManager(audioManager, timerManager);
         gameLoopManager = new GameLoopManager(gameStateManager);
+        garbageManager = new GarbageManager(gameStateManager);
     }
 
     @Override
@@ -138,6 +142,10 @@ public class GuiController implements Initializable {
         singlePlayerScreen.setLinesLabel(linesLabel);
         singlePlayerScreen.setCountdownLabel(countdownLabel);
         singlePlayerScreen.setTimerLabel(timerLabel);
+        
+        // Initialize garbage manager with screen references
+        garbageManager.setSinglePlayerScreen(singlePlayerScreen);
+        garbageManager.setGameOverCallback(this::gameOver);
         
         // Initialize single player UI panels
         singlePlayerScreen.initializeGamePanel();
@@ -177,6 +185,8 @@ public class GuiController implements Initializable {
         multiplayerScreen = new MultiplayerScreen();
         // Update settings controller with multiplayer screen reference
         settingsController.setMultiplayerScreen(multiplayerScreen);
+        // Update garbage manager with multiplayer screen reference
+        garbageManager.setMultiplayerScreen(multiplayerScreen);
         setupMultiplayerScreenCallbacks();
 
         // Initialize panel states
@@ -406,7 +416,7 @@ public class GuiController implements Initializable {
         
         // Set up callbacks for garbage processing
         gameLoopManager.setGarbageProcessingCallbacks(playerNumber -> {
-            processGarbageQueue(playerNumber);
+            garbageManager.processGarbageQueue(playerNumber);
         });
         
         // Set up callbacks for countdown
@@ -811,6 +821,9 @@ public class GuiController implements Initializable {
         gameStateManager.setGarbageProcessTimeline2(gameLoopManager.getGarbageProcessTimeline2());
         gameStateManager.setMultiplayerMode(true);
         
+        // Update GarbageManager with controllers
+        garbageManager.setGameControllers(gameController1, gameController2);
+        
         if (multiplayerScreen != null) {
             multiplayerScreen.setGameControllers(gameController1, gameController2);
             multiplayerScreen.setEventListeners(eventListener1, eventListener2);
@@ -869,6 +882,9 @@ public class GuiController implements Initializable {
         gameStateManager.setTimeLine2(gameLoopManager.getTimeLine2());
         gameStateManager.setGarbageProcessTimeline1(gameLoopManager.getGarbageProcessTimeline1());
         gameStateManager.setGarbageProcessTimeline2(gameLoopManager.getGarbageProcessTimeline2());
+        
+        // Update GarbageManager with controllers
+        garbageManager.setGameControllers(gameController1, gameController2);
         
         // Delegate to GameStateManager
         gameStateManager.restartMultiplayerGame();
@@ -1202,87 +1218,12 @@ public class GuiController implements Initializable {
     
     /**
      * Sends garbage to the opponent's queue when lines are cleared in multiplayer mode.
+     * Delegates to GarbageManager.
      * @param fromPlayerNumber The player number who cleared lines (1 or 2)
      * @param numGarbageLines Number of garbage lines to send
      */
     public void sendGarbageToOpponent(int fromPlayerNumber, int numGarbageLines) {
-        if (!gameStateManager.isMultiplayerMode() || numGarbageLines <= 0) {
-            return;
-        }
-        
-        // Determine opponent's player number
-        int opponentNumber = (fromPlayerNumber == 1) ? 2 : 1;
-        
-        // Get the opponent's game controller
-        GameController opponentController = (opponentNumber == 1) ? gameController1 : gameController2;
-        
-        if (opponentController != null) {
-            SimpleBoard opponentBoard = opponentController.getSimpleBoard();
-            if (opponentBoard != null) {
-                opponentBoard.addGarbageToQueue(numGarbageLines);
-                // Process garbage immediately instead of waiting for timeline
-                // This ensures garbage appears right away
-                Platform.runLater(() -> {
-                    if (opponentBoard.getPendingGarbageCount() > 0) {
-                        processGarbageQueue(opponentNumber);
-                    }
-                });
-            }
-        }
-    }
-    
-    /**
-     * Processes garbage queue for a player, adding pending garbage lines to the board.
-     * This should be called periodically or after certain game events.
-     * @param playerNumber The player number (1 or 2)
-     */
-    private void processGarbageQueue(int playerNumber) {
-        if (!gameStateManager.isMultiplayerMode() || playerNumber <= 0) {
-            return;
-        }
-        
-        boolean isGameOver = (playerNumber == 1) ? gameStateManager.isGameOver1() : gameStateManager.isGameOver2();
-        if (isGameOver || gameStateManager.isPaused()) {
-            return;
-        }
-        
-        GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
-        if (controller == null) {
-            return;
-        }
-        
-        SimpleBoard board = controller.getSimpleBoard();
-        if (board == null) {
-            return;
-        }
-        
-        // Only process if there's pending garbage
-        if (board.getPendingGarbageCount() > 0) {
-            // Process one garbage line at a time to give player time to react
-            boolean potentialGameOver = board.processGarbageQueue();
-            
-            // Refresh the display
-            if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-                multiplayerScreen.refreshGameBackground(board.getBoardMatrix(), playerNumber);
-            } else if (singlePlayerScreen != null) {
-                singlePlayerScreen.refreshGameBackground(board.getBoardMatrix());
-            }
-            
-            // Check if game over after adding garbage
-            if (potentialGameOver) {
-                // Get current view data to check brick position
-                ViewData viewData = board.getViewData();
-                if (viewData != null) {
-                    // Check if the current brick position is blocked
-                    if (MatrixOperations.intersect(board.getBoardMatrix(), 
-                            viewData.getBrickData(), 
-                            viewData.getXPosition(), 
-                            viewData.getYPosition())) {
-                        gameOver(playerNumber);
-                    }
-                }
-            }
-        }
+        garbageManager.sendGarbageToOpponent(fromPlayerNumber, numGarbageLines);
     }
     
 
