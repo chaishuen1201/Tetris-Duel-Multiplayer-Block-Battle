@@ -1,10 +1,8 @@
 package com.comp2042.view;
 
 import com.comp2042.controller.GameConstants;
-import com.comp2042.controller.GameController;
 import com.comp2042.event.InputEventListener;
 import com.comp2042.logic.bricks.Brick;
-import com.comp2042.model.SimpleBoard;
 import com.comp2042.model.ViewData;
 import javafx.beans.property.IntegerProperty;
 import javafx.scene.Group;
@@ -48,6 +46,9 @@ public class SinglePlayerScreen {
     private List<GridPane> nextBrickPanes = new ArrayList<>();
     private ViewData currentBrickData;
     private InputEventListener eventListener;
+    
+    // Rendering - delegated to GameViewRenderer
+    private final GameViewRenderer renderer = new GameViewRenderer();
     
     public SinglePlayerScreen() {
         // Components will be injected via setters
@@ -310,155 +311,40 @@ public class SinglePlayerScreen {
             return;
         }
 
-        GridPane currentBrickPanel = brickPanel;
-        GridPane currentGhostPanel = ghostPanel;
-        InputEventListener currentEventListener = eventListener;
-        int scaledBrickSize = BRICK_SIZE;
-
-        if (currentBrickPanel != null && brick != null) {
-            // Clear both panels
-            currentBrickPanel.getChildren().clear();
-            if (currentGhostPanel != null) {
-                currentGhostPanel.getChildren().clear();
-            }
-            
-            int[][] data = brick.getBrickData();
-            int offsetX = brick.getXPosition();
-            int offsetY = brick.getYPosition();
-            
-            // Draw ghost piece first (behind the actual brick)
-            if (currentGhostPanel != null && currentEventListener instanceof GameController) {
-                GameController gameController = (GameController) currentEventListener;
-                if (gameController.getBoard() instanceof SimpleBoard) {
-                    SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    java.awt.Point ghostPos = simpleBoard.getGhostPosition();
-                    
-                    int ghostX = (int) ghostPos.getX();
-                    int ghostY = (int) ghostPos.getY();
-                    
-                    // Only show ghost if it's below the current position
-                    // Individual cell bounds are checked inside the loop
-                    if (ghostY > offsetY) {
-                        for (int i = 0; i < data.length; i++) {
-                            for (int j = 0; j < data[i].length; j++) {
-                                if (data[j][i] != 0) {
-                                    int cellX = ghostX + i;
-                                    int cellY = ghostY + j;
-                                    
-                                    // Only draw if the cell is within the board bounds
-                                    // This allows partial ghost display when brick is at left/right walls
-                                    if (cellX >= 0 && cellY >= 0 && cellX < BOARD_WIDTH && cellY < BOARD_HEIGHT) {
-                                        Rectangle ghostRect = new Rectangle(scaledBrickSize, scaledBrickSize);
-                                        
-                                        // Get the brick's color and make it semi-transparent
-                                        javafx.scene.paint.Paint brickColor = ColorStrategy.getColorForBrickType(data[j][i]);
-                                        if (brickColor instanceof javafx.scene.paint.Color) {
-                                            javafx.scene.paint.Color color = (javafx.scene.paint.Color) brickColor;
-                                            // Create a semi-transparent version (30% opacity)
-                                            javafx.scene.paint.Color ghostColor = new javafx.scene.paint.Color(
-                                                color.getRed(),
-                                                color.getGreen(),
-                                                color.getBlue(),
-                                                0.3
-                                            );
-                                            ghostRect.setFill(ghostColor);
-                                            // Use a slightly darker stroke for visibility
-                                            javafx.scene.paint.Color strokeColor = new javafx.scene.paint.Color(
-                                                color.getRed() * 0.7,
-                                                color.getGreen() * 0.7,
-                                                color.getBlue() * 0.7,
-                                                0.5
-                                            );
-                                            ghostRect.setStroke(strokeColor);
-                                            ghostRect.setStrokeWidth(1.5);
-                                        } else {
-                                            // Fallback if color is not a Color object
-                                            ghostRect.setFill(javafx.scene.paint.Color.rgb(255, 255, 255, 0.3));
-                                            ghostRect.setStroke(javafx.scene.paint.Color.rgb(200, 200, 200, 0.5));
-                                            ghostRect.setStrokeWidth(1.5);
-                                        }
-                                        
-                                        ghostRect.setArcHeight(5);
-                                        ghostRect.setArcWidth(5);
-                                        currentGhostPanel.add(ghostRect, cellX, cellY);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Draw actual brick on top
-            for (int i = 0; i < data.length; i++) {
-                for (int j = 0; j < data[i].length; j++) {
-                    if (data[j][i] != 0) {
-                        Rectangle rect = new Rectangle(scaledBrickSize, scaledBrickSize);
-                        rect.setFill(ColorStrategy.getColorForBrickType(data[j][i]));
-                        rect.setArcHeight(5);
-                        rect.setArcWidth(5);
-                        currentBrickPanel.add(rect, offsetX + i, offsetY + j);
-                    }
-                }
-            }
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.refreshBrick(brick, brickPanel, ghostPanel, eventListener, BRICK_SIZE);
     }
     
     public void refreshGameBackground(int[][] board) {
-        if (displayMatrix != null) {
-            for (int i = 0; i < Math.min(BOARD_HEIGHT, board.length); i++) {
-                for (int j = 0; j < Math.min(BOARD_WIDTH, board[i].length); j++) {
-                    if (displayMatrix[i][j] != null) {
-                        displayMatrix[i][j].setFill(ColorStrategy.getColorForBrickType(board[i][j]));
-                    }
-                }
-            }
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.refreshGameBackground(board, displayMatrix);
     }
     
     public void updateNextBricks(List<Brick> nextBricks, boolean gameStarted) {
-        if (nextBrickPanes == null || nextBrickPanes.isEmpty()) return;
+        if (nextBrickPanes == null || nextBrickPanes.isEmpty()) {
+            return;
+        }
+        
         int brickSize = BRICK_SIZE - 10;
         int maxBricks = nextBrickPanes.size();
         
-        for (int i = 0; i < Math.min(maxBricks, nextBrickPanes.size()); i++) {
-            GridPane pane = nextBrickPanes.get(i);
-            if (pane == null) continue;
-            pane.getChildren().clear();
-            // Only make pane visible when game has started (after countdown)
-            // Don't show bricks during main menu or countdown
-            if (gameStarted) {
-                pane.setVisible(true);
-            }
-            if (i < nextBricks.size()) {
-                int[][] shape = nextBricks.get(i).getShapeMatrix().get(0);
-                for (int r = 0; r < shape.length; r++) {
-                    for (int c = 0; c < shape[r].length; c++) {
-                        if (shape[r][c] != 0) {
-                            Rectangle rect = new Rectangle(brickSize, brickSize);
-                            rect.setFill(ColorStrategy.getColorForBrickType(shape[r][c]));
-                            rect.setArcHeight(5);
-                            rect.setArcWidth(5);
-                            pane.add(rect, c, r);
-                        }
-                    }
+        // Only make panes visible when game has started (after countdown)
+        // Don't show bricks during main menu or countdown
+        if (gameStarted) {
+            for (GridPane pane : nextBrickPanes) {
+                if (pane != null) {
+                    pane.setVisible(true);
                 }
             }
         }
+        
+        // Delegate rendering to GameViewRenderer
+        renderer.updateNextBricks(nextBricks, nextBrickPanes, brickSize, maxBricks);
     }
 
     public void updateHoldBrick(Brick heldBrick) {
-        if (holdBrickRectangles == null) return;
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                if (holdBrickRectangles[i][j] != null) holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
-        if (heldBrick != null) {
-            int[][] shape = heldBrick.getShapeMatrix().get(0);
-            for (int i = 0; i < shape.length; i++)
-                for (int j = 0; j < shape[i].length; j++)
-                    if (shape[i][j] != 0 && holdBrickRectangles[i][j] != null)
-                        holdBrickRectangles[i][j].setFill(ColorStrategy.getColorForBrickType(shape[i][j]));
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.renderHoldBrick(heldBrick, holdBrickRectangles);
     }
     
     public void bindScore(IntegerProperty score) {
@@ -500,6 +386,23 @@ public class SinglePlayerScreen {
     
     public Rectangle[][] getHoldBrickRectangles() {
         return holdBrickRectangles;
+    }
+    
+    /**
+     * Clears all panels (display matrix, hold brick, next bricks) using the renderer.
+     */
+    public void clearAllPanels() {
+        // Clear display matrix
+        renderer.clearDisplayMatrix(displayMatrix);
+        
+        // Clear hold brick display
+        renderer.renderHoldBrick(null, holdBrickRectangles);
+        
+        // Clear next bricks display
+        if (nextBrickPanes != null) {
+            int brickSize = BRICK_SIZE - 10;
+            renderer.clearNextBrickPanes(nextBrickPanes, brickSize);
+        }
     }
 }
 

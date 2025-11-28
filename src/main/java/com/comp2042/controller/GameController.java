@@ -34,7 +34,11 @@ public class GameController implements InputEventListener {
             viewGuiController.bindLevel(simpleBoard.levelProperty(), playerNumber);
             viewGuiController.bindLines(simpleBoard.linesProperty(), playerNumber);
             // Update next bricks display when game starts
-            viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+            if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+                viewGuiController.getMultiplayerScreen().updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+            } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+                viewGuiController.getSinglePlayerScreen().updateNextBricks(simpleBoard.getNextBricks(), viewGuiController.getGameStateManager().isGameStarted());
+            }
         }
     }
 
@@ -59,13 +63,23 @@ public class GameController implements InputEventListener {
             if (board.createNewBrick()) {
                 viewGuiController.gameOver(playerNumber);
             }
-            viewGuiController.refreshGameBackground(board.getBoardMatrix(), playerNumber);
+            // Refresh game background
+            if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+                viewGuiController.getMultiplayerScreen().refreshGameBackground(board.getBoardMatrix(), playerNumber);
+            } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+                viewGuiController.getSinglePlayerScreen().refreshGameBackground(board.getBoardMatrix());
+            }
 
             // Update next bricks and hold after creating new brick
             if (board instanceof SimpleBoard) {
                 SimpleBoard simpleBoard = (SimpleBoard) board;
-                viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
-                viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+                if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+                    viewGuiController.getMultiplayerScreen().updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+                    viewGuiController.getMultiplayerScreen().updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+                } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+                    viewGuiController.getSinglePlayerScreen().updateNextBricks(simpleBoard.getNextBricks(), viewGuiController.getGameStateManager().isGameStarted());
+                    viewGuiController.getSinglePlayerScreen().updateHoldBrick(simpleBoard.getHeldBrick());
+                }
             }
         } else {
             if (event.getEventSource() == EventSource.USER) {
@@ -127,9 +141,16 @@ public class GameController implements InputEventListener {
             if (board.createNewBrick()) {
                 viewGuiController.gameOver(playerNumber);
             }
-            viewGuiController.refreshGameBackground(board.getBoardMatrix(), playerNumber);
-            viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
-            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+            // Refresh game background
+            if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+                viewGuiController.getMultiplayerScreen().refreshGameBackground(board.getBoardMatrix(), playerNumber);
+                viewGuiController.getMultiplayerScreen().updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+                viewGuiController.getMultiplayerScreen().updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+            } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+                viewGuiController.getSinglePlayerScreen().refreshGameBackground(board.getBoardMatrix());
+                viewGuiController.getSinglePlayerScreen().updateNextBricks(simpleBoard.getNextBricks(), viewGuiController.getGameStateManager().isGameStarted());
+                viewGuiController.getSinglePlayerScreen().updateHoldBrick(simpleBoard.getHeldBrick());
+            }
         }
         return new DownData(clearRow, board.getViewData());
     }
@@ -139,7 +160,11 @@ public class GameController implements InputEventListener {
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
             simpleBoard.holdBrick();
-            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+            if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+                viewGuiController.getMultiplayerScreen().updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+            } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+                viewGuiController.getSinglePlayerScreen().updateHoldBrick(simpleBoard.getHeldBrick());
+            }
         }
         return board.getViewData();
     }
@@ -149,12 +174,22 @@ public class GameController implements InputEventListener {
         board.newGame();
         // Re-bind score to ensure it updates after reset
         viewGuiController.bindScore(board.getScore().scoreProperty(), playerNumber);
-        viewGuiController.refreshGameBackground(board.getBoardMatrix(), playerNumber);
+        // Refresh game background
+        if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+            viewGuiController.getMultiplayerScreen().refreshGameBackground(board.getBoardMatrix(), playerNumber);
+        } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+            viewGuiController.getSinglePlayerScreen().refreshGameBackground(board.getBoardMatrix());
+        }
 
         if (board instanceof SimpleBoard) {
             SimpleBoard simpleBoard = (SimpleBoard) board;
-            viewGuiController.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
-            viewGuiController.updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+            if (playerNumber > 0 && viewGuiController.getMultiplayerScreen() != null) {
+                viewGuiController.getMultiplayerScreen().updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+                viewGuiController.getMultiplayerScreen().updateHoldBrick(simpleBoard.getHeldBrick(), playerNumber);
+            } else if (playerNumber == 0 && viewGuiController.getSinglePlayerScreen() != null) {
+                viewGuiController.getSinglePlayerScreen().updateNextBricks(simpleBoard.getNextBricks(), viewGuiController.getGameStateManager().isGameStarted());
+                viewGuiController.getSinglePlayerScreen().updateHoldBrick(simpleBoard.getHeldBrick());
+            }
         }
     }
 

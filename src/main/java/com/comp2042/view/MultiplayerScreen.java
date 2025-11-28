@@ -4,9 +4,7 @@ import com.comp2042.controller.GameConstants;
 import com.comp2042.controller.GameController;
 import com.comp2042.event.InputEventListener;
 import com.comp2042.logic.bricks.Brick;
-import com.comp2042.model.SimpleBoard;
 import com.comp2042.model.ViewData;
-import com.comp2042.view.ColorStrategy;
 import javafx.beans.property.IntegerProperty;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -85,6 +83,9 @@ public class MultiplayerScreen {
     private GameController gameController1, gameController2;
     private InputEventListener eventListener1, eventListener2;
     private ViewData currentBrickData1, currentBrickData2;
+    
+    // Rendering - delegated to GameViewRenderer
+    private final GameViewRenderer renderer = new GameViewRenderer();
     
     public MultiplayerScreen() {
         initializePanels();
@@ -468,97 +469,14 @@ public class MultiplayerScreen {
         double scale = 0.85;
         int scaledBrickSize = (int)(BRICK_SIZE * scale);
         
-        if (currentBrickPanel != null && brick != null) {
-            currentBrickPanel.getChildren().clear();
-            if (currentGhostPanel != null) {
-                currentGhostPanel.getChildren().clear();
-            }
-            
-            int[][] data = brick.getBrickData();
-            int offsetX = brick.getXPosition();
-            int offsetY = brick.getYPosition();
-            
-            // Draw ghost piece first
-            if (currentGhostPanel != null && currentEventListener instanceof GameController) {
-                GameController gameController = (GameController) currentEventListener;
-                if (gameController.getBoard() instanceof SimpleBoard) {
-                    SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    java.awt.Point ghostPos = simpleBoard.getGhostPosition();
-                    
-                    int ghostX = (int) ghostPos.getX();
-                    int ghostY = (int) ghostPos.getY();
-                    
-                    if (ghostY > offsetY) {
-                        for (int i = 0; i < data.length; i++) {
-                            for (int j = 0; j < data[i].length; j++) {
-                                if (data[j][i] != 0) {
-                                    int cellX = ghostX + i;
-                                    int cellY = ghostY + j;
-                                    
-                                    if (cellX >= 0 && cellY >= 0 && cellX < BOARD_WIDTH && cellY < BOARD_HEIGHT) {
-                                        Rectangle ghostRect = new Rectangle(scaledBrickSize, scaledBrickSize);
-                                        
-                                        javafx.scene.paint.Paint brickColor = ColorStrategy.getColorForBrickType(data[j][i]);
-                                        if (brickColor instanceof javafx.scene.paint.Color) {
-                                            javafx.scene.paint.Color color = (javafx.scene.paint.Color) brickColor;
-                                            javafx.scene.paint.Color ghostColor = new javafx.scene.paint.Color(
-                                                color.getRed(),
-                                                color.getGreen(),
-                                                color.getBlue(),
-                                                0.3
-                                            );
-                                            ghostRect.setFill(ghostColor);
-                                            javafx.scene.paint.Color strokeColor = new javafx.scene.paint.Color(
-                                                color.getRed() * 0.7,
-                                                color.getGreen() * 0.7,
-                                                color.getBlue() * 0.7,
-                                                0.5
-                                            );
-                                            ghostRect.setStroke(strokeColor);
-                                            ghostRect.setStrokeWidth(1.5);
-                                        } else {
-                                            ghostRect.setFill(javafx.scene.paint.Color.rgb(255, 255, 255, 0.3));
-                                            ghostRect.setStroke(javafx.scene.paint.Color.rgb(200, 200, 200, 0.5));
-                                            ghostRect.setStrokeWidth(1.5);
-                                        }
-                                        
-                                        ghostRect.setArcHeight(5);
-                                        ghostRect.setArcWidth(5);
-                                        currentGhostPanel.add(ghostRect, cellX, cellY);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Draw actual brick
-            for (int i = 0; i < data.length; i++) {
-                for (int j = 0; j < data[i].length; j++) {
-                    if (data[j][i] != 0) {
-                        Rectangle rect = new Rectangle(scaledBrickSize, scaledBrickSize);
-                        rect.setFill(ColorStrategy.getColorForBrickType(data[j][i]));
-                        rect.setArcHeight(5);
-                        rect.setArcWidth(5);
-                        currentBrickPanel.add(rect, offsetX + i, offsetY + j);
-                    }
-                }
-            }
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.refreshBrick(brick, currentBrickPanel, currentGhostPanel, currentEventListener, scaledBrickSize);
     }
     
     public void refreshGameBackground(int[][] board, int playerNumber) {
         Rectangle[][] matrix = (playerNumber == 1) ? displayMatrix1 : displayMatrix2;
-        if (matrix != null) {
-            for (int i = 0; i < Math.min(BOARD_HEIGHT, board.length); i++) {
-                for (int j = 0; j < Math.min(BOARD_WIDTH, board[i].length); j++) {
-                    if (matrix[i][j] != null) {
-                        matrix[i][j].setFill(ColorStrategy.getColorForBrickType(board[i][j]));
-                    }
-                }
-            }
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.refreshGameBackground(board, matrix);
     }
     
     public void updateNextBricks(List<Brick> nextBricks, int playerNumber) {
@@ -566,46 +484,21 @@ public class MultiplayerScreen {
         double scale = 0.85;
         int brickSize = (int)((BRICK_SIZE - 10) * scale);
         
-        if (panes == null || panes.isEmpty()) return;
+        if (panes == null || panes.isEmpty()) {
+            return;
+        }
         
         // For multiplayer, only show the first brick
         int maxBricks = 1;
         
-        for (int i = 0; i < Math.min(maxBricks, panes.size()); i++) {
-            GridPane pane = panes.get(i);
-            if (pane == null) continue;
-            pane.getChildren().clear();
-            if (i < nextBricks.size()) {
-                int[][] shape = nextBricks.get(i).getShapeMatrix().get(0);
-                for (int r = 0; r < shape.length; r++) {
-                    for (int c = 0; c < shape[r].length; c++) {
-                        if (shape[r][c] != 0) {
-                            Rectangle rect = new Rectangle(brickSize, brickSize);
-                            rect.setFill(ColorStrategy.getColorForBrickType(shape[r][c]));
-                            rect.setArcHeight(5);
-                            rect.setArcWidth(5);
-                            pane.add(rect, c, r);
-                        }
-                    }
-                }
-            }
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.updateNextBricks(nextBricks, panes, brickSize, maxBricks);
     }
     
     public void updateHoldBrick(Brick heldBrick, int playerNumber) {
         Rectangle[][] rectangles = (playerNumber == 1) ? holdBrickRectangles1 : holdBrickRectangles2;
-        
-        if (rectangles == null) return;
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                if (rectangles[i][j] != null) rectangles[i][j].setFill(Color.TRANSPARENT);
-        if (heldBrick != null) {
-            int[][] shape = heldBrick.getShapeMatrix().get(0);
-            for (int i = 0; i < shape.length; i++)
-                for (int j = 0; j < shape[i].length; j++)
-                    if (shape[i][j] != 0 && rectangles[i][j] != null)
-                        rectangles[i][j].setFill(ColorStrategy.getColorForBrickType(shape[i][j]));
-        }
+        // Delegate rendering to GameViewRenderer
+        renderer.renderHoldBrick(heldBrick, rectangles);
     }
     
     public void bindScore(IntegerProperty score, int playerNumber) {
@@ -625,27 +518,9 @@ public class MultiplayerScreen {
     }
     
     public void clearGamePanels() {
-        // Clear displayMatrix1
-        if (displayMatrix1 != null) {
-            for (int i = 0; i < BOARD_HEIGHT; i++) {
-                for (int j = 0; j < BOARD_WIDTH; j++) {
-                    if (displayMatrix1[i][j] != null) {
-                        displayMatrix1[i][j].setFill(Color.TRANSPARENT);
-                    }
-                }
-            }
-        }
-        
-        // Clear displayMatrix2
-        if (displayMatrix2 != null) {
-            for (int i = 0; i < BOARD_HEIGHT; i++) {
-                for (int j = 0; j < BOARD_WIDTH; j++) {
-                    if (displayMatrix2[i][j] != null) {
-                        displayMatrix2[i][j].setFill(Color.TRANSPARENT);
-                    }
-                }
-            }
-        }
+        // Clear displayMatrix1 and displayMatrix2 using renderer
+        renderer.clearDisplayMatrix(displayMatrix1);
+        renderer.clearDisplayMatrix(displayMatrix2);
         
         // Clear brick panels
         double scale = 0.85;

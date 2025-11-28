@@ -4,7 +4,6 @@ import com.comp2042.event.EventSource;
 import com.comp2042.event.EventType;
 import com.comp2042.event.InputEventListener;
 import com.comp2042.event.MoveEvent;
-import com.comp2042.logic.bricks.Brick;
 import com.comp2042.model.DownData;
 import com.comp2042.model.ViewData;
 import com.comp2042.view.GameOverPanel;
@@ -22,7 +21,6 @@ import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.TimerManager;
 import com.comp2042.controller.manager.GameStateManager;
 import com.comp2042.controller.input.InputHandler;
-import com.comp2042.controller.PausePanelActionHandler;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.IntegerProperty;
@@ -32,8 +30,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.Group;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.control.Label;
 import javafx.util.Duration;
@@ -304,46 +300,9 @@ public class GuiController implements Initializable {
                     if (eventListener != null) {
                         eventListener.createNewGame();
                     }
-                    // Clear the game board display
+                    // Clear the game board display - delegate to screen class which uses renderer
                     if (singlePlayerScreen != null) {
-                        Rectangle[][] displayMatrix = singlePlayerScreen.getDisplayMatrix();
-                        if (displayMatrix != null) {
-                            for (int i = 0; i < displayMatrix.length; i++) {
-                                for (int j = 0; j < displayMatrix[i].length; j++) {
-                                    if (displayMatrix[i][j] != null) {
-                                        displayMatrix[i][j].setFill(Color.TRANSPARENT);
-                                    }
-                                }
-                            }
-                        }
-                        // Clear next bricks display
-                        List<GridPane> nextBrickPanes = singlePlayerScreen.getNextBrickPanes();
-                        if (nextBrickPanes != null) {
-                            for (GridPane pane : nextBrickPanes) {
-                                if (pane != null) {
-                                    pane.getChildren().clear();
-                                    // Re-initialize empty cells
-                                    for (int r = 0; r < 4; r++) {
-                                        for (int c = 0; c < 4; c++) {
-                                            Rectangle rect = new Rectangle(GameConstants.BRICK_SIZE - 10, GameConstants.BRICK_SIZE - 10);
-                                            rect.setFill(Color.TRANSPARENT);
-                                            pane.add(rect, c, r);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        // Clear hold brick display
-                        Rectangle[][] holdBrickRectangles = singlePlayerScreen.getHoldBrickRectangles();
-                        if (holdBrickRectangles != null) {
-                            for (int i = 0; i < holdBrickRectangles.length; i++) {
-                                for (int j = 0; j < holdBrickRectangles[i].length; j++) {
-                                    if (holdBrickRectangles[i][j] != null) {
-                                        holdBrickRectangles[i][j].setFill(Color.TRANSPARENT);
-                                    }
-                                }
-                            }
-                        }
+                        singlePlayerScreen.clearAllPanels();
                     }
                     // Clear current brick display and ghost panel
                     if (brickPanel != null) {
@@ -535,7 +494,13 @@ public class GuiController implements Initializable {
             
             @Override
             public void refreshBrick(ViewData viewData, int playerNumber) {
-                GuiController.this.refreshBrick(viewData, playerNumber);
+                if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
+                    if (!gameStateManager.isPaused()) {
+                        multiplayerScreen.refreshBrick(viewData, playerNumber);
+                    }
+                } else if (singlePlayerScreen != null) {
+                    singlePlayerScreen.refreshBrick(viewData, gameStateManager.isGameStarted());
+                }
             }
             
             @Override
@@ -1220,14 +1185,16 @@ public class GuiController implements Initializable {
     public void initGameView(int[][] boardMatrix, ViewData brick, int playerNumber) {
         if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             // Initialize multiplayer game view
-            refreshBrick(brick, playerNumber);
-            refreshGameBackground(boardMatrix, playerNumber);
-            
-            // Update next bricks display for multiplayer
-            GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
-            if (controller != null && controller.getBoard() instanceof SimpleBoard) {
-                SimpleBoard simpleBoard = (SimpleBoard) controller.getBoard();
-                updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+            if (multiplayerScreen != null) {
+                multiplayerScreen.refreshBrick(brick, playerNumber);
+                multiplayerScreen.refreshGameBackground(boardMatrix, playerNumber);
+                
+                // Update next bricks display for multiplayer
+                GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
+                if (controller != null && controller.getBoard() instanceof SimpleBoard) {
+                    SimpleBoard simpleBoard = (SimpleBoard) controller.getBoard();
+                    multiplayerScreen.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+                }
             }
             
             if (playerNumber == 1) {
@@ -1271,35 +1238,6 @@ public class GuiController implements Initializable {
         }
     }
 
-    private void refreshBrick(ViewData brick, int playerNumber) {
-        // Use MultiplayerScreen for multiplayer mode
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-            if (!gameStateManager.isPaused()) {
-                multiplayerScreen.refreshBrick(brick, playerNumber);
-            }
-            return;
-        }
-        
-        // Single player mode - use SinglePlayerScreen
-        if (singlePlayerScreen != null) {
-            singlePlayerScreen.refreshBrick(brick, gameStateManager.isGameStarted());
-        }
-    }
-
-    public void refreshGameBackground(int[][] board) {
-        refreshGameBackground(board, 0);
-    }
-    
-    public void refreshGameBackground(int[][] board, int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-            multiplayerScreen.refreshGameBackground(board, playerNumber);
-        } else {
-            // Single player mode - use SinglePlayerScreen
-            if (singlePlayerScreen != null) {
-                singlePlayerScreen.refreshGameBackground(board);
-            }
-        }
-    }
 
     private void moveDown(MoveEvent event) {
         moveDown(event, 0);
@@ -1331,7 +1269,13 @@ public class GuiController implements Initializable {
                         // Play line clear sound
                         audioManager.playLineClear();
                     }
-                    refreshBrick(downData.getViewData(), playerNumber);
+                    if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
+                        if (!gameStateManager.isPaused()) {
+                            multiplayerScreen.refreshBrick(downData.getViewData(), playerNumber);
+                        }
+                    } else if (singlePlayerScreen != null) {
+                        singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
+                    }
                 }
             }
         } else {
@@ -1346,7 +1290,9 @@ public class GuiController implements Initializable {
                         // Play line clear sound
                         audioManager.playLineClear();
                     }
-                    refreshBrick(downData.getViewData(), 0);
+                    if (singlePlayerScreen != null) {
+                        singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
+                    }
                 }
             }
             if (gameBoard != null) gameBoard.requestFocus();
@@ -1495,7 +1441,11 @@ public class GuiController implements Initializable {
             boolean potentialGameOver = board.processGarbageQueue();
             
             // Refresh the display
-            refreshGameBackground(board.getBoardMatrix(), playerNumber);
+            if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
+                multiplayerScreen.refreshGameBackground(board.getBoardMatrix(), playerNumber);
+            } else if (singlePlayerScreen != null) {
+                singlePlayerScreen.refreshGameBackground(board.getBoardMatrix());
+            }
             
             // Check if game over after adding garbage
             if (potentialGameOver) {
@@ -1861,37 +1811,6 @@ public class GuiController implements Initializable {
     }
     
 
-    public void updateNextBricks(List<Brick> nextBricks) {
-        updateNextBricks(nextBricks, 0);
-    }
-    
-    public void updateNextBricks(List<Brick> nextBricks, int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-            multiplayerScreen.updateNextBricks(nextBricks, playerNumber);
-            return;
-        }
-        
-        // Single player mode - use SinglePlayerScreen
-        if (singlePlayerScreen != null) {
-            singlePlayerScreen.updateNextBricks(nextBricks, gameStateManager.isGameStarted());
-        }
-    }
-
-    public void updateHoldBrick(Brick heldBrick) {
-        updateHoldBrick(heldBrick, 0);
-    }
-    
-    public void updateHoldBrick(Brick heldBrick, int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-            multiplayerScreen.updateHoldBrick(heldBrick, playerNumber);
-            return;
-        }
-        
-        // Single player mode - use SinglePlayerScreen
-        if (singlePlayerScreen != null) {
-            singlePlayerScreen.updateHoldBrick(heldBrick);
-        }
-    }
 
     private void updateTimelineRate() {
         updateTimelineRate(0);
