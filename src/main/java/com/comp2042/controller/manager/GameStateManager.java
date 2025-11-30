@@ -2,6 +2,7 @@ package com.comp2042.controller.manager;
 
 import com.comp2042.controller.GameController;
 import com.comp2042.event.InputEventListener;
+import com.comp2042.view.MultiplayerScreen;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -35,6 +36,11 @@ public class GameStateManager {
     private InputEventListener eventListener;
     private InputEventListener eventListener1;
     private InputEventListener eventListener2;
+    private MultiplayerScreen multiplayerScreen;
+    
+    // Callbacks for winning panel actions
+    private Runnable onRestartGame;
+    private Runnable onQuitToMenu;
     
     // Callbacks for UI updates (set via setters)
     private Runnable onShowPausePanel;
@@ -56,8 +62,6 @@ public class GameStateManager {
     private Runnable onUpdateTimelineRate;
     private Runnable onUpdateTimelineRate1;
     private Runnable onUpdateTimelineRate2;
-    private Runnable onShowWinningPanel;
-    private Runnable onHideWinningPanel;
     private Runnable onShowGameOverPanel;
     private Runnable onHideGameOverPanel;
     private Runnable onShowMainMenu;
@@ -226,14 +230,6 @@ public class GameStateManager {
     
     public void setOnUpdateTimelineRate2(Runnable callback) {
         this.onUpdateTimelineRate2 = callback;
-    }
-    
-    public void setOnShowWinningPanel(Runnable callback) {
-        this.onShowWinningPanel = callback;
-    }
-    
-    public void setOnHideWinningPanel(Runnable callback) {
-        this.onHideWinningPanel = callback;
     }
     
     public void setOnShowGameOverPanel(Runnable callback) {
@@ -407,6 +403,11 @@ public class GameStateManager {
                 onStopGarbageProcessingTimelines.run();
             }
             
+            // Stop multiplayer timer when game ends
+            if (onStopMultiplayerTimer != null) {
+                onStopMultiplayerTimer.run();
+            }
+            
             if (onHideMultiplayerPausePanel != null) onHideMultiplayerPausePanel.run();
             if (onHidePausePanel != null) onHidePausePanel.run();
             isPause.set(false);
@@ -416,12 +417,18 @@ public class GameStateManager {
             // If only one player is game over, show winning panel for the other player
             if (isGameOver1.get() && !isGameOver2.get()) {
                 isGameOver2.set(true);
-                if (onShowWinningPanel != null) onShowWinningPanel.run();
+                int winnerPlayerNumber = 2;
+                int timeUsed = timerManager.getMultiplayerElapsedSeconds();
+                showWinningPanel(winnerPlayerNumber, timeUsed);
+                audioManager.playWinner();
             } else if (isGameOver2.get() && !isGameOver1.get()) {
                 isGameOver1.set(true);
-                if (onShowWinningPanel != null) onShowWinningPanel.run();
+                int winnerPlayerNumber = 1;
+                int timeUsed = timerManager.getMultiplayerElapsedSeconds();
+                showWinningPanel(winnerPlayerNumber, timeUsed);
+                audioManager.playWinner();
             } else if (isGameOver1.get() && isGameOver2.get()) {
-                if (onHideWinningPanel != null) onHideWinningPanel.run();
+                hideWinningPanel();
                 audioManager.playGameOver();
             }
             return;
@@ -501,7 +508,7 @@ public class GameStateManager {
         isPause.set(false);
         
         // Hide winning panel
-        if (onHideWinningPanel != null) onHideWinningPanel.run();
+        hideWinningPanel();
         
         // Restart timelines
         if (timeLine1 != null) {
@@ -557,7 +564,7 @@ public class GameStateManager {
         isMultiplayerMode = false;
         
         // Hide panels
-        if (onHideWinningPanel != null) onHideWinningPanel.run();
+        hideWinningPanel();
         if (onHideGameOverPanel != null) onHideGameOverPanel.run();
         if (onHidePausePanel != null) onHidePausePanel.run();
         if (onHideMultiplayerPausePanel != null) onHideMultiplayerPausePanel.run();
@@ -601,6 +608,166 @@ public class GameStateManager {
         timeLine2 = null;
         garbageProcessTimeline1 = null;
         garbageProcessTimeline2 = null;
+    }
+    
+    /**
+     * Sets the MultiplayerScreen reference for winning panel management.
+     */
+    public void setMultiplayerScreen(MultiplayerScreen screen) {
+        this.multiplayerScreen = screen;
+    }
+    
+    /**
+     * Sets the callback for restarting the game (from winning panel).
+     */
+    public void setOnRestartGame(Runnable callback) {
+        this.onRestartGame = callback;
+    }
+    
+    /**
+     * Sets the callback for quitting to main menu (from winning panel).
+     */
+    public void setOnQuitToMenu(Runnable callback) {
+        this.onQuitToMenu = callback;
+    }
+    
+    // ========== Winning Panel Management ==========
+    
+    /**
+     * Shows the winning panel for multiplayer game.
+     * 
+     * @param winnerPlayerNumber The player number who won (1 or 2)
+     * @param timeUsed The time used in seconds
+     */
+    public void showWinningPanel(int winnerPlayerNumber, int timeUsed) {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        com.comp2042.view.WinningPanel winningPanel = multiplayerScreen.getWinningPanel();
+        javafx.scene.layout.StackPane winningOverlay = multiplayerScreen.getWinningOverlay();
+        
+        if (winningOverlay == null || winningPanel == null) {
+            return;
+        }
+        
+        winningPanel.setWinner(winnerPlayerNumber);
+        winningPanel.setTimeUsed(timeUsed);
+        winningOverlay.setVisible(true);
+        winningOverlay.setManaged(true);
+        winningOverlay.setMouseTransparent(false);
+        
+        javafx.scene.layout.StackPane wrapper = multiplayerScreen.getWrapper();
+        if (wrapper != null) {
+            // Ensure winning overlay is in the wrapper and brought to front
+            if (wrapper.getChildren().contains(winningOverlay)) {
+                wrapper.getChildren().remove(winningOverlay);
+            }
+            wrapper.getChildren().add(winningOverlay);
+            wrapper.setManaged(true);
+        }
+        
+        javafx.scene.layout.HBox container = multiplayerScreen.getContainer();
+        if (container != null) {
+            container.setManaged(true);
+        }
+        
+        // Setup winning panel actions if not already set
+        setupWinningPanelActions(winningPanel);
+    }
+    
+    /**
+     * Hides the winning panel.
+     */
+    public void hideWinningPanel() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        javafx.scene.layout.StackPane winningOverlay = multiplayerScreen.getWinningOverlay();
+        if (winningOverlay != null) {
+            winningOverlay.setVisible(false);
+            winningOverlay.setManaged(false);
+            winningOverlay.setMouseTransparent(true);
+        }
+    }
+    
+    /**
+     * Sets up the winning panel action handlers.
+     */
+    private void setupWinningPanelActions(com.comp2042.view.WinningPanel winningPanel) {
+        if (winningPanel == null) {
+            return;
+        }
+        
+        winningPanel.setOnRestartAction(() -> {
+            if (onRestartGame != null) {
+                onRestartGame.run();
+            }
+        });
+        
+        winningPanel.setOnMainMenuAction(() -> {
+            if (onQuitToMenu != null) {
+                onQuitToMenu.run();
+            }
+        });
+    }
+    
+    // ========== Default Values for Score/Level/Lines ==========
+    
+    /**
+     * Initializes default values for score, level, and lines labels.
+     * This is called when starting a new game or resetting game state.
+     * 
+     * @param scoreLabel The score label to initialize (can be null)
+     * @param levelLabel The level label to initialize (can be null)
+     * @param linesLabel The lines label to initialize (can be null)
+     */
+    public void initializeInfoLabels(javafx.scene.control.Label scoreLabel, 
+                                     javafx.scene.control.Label levelLabel, 
+                                     javafx.scene.control.Label linesLabel) {
+        // Don't set text directly if label is bound - it will be bound to the score property
+        // Only set initial text if not already bound
+        if (scoreLabel != null && !scoreLabel.textProperty().isBound()) {
+            scoreLabel.setText("0");
+        }
+        if (levelLabel != null && !levelLabel.textProperty().isBound()) {
+            levelLabel.setText("1");
+        }
+        if (linesLabel != null && !linesLabel.textProperty().isBound()) {
+            linesLabel.setText("0");
+        }
+    }
+    
+    /**
+     * Resets score, level, and lines labels to default values.
+     * Unbinds properties if bound, then sets default values.
+     * 
+     * @param scoreLabel The score label to reset (can be null)
+     * @param levelLabel The level label to reset (can be null)
+     * @param linesLabel The lines label to reset (can be null)
+     */
+    public void resetInfoLabels(javafx.scene.control.Label scoreLabel, 
+                                javafx.scene.control.Label levelLabel, 
+                                javafx.scene.control.Label linesLabel) {
+        if (scoreLabel != null) {
+            if (scoreLabel.textProperty().isBound()) {
+                scoreLabel.textProperty().unbind();
+            }
+            scoreLabel.setText("0");
+        }
+        if (levelLabel != null) {
+            if (levelLabel.textProperty().isBound()) {
+                levelLabel.textProperty().unbind();
+            }
+            levelLabel.setText("1");
+        }
+        if (linesLabel != null) {
+            if (linesLabel.textProperty().isBound()) {
+                linesLabel.textProperty().unbind();
+            }
+            linesLabel.setText("0");
+        }
     }
 }
 

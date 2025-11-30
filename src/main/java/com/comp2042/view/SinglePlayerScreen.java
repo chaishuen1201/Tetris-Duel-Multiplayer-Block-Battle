@@ -2,7 +2,6 @@ package com.comp2042.view;
 
 import com.comp2042.controller.GameConstants;
 import com.comp2042.event.InputEventListener;
-import com.comp2042.logic.bricks.Brick;
 import com.comp2042.model.ViewData;
 import javafx.beans.property.IntegerProperty;
 import javafx.scene.Group;
@@ -180,6 +179,10 @@ public class SinglePlayerScreen {
         this.eventListener = eventListener;
     }
     
+    public InputEventListener getEventListener() {
+        return eventListener;
+    }
+    
     public void initializeGamePanel() {
         if (gamePanel != null) {
             gamePanel.getChildren().clear();
@@ -286,66 +289,6 @@ public class SinglePlayerScreen {
         }
     }
 
-    public void initializeInfoPanel() {
-        // Don't set text directly for scoreLabel - it will be bound to the score property
-        // Only set initial text if not already bound
-        if (scoreLabel != null && !scoreLabel.textProperty().isBound()) {
-            scoreLabel.setText("0");
-        }
-        if (levelLabel != null && !levelLabel.textProperty().isBound()) {
-            levelLabel.setText("1");
-        }
-        if (linesLabel != null && !linesLabel.textProperty().isBound()) {
-            linesLabel.setText("0");
-        }
-    }
-    
-    public void refreshBrick(ViewData brick, boolean gameStarted) {
-        // Always store the current brick data
-        if (brick != null) {
-            currentBrickData = brick;
-        }
-
-        // Don't show brick if game hasn't started (menu is visible)
-        if (!gameStarted) {
-            return;
-        }
-
-        // Delegate rendering to GameViewRenderer
-        renderer.refreshBrick(brick, brickPanel, ghostPanel, eventListener, BRICK_SIZE);
-    }
-    
-    public void refreshGameBackground(int[][] board) {
-        // Delegate rendering to GameViewRenderer
-        renderer.refreshGameBackground(board, displayMatrix);
-    }
-    
-    public void updateNextBricks(List<Brick> nextBricks, boolean gameStarted) {
-        if (nextBrickPanes == null || nextBrickPanes.isEmpty()) {
-            return;
-        }
-        
-        int brickSize = BRICK_SIZE - 10;
-        int maxBricks = nextBrickPanes.size();
-        
-        // Only make panes visible when game has started (after countdown)
-        // Don't show bricks during main menu or countdown
-        if (gameStarted) {
-            for (GridPane pane : nextBrickPanes) {
-                if (pane != null) {
-                    pane.setVisible(true);
-                }
-            }
-        }
-        
-        // Delegate rendering to GameViewRenderer
-        renderer.updateNextBricks(nextBricks, nextBrickPanes, brickSize, maxBricks);
-    }
-
-    public void updateHoldBrick(Brick heldBrick) {
-        // Delegate rendering to GameViewRenderer
-        renderer.renderHoldBrick(heldBrick, holdBrickRectangles);
-    }
     
     public void bindScore(IntegerProperty score) {
         if (scoreLabel != null && score != null) {

@@ -3,6 +3,7 @@ package com.comp2042.controller.manager;
 import com.comp2042.controller.GameController;
 import com.comp2042.controller.input.InputHandler;
 import com.comp2042.view.MultiplayerScreen;
+import com.comp2042.view.GameViewRenderer;
 import com.comp2042.view.SettingsPanel;
 import com.comp2042.view.SinglePlayerScreen;
 import javafx.application.Platform;
@@ -37,6 +38,7 @@ public class MultiplayerViewManager {
     // UI Components (set via setters)
     private MultiplayerScreen multiplayerScreen;
     private SinglePlayerScreen singlePlayerScreen;
+    private final GameViewRenderer renderer = new GameViewRenderer();
     private BorderPane gameBoard;
     private GridPane holdBrickPanel;
     private VBox nextBricksPanel;
@@ -68,6 +70,9 @@ public class MultiplayerViewManager {
     
     // Callback to sync original panels back to GuiController
     private OriginalPanelSyncCallback originalPanelSyncCallback;
+    
+    // Callback for starting game when both players are ready
+    private Runnable onStartGameCallback;
     
     public interface GameControllerFactory {
         GameController createGameController(int playerNumber);
@@ -263,7 +268,7 @@ public class MultiplayerViewManager {
         }
         
         // Show ready panel instead of starting game immediately
-        multiplayerScreen.showReadyPanel();
+        showReadyPanel();
         
         // Attach keyboard handlers to the scene for ready state
         Platform.runLater(() -> {
@@ -331,9 +336,7 @@ public class MultiplayerViewManager {
      * Starts a new multiplayer game.
      */
     public void startMultiplayerGame() {
-        if (multiplayerScreen != null) {
-            multiplayerScreen.hideReadyPanel();
-        }
+        hideReadyPanel();
         
         // Create game controllers for both players
         if (gameControllerFactory != null) {
@@ -372,22 +375,20 @@ public class MultiplayerViewManager {
         }
         
         // Hide winning panel if visible
-        if (multiplayerScreen != null) {
-            multiplayerScreen.hideWinningPanel();
-        }
+        gameStateManager.hideWinningPanel();
         
         // Reset ready states
         if (multiplayerScreen != null) {
-            multiplayerScreen.setPlayer1Ready(false);
-            multiplayerScreen.setPlayer2Ready(false);
+            multiplayerScreen.setPlayer1ReadyState(false);
+            multiplayerScreen.setPlayer2ReadyState(false);
         }
         
         // Delegate to GameStateManager
         gameStateManager.startMultiplayerGame();
         
         // Make brick panels and ghost panels visible
-        if (multiplayerScreen != null && settingsPanel != null) {
-            multiplayerScreen.setBrickPanelsVisible(true, settingsPanel);
+        if (settingsPanel != null) {
+            setBrickPanelsVisible(true, settingsPanel);
         }
         
         // Make sure keyboard handlers are attached to scene
@@ -407,8 +408,18 @@ public class MultiplayerViewManager {
     public void restartMultiplayerGame() {
         // Clear all multiplayer game panels
         if (multiplayerScreen != null) {
-            multiplayerScreen.clearGamePanels();
+            resetScoreAndLevelLabels();
+            // Clear stored brick data
+            multiplayerScreen.setCurrentBrickData(null, 1);
+            multiplayerScreen.setCurrentBrickData(null, 2);
+            
+            // Clear display matrices before initializing new panels
+            renderer.clearDisplayMatrix(multiplayerScreen.getDisplayMatrix(1));
+            renderer.clearDisplayMatrix(multiplayerScreen.getDisplayMatrix(2));
+            
+            // Initialize new panels (this creates completely new panels)
             multiplayerScreen.initializeMultiplayerPanels();
+            
             // Register timer label with TimerManager
             if (multiplayerScreen.getTimerLabel() != null) {
                 timerManager.setMultiplayerTimerLabel(multiplayerScreen.getTimerLabel());
@@ -433,6 +444,49 @@ public class MultiplayerViewManager {
         
         // Delegate to GameStateManager
         gameStateManager.restartMultiplayerGame();
+        
+        // Make brick panels and ghost panels visible (respecting ghost piece setting)
+        // Do this before rendering to ensure panels are ready
+        if (settingsPanel != null) {
+            setBrickPanelsVisible(true, settingsPanel);
+        }
+        
+        // Render initial bricks after restart (createNewGame doesn't call initGameView)
+        // Use Platform.runLater to ensure UI is updated after panels are set visible
+        javafx.application.Platform.runLater(() -> {
+            if (multiplayerScreen != null) {
+                if (gameController1 != null && gameController1.getBoard() instanceof com.comp2042.model.SimpleBoard) {
+                    com.comp2042.model.SimpleBoard simpleBoard1 = (com.comp2042.model.SimpleBoard) gameController1.getBoard();
+                    renderer.refreshBrick(
+                        multiplayerScreen,
+                        gameController1.getBoard().getViewData(),
+                        1
+                    );
+                    renderer.refreshGameBackground(
+                        multiplayerScreen,
+                        gameController1.getBoard().getBoardMatrix(),
+                        1
+                    );
+                    renderer.updateNextBricks(multiplayerScreen, simpleBoard1.getNextBricks(), 1);
+                    renderer.updateHoldBrick(multiplayerScreen, simpleBoard1.getHeldBrick(), 1);
+                }
+                if (gameController2 != null && gameController2.getBoard() instanceof com.comp2042.model.SimpleBoard) {
+                    com.comp2042.model.SimpleBoard simpleBoard2 = (com.comp2042.model.SimpleBoard) gameController2.getBoard();
+                    renderer.refreshBrick(
+                        multiplayerScreen,
+                        gameController2.getBoard().getViewData(),
+                        2
+                    );
+                    renderer.refreshGameBackground(
+                        multiplayerScreen,
+                        gameController2.getBoard().getBoardMatrix(),
+                        2
+                    );
+                    renderer.updateNextBricks(multiplayerScreen, simpleBoard2.getNextBricks(), 2);
+                    renderer.updateHoldBrick(multiplayerScreen, simpleBoard2.getHeldBrick(), 2);
+                }
+            }
+        });
     }
     
     /**
@@ -441,7 +495,11 @@ public class MultiplayerViewManager {
     public void quitToMainMenuFromMultiplayer() {
         // Clear all multiplayer game panels
         if (multiplayerScreen != null) {
-            multiplayerScreen.clearGamePanels();
+            renderer.clearBrickPanels(multiplayerScreen);
+            resetScoreAndLevelLabels();
+            // Clear stored brick data
+            multiplayerScreen.setCurrentBrickData(null, 1);
+            multiplayerScreen.setCurrentBrickData(null, 2);
         }
         
         // Update GameStateManager with current references
@@ -458,7 +516,7 @@ public class MultiplayerViewManager {
         // Hide multiplayer screen first
         if (multiplayerScreen != null) {
             multiplayerScreen.hide();
-            multiplayerScreen.hideWinningPanel();
+            gameStateManager.hideWinningPanel();
             multiplayerScreen.hidePausePanel();
             multiplayerScreen.hideSettingsOverlay();
         }
@@ -590,6 +648,228 @@ public class MultiplayerViewManager {
         return null;
     }
     
+    /**
+     * Sets the callback for starting the game when both players are ready.
+     */
+    public void setOnStartGameCallback(Runnable callback) {
+        this.onStartGameCallback = callback;
+    }
+    
+    // ========== Ready Panel Management ==========
+    
+    /**
+     * Shows the ready panel for multiplayer game start.
+     */
+    public void showReadyPanel() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        // Reset ready states
+        multiplayerScreen.setPlayer1ReadyState(false);
+        multiplayerScreen.setPlayer2ReadyState(false);
+        
+        // Create ready panel if it doesn't exist
+        javafx.scene.layout.BorderPane readyPanel = multiplayerScreen.getReadyPanel();
+        if (readyPanel == null) {
+            readyPanel = new BorderPane();
+            readyPanel.getStyleClass().add("ready-panel");
+            
+            VBox mainContainer = new VBox(30);
+            mainContainer.getStyleClass().add("ready-container");
+            mainContainer.setAlignment(javafx.geometry.Pos.CENTER);
+            
+            // Title
+            Label titleLabel = new Label("GET READY!");
+            titleLabel.getStyleClass().add("ready-title");
+            
+            // Create two separate boxes for each player
+            HBox playersContainer = new HBox(40);
+            playersContainer.setAlignment(javafx.geometry.Pos.CENTER);
+            
+            // Player 1 box
+            VBox player1Box = new VBox(15);
+            player1Box.getStyleClass().add("ready-player-box");
+            player1Box.setAlignment(javafx.geometry.Pos.CENTER);
+            player1Box.setMinWidth(300);
+            player1Box.setMinHeight(150);
+            
+            Label player1Title = new Label("PLAYER 1");
+            player1Title.getStyleClass().add("ready-player-title");
+            
+            Label player1Label = new Label("Press SPACE to ready");
+            player1Label.getStyleClass().add("ready-instruction");
+            player1Label.setId("player1ReadyLabel");
+            
+            player1Box.getChildren().addAll(player1Title, player1Label);
+            
+            // Player 2 box
+            VBox player2Box = new VBox(15);
+            player2Box.getStyleClass().add("ready-player-box");
+            player2Box.setAlignment(javafx.geometry.Pos.CENTER);
+            player2Box.setMinWidth(300);
+            player2Box.setMinHeight(150);
+            
+            Label player2Title = new Label("PLAYER 2");
+            player2Title.getStyleClass().add("ready-player-title");
+            
+            Label player2Label = new Label("Press ENTER to ready");
+            player2Label.getStyleClass().add("ready-instruction");
+            player2Label.setId("player2ReadyLabel");
+            
+            player2Box.getChildren().addAll(player2Title, player2Label);
+            
+            playersContainer.getChildren().addAll(player1Box, player2Box);
+            
+            mainContainer.getChildren().addAll(titleLabel, playersContainer);
+            readyPanel.setCenter(mainContainer);
+            
+            // Store the ready panel
+            multiplayerScreen.setReadyPanel(readyPanel);
+        }
+        
+        // Create ready overlay if it doesn't exist
+        StackPane readyOverlay = multiplayerScreen.getReadyOverlay();
+        if (readyOverlay == null) {
+            readyOverlay = new StackPane();
+            readyOverlay.setAlignment(javafx.geometry.Pos.CENTER);
+            readyOverlay.setMaxWidth(Double.MAX_VALUE);
+            readyOverlay.setMaxHeight(Double.MAX_VALUE);
+            readyOverlay.setPickOnBounds(true);
+            readyOverlay.setMouseTransparent(false);
+            
+            readyPanel.setMaxSize(javafx.scene.layout.Region.USE_PREF_SIZE, javafx.scene.layout.Region.USE_PREF_SIZE);
+            readyOverlay.getChildren().add(readyPanel);
+            
+            // Store the ready overlay
+            multiplayerScreen.setReadyOverlay(readyOverlay);
+        }
+        
+        // Add ready overlay to wrapper if it exists
+        StackPane wrapper = multiplayerScreen.getWrapper();
+        if (wrapper != null) {
+            if (!wrapper.getChildren().contains(readyOverlay)) {
+                wrapper.getChildren().add(readyOverlay);
+            }
+            readyOverlay.setVisible(true);
+            readyOverlay.setManaged(true);
+        }
+        
+        // Update ready labels
+        updateReadyLabels();
+    }
+    
+    /**
+     * Hides the ready panel.
+     */
+    public void hideReadyPanel() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        StackPane readyOverlay = multiplayerScreen.getReadyOverlay();
+        if (readyOverlay != null) {
+            readyOverlay.setVisible(false);
+            readyOverlay.setManaged(false);
+        }
+    }
+    
+    /**
+     * Sets player 1 ready state.
+     */
+    public void setPlayer1Ready(boolean ready) {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        multiplayerScreen.setPlayer1ReadyState(ready);
+        updateReadyLabels();
+        checkBothReady();
+    }
+    
+    /**
+     * Sets player 2 ready state.
+     */
+    public void setPlayer2Ready(boolean ready) {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        multiplayerScreen.setPlayer2ReadyState(ready);
+        updateReadyLabels();
+        checkBothReady();
+    }
+    
+    /**
+     * Updates the ready labels UI to reflect current ready states.
+     */
+    public void updateReadyLabels() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        Label p1Label = multiplayerScreen.getP1ReadyIcon();
+        Label p2Label = multiplayerScreen.getP2ReadyIcon();
+        
+        if (p1Label != null) {
+            if (multiplayerScreen.isPlayer1Ready()) {
+                p1Label.setText("READY");
+                if (!p1Label.getStyleClass().contains("ready-confirmed")) {
+                    p1Label.getStyleClass().add("ready-confirmed");
+                }
+            } else {
+                p1Label.setText("Press SPACE to ready");
+                p1Label.getStyleClass().remove("ready-confirmed");
+            }
+        }
+        
+        if (p2Label != null) {
+            if (multiplayerScreen.isPlayer2Ready()) {
+                p2Label.setText("READY");
+                if (!p2Label.getStyleClass().contains("ready-confirmed")) {
+                    p2Label.getStyleClass().add("ready-confirmed");
+                }
+            } else {
+                p2Label.setText("Press ENTER to ready");
+                p2Label.getStyleClass().remove("ready-confirmed");
+            }
+        }
+    }
+    
+    /**
+     * Checks if both players are ready and starts the game if so.
+     */
+    public void checkBothReady() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        if (multiplayerScreen.isPlayer1Ready() && multiplayerScreen.isPlayer2Ready()) {
+            hideReadyPanel();
+            if (onStartGameCallback != null) {
+                onStartGameCallback.run();
+            }
+        }
+    }
+    
+    /**
+     * Clears all multiplayer game panels (game panels, brick panels, ghost panels)
+     * and side panels (hold, next, score, level) by setting all rectangles to transparent/empty state
+     * and resetting labels to default values.
+     */
+    public void clearMultiplayerGamePanels() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        renderer.clearBrickPanels(multiplayerScreen);
+        resetScoreAndLevelLabels();
+        
+        // Clear stored brick data
+        multiplayerScreen.setCurrentBrickData(null, 1);
+        multiplayerScreen.setCurrentBrickData(null, 2);
+    }
+    
     // Getters for game controllers
     public GameController getGameController1() {
         return gameController1;
@@ -597,6 +877,129 @@ public class MultiplayerViewManager {
     
     public GameController getGameController2() {
         return gameController2;
+    }
+    
+    // ========== Score and Level Binding ==========
+    
+    /**
+     * Binds the score property to the score label for a player.
+     * 
+     * @param score The score property to bind
+     * @param playerNumber The player number (1 or 2)
+     */
+    public void bindScore(javafx.beans.property.IntegerProperty score, int playerNumber) {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        javafx.scene.control.Label label = multiplayerScreen.getScoreLabel(playerNumber);
+        if (label != null && score != null) {
+            label.textProperty().unbind();
+            label.textProperty().bind(score.asString("%d"));
+        }
+    }
+    
+    /**
+     * Binds the level property to the level label for a player.
+     * 
+     * @param level The level property to bind
+     * @param playerNumber The player number (1 or 2)
+     */
+    public void bindLevel(javafx.beans.property.IntegerProperty level, int playerNumber) {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        javafx.scene.control.Label label = multiplayerScreen.getLevelLabel(playerNumber);
+        if (label != null && level != null) {
+            label.textProperty().unbind();
+            label.textProperty().bind(level.asString("%d"));
+        }
+    }
+    
+    /**
+     * Sets the visibility of brick panels and ghost panels for both players.
+     * 
+     * @param visible Whether the panels should be visible
+     * @param settingsPanel The settings panel to check ghost visibility setting
+     */
+    public void setBrickPanelsVisible(boolean visible, SettingsPanel settingsPanel) {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        javafx.scene.layout.GridPane brickPanel1 = multiplayerScreen.getBrickPanel(1);
+        javafx.scene.layout.GridPane brickPanel2 = multiplayerScreen.getBrickPanel(2);
+        javafx.scene.layout.GridPane ghostPanel1 = multiplayerScreen.getGhostPanel(1);
+        javafx.scene.layout.GridPane ghostPanel2 = multiplayerScreen.getGhostPanel(2);
+        
+        if (brickPanel1 != null) {
+            brickPanel1.setVisible(visible);
+            brickPanel1.setManaged(visible);
+        }
+        if (brickPanel2 != null) {
+            brickPanel2.setVisible(visible);
+            brickPanel2.setManaged(visible);
+        }
+        
+        if (ghostPanel1 != null && settingsPanel != null) {
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            boolean ghostVisible = showGhost && visible;
+            ghostPanel1.setVisible(ghostVisible);
+            ghostPanel1.setManaged(ghostVisible);
+        }
+        if (ghostPanel2 != null && settingsPanel != null) {
+            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
+            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
+            boolean ghostVisible = showGhost && visible;
+            ghostPanel2.setVisible(ghostVisible);
+            ghostPanel2.setManaged(ghostVisible);
+        }
+    }
+    
+    /**
+     * Resets score and level labels to default values.
+     * Used when clearing game panels.
+     */
+    private void resetScoreAndLevelLabels() {
+        if (multiplayerScreen == null) {
+            return;
+        }
+        
+        // Reset score labels
+        javafx.scene.control.Label scoreLabel1 = multiplayerScreen.getScoreLabel(1);
+        if (scoreLabel1 != null) {
+            if (scoreLabel1.textProperty().isBound()) {
+                scoreLabel1.textProperty().unbind();
+            }
+            scoreLabel1.setText("0");
+        }
+        
+        javafx.scene.control.Label scoreLabel2 = multiplayerScreen.getScoreLabel(2);
+        if (scoreLabel2 != null) {
+            if (scoreLabel2.textProperty().isBound()) {
+                scoreLabel2.textProperty().unbind();
+            }
+            scoreLabel2.setText("0");
+        }
+        
+        // Reset level labels
+        javafx.scene.control.Label levelLabel1 = multiplayerScreen.getLevelLabel(1);
+        if (levelLabel1 != null) {
+            if (levelLabel1.textProperty().isBound()) {
+                levelLabel1.textProperty().unbind();
+            }
+            levelLabel1.setText("1");
+        }
+        
+        javafx.scene.control.Label levelLabel2 = multiplayerScreen.getLevelLabel(2);
+        if (levelLabel2 != null) {
+            if (levelLabel2.textProperty().isBound()) {
+                levelLabel2.textProperty().unbind();
+            }
+            levelLabel2.setText("1");
+        }
     }
 }
 

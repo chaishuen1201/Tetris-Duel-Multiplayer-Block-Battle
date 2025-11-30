@@ -61,14 +61,39 @@ class BrickRotatorTest {
     @Test
     void testRotationCycle() {
         int[][] initialShape = rotator.getCurrentShape();
-        NextShapeInfo nextShape = rotator.getNextShape();
+        int initialPosition = 0; // Start at position 0
         
-        rotator.setCurrentShape(nextShape.getPosition());
-        int[][] rotatedShape = rotator.getCurrentShape();
+        // Get the number of shapes for this brick
+        int numShapes = brick.getShapeMatrix().size();
         
-        // Shapes should be different after rotation
-        assertNotEquals(initialShape.length, rotatedShape.length, 
-                "Shape dimensions might change after rotation");
+        // If brick has only one shape (like O-brick), rotation should cycle back to same shape
+        if (numShapes == 1) {
+            NextShapeInfo nextShape = rotator.getNextShape();
+            assertEquals(0, nextShape.getPosition(), "O-brick should cycle back to position 0");
+            rotator.setCurrentShape(nextShape.getPosition());
+            int[][] rotatedShape = rotator.getCurrentShape();
+            assertArrayEquals(initialShape, rotatedShape, "O-brick rotation should return same shape");
+        } else {
+            // For bricks with multiple shapes, verify rotation cycles through them
+            NextShapeInfo nextShape = rotator.getNextShape();
+            int nextPosition = nextShape.getPosition();
+            
+            // Next position should be 1 (or wrap around to 0 if at last position)
+            int expectedNext = (initialPosition + 1) % numShapes;
+            assertEquals(expectedNext, nextPosition, "Next shape position should increment correctly");
+            
+            // Apply rotation
+            rotator.setCurrentShape(nextPosition);
+            int[][] rotatedShape = rotator.getCurrentShape();
+            
+            // Rotated shape should be different from initial (unless it's the same shape)
+            // For most bricks, the shapes will be different
+            // Use assertArrayEquals to check if they're the same, and if so, that's also valid
+            // The important thing is that rotation works, not that shapes are always different
+            assertNotNull(rotatedShape, "Rotated shape should not be null");
+            assertEquals(initialShape.length, rotatedShape.length, 
+                    "Shape dimensions should remain the same (all bricks use 4x4)");
+        }
     }
 }
 

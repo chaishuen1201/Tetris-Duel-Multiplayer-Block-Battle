@@ -271,5 +271,249 @@ public class GameViewRenderer {
             }
         }
     }
+    
+    // ========== MultiplayerScreen-specific rendering methods ==========
+    
+    /**
+     * Refreshes the brick display for a multiplayer player.
+     * 
+     * @param screen The MultiplayerScreen instance
+     * @param brick The brick data to render
+     * @param playerNumber The player number (1 or 2)
+     */
+    public void refreshBrick(MultiplayerScreen screen, ViewData brick, int playerNumber) {
+        if (screen == null || brick == null) {
+            return;
+        }
+        
+        // Store brick data in screen
+        screen.setCurrentBrickData(brick, playerNumber);
+        
+        GridPane brickPanel = screen.getBrickPanel(playerNumber);
+        GridPane ghostPanel = screen.getGhostPanel(playerNumber);
+        InputEventListener eventListener = screen.getEventListener(playerNumber);
+        
+        double scale = 0.85;
+        int scaledBrickSize = (int)(GameConstants.BRICK_SIZE * scale);
+        
+        refreshBrick(brick, brickPanel, ghostPanel, eventListener, scaledBrickSize);
+    }
+    
+    /**
+     * Refreshes the game background for a multiplayer player.
+     * 
+     * @param screen The MultiplayerScreen instance
+     * @param board The board matrix to render
+     * @param playerNumber The player number (1 or 2)
+     */
+    public void refreshGameBackground(MultiplayerScreen screen, int[][] board, int playerNumber) {
+        if (screen == null) {
+            return;
+        }
+        
+        Rectangle[][] matrix = screen.getDisplayMatrix(playerNumber);
+        refreshGameBackground(board, matrix);
+    }
+    
+    /**
+     * Updates the next bricks display for a multiplayer player.
+     * 
+     * @param screen The MultiplayerScreen instance
+     * @param nextBricks The list of next bricks to display
+     * @param playerNumber The player number (1 or 2)
+     */
+    public void updateNextBricks(MultiplayerScreen screen, List<Brick> nextBricks, int playerNumber) {
+        if (screen == null) {
+            return;
+        }
+        
+        List<GridPane> panes = screen.getNextBrickPanes(playerNumber);
+        double scale = 0.85;
+        int brickSize = (int)((GameConstants.BRICK_SIZE - 10) * scale);
+        
+        if (panes == null || panes.isEmpty()) {
+            return;
+        }
+        
+        // For multiplayer, only show the first brick
+        int maxBricks = 1;
+        
+        updateNextBricks(nextBricks, panes, brickSize, maxBricks);
+    }
+    
+    /**
+     * Updates the hold brick display for a multiplayer player.
+     * 
+     * @param screen The MultiplayerScreen instance
+     * @param heldBrick The brick to render (can be null to clear)
+     * @param playerNumber The player number (1 or 2)
+     */
+    public void updateHoldBrick(MultiplayerScreen screen, Brick heldBrick, int playerNumber) {
+        if (screen == null) {
+            return;
+        }
+        
+        Rectangle[][] rectangles = screen.getHoldBrickRectangles(playerNumber);
+        renderHoldBrick(heldBrick, rectangles);
+    }
+    
+    /**
+     * Clears all brick panels for multiplayer (brick panels, ghost panels, hold panels, next panels).
+     * 
+     * @param screen The MultiplayerScreen instance
+     */
+    public void clearBrickPanels(MultiplayerScreen screen) {
+        if (screen == null) {
+            return;
+        }
+        
+        // Clear display matrices
+        clearDisplayMatrix(screen.getDisplayMatrix(1));
+        clearDisplayMatrix(screen.getDisplayMatrix(2));
+        
+        // Clear brick panels
+        double scale = 0.85;
+        int brickSize = (int)(GameConstants.BRICK_SIZE * scale);
+        
+        GridPane brickPanel1 = screen.getBrickPanel(1);
+        GridPane brickPanel2 = screen.getBrickPanel(2);
+        GridPane ghostPanel1 = screen.getGhostPanel(1);
+        GridPane ghostPanel2 = screen.getGhostPanel(2);
+        
+        if (brickPanel1 != null) {
+            brickPanel1.getChildren().clear();
+            initializeBrickPanel(brickPanel1, brickSize);
+        }
+        if (brickPanel2 != null) {
+            brickPanel2.getChildren().clear();
+            initializeBrickPanel(brickPanel2, brickSize);
+        }
+        
+        // Clear ghost panels
+        if (ghostPanel1 != null) {
+            ghostPanel1.getChildren().clear();
+            initializeBrickPanel(ghostPanel1, brickSize);
+        }
+        if (ghostPanel2 != null) {
+            ghostPanel2.getChildren().clear();
+            initializeBrickPanel(ghostPanel2, brickSize);
+        }
+        
+        // Clear hold panels
+        int holdBrickSize = (int)((GameConstants.BRICK_SIZE - 10) * scale);
+        GridPane holdPanel1 = screen.getHoldBrickPanel(1);
+        GridPane holdPanel2 = screen.getHoldBrickPanel(2);
+        Rectangle[][] holdRectangles1 = screen.getHoldBrickRectangles(1);
+        Rectangle[][] holdRectangles2 = screen.getHoldBrickRectangles(2);
+        
+        if (holdPanel1 != null) {
+            holdPanel1.getChildren().clear();
+            if (holdRectangles1 == null) {
+                holdRectangles1 = new Rectangle[4][4];
+                screen.setHoldBrickRectangles(holdRectangles1, 1);
+            }
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                    rect.setFill(Color.TRANSPARENT);
+                    rect.setStroke(Color.gray(0.3));
+                    holdRectangles1[i][j] = rect;
+                    holdPanel1.add(rect, j, i);
+                }
+            }
+        }
+        
+        if (holdPanel2 != null) {
+            holdPanel2.getChildren().clear();
+            if (holdRectangles2 == null) {
+                holdRectangles2 = new Rectangle[4][4];
+                screen.setHoldBrickRectangles(holdRectangles2, 2);
+            }
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                    rect.setFill(Color.TRANSPARENT);
+                    rect.setStroke(Color.gray(0.3));
+                    holdRectangles2[i][j] = rect;
+                    holdPanel2.add(rect, j, i);
+                }
+            }
+        }
+        
+        // Clear next bricks panels
+        int nextBrickSize = (int)(80 * scale);
+        List<GridPane> nextPanes1 = screen.getNextBrickPanes(1);
+        List<GridPane> nextPanes2 = screen.getNextBrickPanes(2);
+        javafx.scene.layout.VBox nextBricksPanel1 = screen.getNextBricksPanel(1);
+        javafx.scene.layout.VBox nextBricksPanel2 = screen.getNextBricksPanel(2);
+        
+        // Clear and re-initialize next brick panes
+        if (nextBricksPanel1 != null) {
+            nextBricksPanel1.getChildren().clear();
+            if (nextPanes1 == null) {
+                nextPanes1 = new java.util.ArrayList<>();
+                screen.setNextBrickPanes(nextPanes1, 1);
+            }
+            nextPanes1.clear();
+            GridPane pane = new GridPane();
+            pane.setVgap(1);
+            pane.setHgap(1);
+            pane.setPrefSize(nextBrickSize, nextBrickSize);
+            for (int r = 0; r < 4; r++) {
+                for (int c = 0; c < 4; c++) {
+                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                    rect.setFill(Color.TRANSPARENT);
+                    pane.add(rect, c, r);
+                }
+            }
+            nextPanes1.add(pane);
+            nextBricksPanel1.getChildren().add(pane);
+        }
+        
+        if (nextBricksPanel2 != null) {
+            nextBricksPanel2.getChildren().clear();
+            if (nextPanes2 == null) {
+                nextPanes2 = new java.util.ArrayList<>();
+                screen.setNextBrickPanes(nextPanes2, 2);
+            }
+            nextPanes2.clear();
+            GridPane pane = new GridPane();
+            pane.setVgap(1);
+            pane.setHgap(1);
+            pane.setPrefSize(nextBrickSize, nextBrickSize);
+            for (int r = 0; r < 4; r++) {
+                for (int c = 0; c < 4; c++) {
+                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
+                    rect.setFill(Color.TRANSPARENT);
+                    pane.add(rect, c, r);
+                }
+            }
+            nextPanes2.add(pane);
+            nextBricksPanel2.getChildren().add(pane);
+        }
+    }
+    
+    /**
+     * Helper method to initialize a brick panel with empty cells.
+     */
+    private void initializeBrickPanel(GridPane panel, int brickSize) {
+        if (panel == null) {
+            return;
+        }
+        
+        panel.getColumnConstraints().clear();
+        panel.getRowConstraints().clear();
+        
+        for (int c = 0; c < BOARD_WIDTH; c++) {
+            javafx.scene.layout.ColumnConstraints cc = new javafx.scene.layout.ColumnConstraints(brickSize);
+            panel.getColumnConstraints().add(cc);
+        }
+        
+        for (int r = 0; r < BOARD_HEIGHT; r++) {
+            javafx.scene.layout.RowConstraints rc = new javafx.scene.layout.RowConstraints(brickSize);
+            panel.getRowConstraints().add(rc);
+        }
+    }
+    
 }
 

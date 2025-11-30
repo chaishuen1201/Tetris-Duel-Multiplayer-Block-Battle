@@ -90,7 +90,8 @@ class MatrixOperationsTest {
         ClearRow result = MatrixOperations.checkRemoving(matrix);
         
         assertEquals(1, result.getLinesRemoved());
-        assertEquals(50, result.getScoreBonus());
+        // Standard Tetris scoring: 1 line = 40 points
+        assertEquals(40, result.getScoreBonus());
         
         // Check that row 2 is now empty
         int[][] newMatrix = result.getNewMatrix();
@@ -109,7 +110,8 @@ class MatrixOperationsTest {
         ClearRow result = MatrixOperations.checkRemoving(matrix);
         
         assertEquals(2, result.getLinesRemoved());
-        assertEquals(200, result.getScoreBonus()); // 50 * 2 * 2
+        // Standard Tetris scoring: 2 lines = 100 points
+        assertEquals(100, result.getScoreBonus());
     }
 
     @Test

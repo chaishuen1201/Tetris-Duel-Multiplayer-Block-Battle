@@ -11,6 +11,7 @@ import com.comp2042.view.NotificationPanel;
 import com.comp2042.view.SettingsPanel;
 import com.comp2042.view.MultiplayerScreen;
 import com.comp2042.view.SinglePlayerScreen;
+import com.comp2042.view.GameViewRenderer;
 import com.comp2042.model.HighScoreManager;
 import com.comp2042.model.SimpleBoard;
 import com.comp2042.util.KeyBindingsManager;
@@ -21,6 +22,7 @@ import com.comp2042.controller.manager.GameLoopManager;
 import com.comp2042.controller.manager.PanelCoordinator;
 import com.comp2042.controller.manager.GarbageManager;
 import com.comp2042.controller.manager.MultiplayerViewManager;
+import com.comp2042.controller.manager.SinglePlayerViewManager;
 import com.comp2042.controller.manager.CountdownManager;
 import com.comp2042.controller.input.InputHandler;
 import javafx.animation.Timeline;
@@ -98,6 +100,9 @@ public class GuiController implements Initializable {
     // Panel visibility management - delegated to PanelCoordinator
     private final PanelCoordinator panelCoordinator = new PanelCoordinator();
     
+    // Rendering - delegated to GameViewRenderer
+    private final GameViewRenderer gameViewRenderer = new GameViewRenderer();
+    
     // Settings management - delegated to SettingsController
     private final SettingsController settingsController = new SettingsController();
     
@@ -106,6 +111,9 @@ public class GuiController implements Initializable {
     
     // Multiplayer view management - delegated to MultiplayerViewManager
     private final MultiplayerViewManager multiplayerViewManager;
+    
+    // Single player view management - delegated to SinglePlayerViewManager
+    private SinglePlayerViewManager singlePlayerViewManager;
     
     // Countdown management - delegated to CountdownManager
     private CountdownManager countdownManager;
@@ -177,7 +185,16 @@ public class GuiController implements Initializable {
         singlePlayerScreen.initializeGamePanel();
         singlePlayerScreen.initializeHoldPanel();
         singlePlayerScreen.initializeNextBricksPanel();
-        singlePlayerScreen.initializeInfoPanel();
+        
+        // Initialize single player view manager
+        singlePlayerViewManager = new SinglePlayerViewManager(gameStateManager, panelCoordinator);
+        singlePlayerViewManager.setSinglePlayerScreen(singlePlayerScreen);
+        
+        // Set single player view manager in garbage manager
+        garbageManager.setSinglePlayerViewManager(singlePlayerViewManager);
+        
+        // Initialize default values for score/level/lines using GameStateManager
+        gameStateManager.initializeInfoLabels(scoreLabel, levelLabel, linesLabel);
         
         // Initialize audio manager
         audioManager.initialize();
@@ -209,10 +226,14 @@ public class GuiController implements Initializable {
         
         // Initialize multiplayer screen
         multiplayerScreen = new MultiplayerScreen();
-        // Update settings controller with multiplayer screen reference
+        // Update settings controller with multiplayer screen and view manager references
         settingsController.setMultiplayerScreen(multiplayerScreen);
+        settingsController.setMultiplayerViewManager(multiplayerViewManager);
         // Update garbage manager with multiplayer screen reference
         garbageManager.setMultiplayerScreen(multiplayerScreen);
+        
+        // Set MultiplayerScreen reference for winning panel management in GameStateManager
+        gameStateManager.setMultiplayerScreen(multiplayerScreen);
         
         // Initialize multiplayer view manager with UI components
         multiplayerViewManager.setMultiplayerScreen(multiplayerScreen);
@@ -345,12 +366,9 @@ public class GuiController implements Initializable {
         gameStateManager.setOnUpdateTimelineRate1(() -> gameLoopManager.updateTimelineRate(1));
         gameStateManager.setOnUpdateTimelineRate2(() -> gameLoopManager.updateTimelineRate(2));
         
-        gameStateManager.setOnShowWinningPanel(() -> {
-            int winnerPlayerNumber = gameStateManager.isGameOver1() ? 2 : 1;
-            showWinningPanel(winnerPlayerNumber);
-        });
-        
-        gameStateManager.setOnHideWinningPanel(this::hideWinningPanel);
+        // Note: MultiplayerScreen reference will be set after it's created (see below)
+        gameStateManager.setOnRestartGame(() -> multiplayerViewManager.restartMultiplayerGame());
+        gameStateManager.setOnQuitToMenu(() -> multiplayerViewManager.quitToMainMenuFromMultiplayer());
         
         gameStateManager.setOnShowGameOverPanel(() -> {
             if (gameOverPanel != null) {
@@ -444,8 +462,8 @@ public class GuiController implements Initializable {
             
             @Override
             public void onSinglePlayerMoveDown(DownData downData) {
-                if (singlePlayerScreen != null) {
-                    singlePlayerScreen.refreshBrick(downData.getViewData(), gameStateManager.isGameStarted());
+                if (singlePlayerViewManager != null) {
+                    singlePlayerViewManager.refreshBrick(downData.getViewData());
                 }
             }
             
@@ -505,8 +523,8 @@ public class GuiController implements Initializable {
             
             @Override
             public void refreshBrick(ViewData viewData) {
-                if (singlePlayerScreen != null) {
-                    singlePlayerScreen.refreshBrick(viewData, gameStateManager.isGameStarted());
+                if (singlePlayerViewManager != null) {
+                    singlePlayerViewManager.refreshBrick(viewData);
                 }
             }
             
@@ -585,15 +603,15 @@ public class GuiController implements Initializable {
             
             @Override
             public void setPlayer1Ready(boolean ready) {
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.setPlayer1Ready(ready);
+                if (multiplayerViewManager != null) {
+                    multiplayerViewManager.setPlayer1Ready(ready);
                 }
             }
             
             @Override
             public void setPlayer2Ready(boolean ready) {
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.setPlayer2Ready(ready);
+                if (multiplayerViewManager != null) {
+                    multiplayerViewManager.setPlayer2Ready(ready);
                 }
             }
             
@@ -644,15 +662,15 @@ public class GuiController implements Initializable {
             
             @Override
             public void updateReadyLabels() {
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.updateReadyLabels();
+                if (multiplayerViewManager != null) {
+                    multiplayerViewManager.updateReadyLabels();
                 }
             }
             
             @Override
             public void checkBothReady() {
-                if (multiplayerScreen != null) {
-                    multiplayerScreen.checkBothReady();
+                if (multiplayerViewManager != null) {
+                    multiplayerViewManager.checkBothReady();
                 }
             }
         });
@@ -671,33 +689,18 @@ public class GuiController implements Initializable {
             (r) -> multiplayerViewManager.quitToMainMenuFromMultiplayer(), // onQuitToMenu
             (r) -> resumeMultiplayerGame(), // onResumeGame
             (r) -> settingsController.showSettingsFromPause(), // onShowSettings
-            () -> multiplayerScreen.updateReadyLabels(), // onUpdateReadyLabels
-            () -> multiplayerScreen.checkBothReady(), // onCheckBothReady
+            () -> multiplayerViewManager.updateReadyLabels(), // onUpdateReadyLabels
+            () -> multiplayerViewManager.checkBothReady(), // onCheckBothReady
             (ready) -> {}, // onSetPlayer1Ready (handled internally)
             (ready) -> {}, // onSetPlayer2Ready (handled internally)
-            () -> multiplayerViewManager.attachKeyboardHandlersToScene(), // onAttachKeyboardHandlers
             (parent) -> {}, // onGetRootBorderPane (not needed)
             (panel) -> {} // onSetSettingsPanel (not needed)
         );
+        
+        // Set callback for starting game when both players are ready
+        multiplayerViewManager.setOnStartGameCallback(() -> multiplayerViewManager.startMultiplayerGame());
     }
     
-    private void showWinningPanel(int winnerPlayerNumber) {
-        if (multiplayerScreen != null) {
-            // Stop multiplayer timer
-            stopMultiplayerTimer();
-            
-            // Show winning panel
-            multiplayerScreen.showWinningPanel(winnerPlayerNumber, timerManager.getMultiplayerElapsedSeconds());
-            // Play winner sound
-            audioManager.playWinner();
-        }
-    }
-    
-    void hideWinningPanel() {
-        if (multiplayerScreen != null) {
-            multiplayerScreen.hideWinningPanel();
-        }
-    }
     
     
     private void resumeMultiplayerGame() {
@@ -739,14 +742,14 @@ public class GuiController implements Initializable {
         if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             // Initialize multiplayer game view
             if (multiplayerScreen != null) {
-                multiplayerScreen.refreshBrick(brick, playerNumber);
-                multiplayerScreen.refreshGameBackground(boardMatrix, playerNumber);
+                gameViewRenderer.refreshBrick(multiplayerScreen, brick, playerNumber);
+                gameViewRenderer.refreshGameBackground(multiplayerScreen, boardMatrix, playerNumber);
                 
                 // Update next bricks display for multiplayer
                 GameController controller = (playerNumber == 1) ? gameController1 : gameController2;
                 if (controller != null && controller.getBoard() instanceof SimpleBoard) {
                     SimpleBoard simpleBoard = (SimpleBoard) controller.getBoard();
-                    multiplayerScreen.updateNextBricks(simpleBoard.getNextBricks(), playerNumber);
+                    gameViewRenderer.updateNextBricks(multiplayerScreen, simpleBoard.getNextBricks(), playerNumber);
                 }
             }
             
@@ -755,20 +758,20 @@ public class GuiController implements Initializable {
             }
         } else {
             // Single player game view
-            if (singlePlayerScreen != null) {
-                singlePlayerScreen.refreshBrick(brick, gameStateManager.isGameStarted());
-                singlePlayerScreen.refreshGameBackground(boardMatrix);
+            if (singlePlayerViewManager != null) {
+                singlePlayerViewManager.refreshBrick(brick);
+                singlePlayerViewManager.refreshGameBackground(boardMatrix);
                 
                 // Store brick data for countdown refresh
-                singlePlayerScreen.setCurrentBrickData(brick);
+                singlePlayerViewManager.setCurrentBrickData(brick);
                 
-                // Update next bricks display for single player (only if game has started)
-                // Don't show next bricks during main menu or countdown
-                if (gameStateManager.isGameStarted() && eventListener instanceof GameController) {
+                // Update next bricks display for single player
+                // Visibility logic is handled inside updateNextBricks
+                if (eventListener instanceof GameController) {
                     GameController gameController = (GameController) eventListener;
                     if (gameController.getBoard() instanceof SimpleBoard) {
                         SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                        singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStateManager.isGameStarted());
+                        singlePlayerViewManager.updateNextBricks(simpleBoard.getNextBricks());
                     }
                 }
             }
@@ -786,8 +789,8 @@ public class GuiController implements Initializable {
      * and resetting labels to default values.
      */
     void clearMultiplayerGamePanels() {
-        if (multiplayerScreen != null) {
-            multiplayerScreen.clearGamePanels();
+        if (multiplayerViewManager != null) {
+            multiplayerViewManager.clearMultiplayerGamePanels();
         }
     }
     
@@ -808,10 +811,10 @@ public class GuiController implements Initializable {
     private void refreshBrickForPlayer(ViewData viewData, int playerNumber) {
         if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
             if (!gameStateManager.isPaused()) {
-                multiplayerScreen.refreshBrick(viewData, playerNumber);
+                gameViewRenderer.refreshBrick(multiplayerScreen, viewData, playerNumber);
             }
-        } else if (singlePlayerScreen != null) {
-            singlePlayerScreen.refreshBrick(viewData, gameStateManager.isGameStarted());
+        } else if (singlePlayerViewManager != null) {
+            singlePlayerViewManager.refreshBrick(viewData);
         }
     }
 
@@ -856,8 +859,8 @@ public class GuiController implements Initializable {
     }
     
     public void bindScore(IntegerProperty score, int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-            multiplayerScreen.bindScore(score, playerNumber);
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
+            multiplayerViewManager.bindScore(score, playerNumber);
         } else if (playerNumber == 0) {
             // Single player mode - use SinglePlayerScreen
             if (singlePlayerScreen != null) {
@@ -871,8 +874,8 @@ public class GuiController implements Initializable {
     }
     
     public void bindLevel(IntegerProperty level, int playerNumber) {
-        if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-            multiplayerScreen.bindLevel(level, playerNumber);
+        if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
+            multiplayerViewManager.bindLevel(level, playerNumber);
         } else if (playerNumber == 0) {
             // Single player mode - use SinglePlayerScreen
             if (singlePlayerScreen != null && level != null) {
@@ -1030,17 +1033,19 @@ public class GuiController implements Initializable {
                 GameController gameController = (GameController) eventListener;
                 if (gameController.getBoard() instanceof SimpleBoard) {
                     SimpleBoard simpleBoard = (SimpleBoard) gameController.getBoard();
-                    singlePlayerScreen.updateNextBricks(simpleBoard.getNextBricks(), gameStateManager.isGameStarted());
+                    if (singlePlayerViewManager != null) {
+                        singlePlayerViewManager.updateNextBricks(simpleBoard.getNextBricks());
+                    }
                 }
             }
         }
         
         // Refresh the brick display with stored brick data
         // The brick data was stored when initGameView was called
-        if (singlePlayerScreen != null) {
-            ViewData currentBrickData = singlePlayerScreen.getCurrentBrickData();
+        if (singlePlayerViewManager != null) {
+            ViewData currentBrickData = singlePlayerViewManager.getCurrentBrickData();
             if (currentBrickData != null) {
-                singlePlayerScreen.refreshBrick(currentBrickData, gameStateManager.isGameStarted());
+                singlePlayerViewManager.refreshBrick(currentBrickData);
             }
         }
         
@@ -1137,6 +1142,56 @@ public class GuiController implements Initializable {
     
     public MultiplayerScreen getMultiplayerScreen() {
         return multiplayerScreen;
+    }
+    
+    // Delegate methods for multiplayer rendering (use renderer instead of screen)
+    public void refreshMultiplayerBrick(ViewData brick, int playerNumber) {
+        if (multiplayerScreen != null) {
+            gameViewRenderer.refreshBrick(multiplayerScreen, brick, playerNumber);
+        }
+    }
+    
+    public void refreshMultiplayerGameBackground(int[][] board, int playerNumber) {
+        if (multiplayerScreen != null) {
+            gameViewRenderer.refreshGameBackground(multiplayerScreen, board, playerNumber);
+        }
+    }
+    
+    public void updateMultiplayerNextBricks(List<com.comp2042.logic.bricks.Brick> nextBricks, int playerNumber) {
+        if (multiplayerScreen != null) {
+            gameViewRenderer.updateNextBricks(multiplayerScreen, nextBricks, playerNumber);
+        }
+    }
+    
+    public void updateMultiplayerHoldBrick(com.comp2042.logic.bricks.Brick heldBrick, int playerNumber) {
+        if (multiplayerScreen != null) {
+            gameViewRenderer.updateHoldBrick(multiplayerScreen, heldBrick, playerNumber);
+        }
+    }
+    
+    // Delegate methods for single player rendering (use SinglePlayerViewManager)
+    public void refreshSinglePlayerBrick(com.comp2042.model.ViewData brick) {
+        if (singlePlayerViewManager != null) {
+            singlePlayerViewManager.refreshBrick(brick);
+        }
+    }
+    
+    public void refreshSinglePlayerGameBackground(int[][] board) {
+        if (singlePlayerViewManager != null) {
+            singlePlayerViewManager.refreshGameBackground(board);
+        }
+    }
+    
+    public void updateSinglePlayerNextBricks(List<com.comp2042.logic.bricks.Brick> nextBricks) {
+        if (singlePlayerViewManager != null) {
+            singlePlayerViewManager.updateNextBricks(nextBricks);
+        }
+    }
+    
+    public void updateSinglePlayerHoldBrick(com.comp2042.logic.bricks.Brick heldBrick) {
+        if (singlePlayerViewManager != null) {
+            singlePlayerViewManager.updateHoldBrick(heldBrick);
+        }
     }
     
     public MultiplayerViewManager getMultiplayerViewManager() {

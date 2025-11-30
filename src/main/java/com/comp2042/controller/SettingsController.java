@@ -3,6 +3,7 @@ package com.comp2042.controller;
 import com.comp2042.controller.manager.AudioManager;
 import com.comp2042.controller.manager.GameStateManager;
 import com.comp2042.controller.manager.PanelCoordinator;
+import com.comp2042.controller.manager.MultiplayerViewManager;
 import com.comp2042.view.MainMenuPanel;
 import com.comp2042.view.MultiplayerScreen;
 import com.comp2042.view.SettingsPanel;
@@ -16,6 +17,7 @@ public class SettingsController {
     private PanelCoordinator panelCoordinator;
     private GameStateManager gameStateManager;
     private MultiplayerScreen multiplayerScreen;
+    private MultiplayerViewManager multiplayerViewManager;
     private StackPane gameStack;
     private MainMenuPanel mainMenuPanel;
     private javafx.scene.layout.GridPane ghostPanel;
@@ -77,8 +79,9 @@ public class SettingsController {
                 // Update ghost panel for single player
                 panelCoordinator.showGhostPanel(newVal && gameStateManager.isGameStarted());
                 // Update ghost panels for multiplayer
-                if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
-                    multiplayerScreen.setBrickPanelsVisible(newVal && gameStateManager.isGameStarted(), settingsPanel);
+                // Brick panels should always be visible when game is started, only ghost panel visibility changes
+                if (gameStateManager.isMultiplayerMode() && multiplayerViewManager != null && gameStateManager.isGameStarted()) {
+                    multiplayerViewManager.setBrickPanelsVisible(true, settingsPanel);
                 }
             });
             
@@ -245,6 +248,10 @@ public class SettingsController {
     // Setters for updating references (e.g., when multiplayer screen is created)
     public void setMultiplayerScreen(MultiplayerScreen multiplayerScreen) {
         this.multiplayerScreen = multiplayerScreen;
+    }
+    
+    public void setMultiplayerViewManager(MultiplayerViewManager multiplayerViewManager) {
+        this.multiplayerViewManager = multiplayerViewManager;
     }
     
     public SettingsPanel getSettingsPanel() {

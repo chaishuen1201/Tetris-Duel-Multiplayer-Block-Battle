@@ -94,27 +94,7 @@ public class PausePanelActionHandler {
         PausePanel pausePanel = guiController.getPausePanel();
         
         if (gameStateManager.isMultiplayerMode()) {
-            // Clear all multiplayer game panels and side panels before restarting
-            guiController.clearMultiplayerGamePanels();
-            
-            // Re-initialize multiplayer panels to ensure consistent container and side panel sizing
-            // This fixes issues where sizes differ after restart
-            if (multiplayerScreen != null) {
-                multiplayerScreen.initializeMultiplayerPanels();
-                multiplayerScreen.show();
-            }
-            
-            // Update GameStateManager with current references
-            gameStateManager.setGameController1(guiController.getGameController1());
-            gameStateManager.setGameController2(guiController.getGameController2());
-            gameStateManager.setTimeLine1(guiController.getTimeLine1());
-            gameStateManager.setTimeLine2(guiController.getTimeLine2());
-            gameStateManager.setGarbageProcessTimeline1(guiController.getGarbageProcessTimeline1());
-            gameStateManager.setGarbageProcessTimeline2(guiController.getGarbageProcessTimeline2());
-            
-            // Delegate to GameStateManager
-            gameStateManager.restartMultiplayerGame();
-            
+            // Hide pause panel before restarting
             if (pausePanel != null) {
                 pausePanel.setVisible(false);
             }
@@ -123,7 +103,10 @@ public class PausePanelActionHandler {
             }
             
             // Hide winning panel if visible
-            guiController.hideWinningPanel();
+            gameStateManager.hideWinningPanel();
+            
+            // Use MultiplayerViewManager to restart, which properly handles ghost panel visibility
+            guiController.getMultiplayerViewManager().restartMultiplayerGame();
         } else {
             // For single player, use newGame method
             guiController.newGame(null);
@@ -175,7 +158,7 @@ public class PausePanelActionHandler {
         gameStateManager.quitToMainMenu();
         
         // Hide winning panel if visible
-        guiController.hideWinningPanel();
+        gameStateManager.hideWinningPanel();
         
         // Hide game over panel if visible
         GameOverPanel gameOverPanel = guiController.getGameOverPanel();
@@ -320,7 +303,7 @@ public class PausePanelActionHandler {
         if (multiplayerScreen != null) {
             multiplayerScreen.hide();
             multiplayerScreen.hidePausePanel();
-            multiplayerScreen.hideWinningPanel();
+            gameStateManager.hideWinningPanel();
             multiplayerScreen.hideSettingsOverlay();
             // Move settings panel back to gameStack for single player mode
             if (settingsPanel != null) {
@@ -354,8 +337,8 @@ public class PausePanelActionHandler {
             }
         }
         
-        // Hide winning panel if visible
-        guiController.hideWinningPanel();
+        // Hide winning panel if visible (already hidden above, but ensure it's hidden)
+        gameStateManager.hideWinningPanel();
         
         // Ensure settings panel is in gameStack for single player mode (do this regardless of overlay state)
         if (settingsPanel != null && gameStack != null) {

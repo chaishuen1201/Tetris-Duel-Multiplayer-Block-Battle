@@ -3,9 +3,7 @@ package com.comp2042.view;
 import com.comp2042.controller.GameConstants;
 import com.comp2042.controller.GameController;
 import com.comp2042.event.InputEventListener;
-import com.comp2042.logic.bricks.Brick;
 import com.comp2042.model.ViewData;
-import javafx.beans.property.IntegerProperty;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;
@@ -72,7 +70,6 @@ public class MultiplayerScreen {
     private Runnable onCheckBothReady;
     private Consumer<Boolean> onSetPlayer1Ready;
     private Consumer<Boolean> onSetPlayer2Ready;
-    private Runnable onAttachKeyboardHandlers;
     private Consumer<Parent> onGetRootBorderPane;
     private Consumer<SettingsPanel> onSetSettingsPanel;
     
@@ -83,9 +80,6 @@ public class MultiplayerScreen {
     private GameController gameController1, gameController2;
     private InputEventListener eventListener1, eventListener2;
     private ViewData currentBrickData1, currentBrickData2;
-    
-    // Rendering - delegated to GameViewRenderer
-    private final GameViewRenderer renderer = new GameViewRenderer();
     
     public MultiplayerScreen() {
         initializePanels();
@@ -101,7 +95,6 @@ public class MultiplayerScreen {
             Runnable onCheckBothReady,
             Consumer<Boolean> onSetPlayer1Ready,
             Consumer<Boolean> onSetPlayer2Ready,
-            Runnable onAttachKeyboardHandlers,
             Consumer<Parent> onGetRootBorderPane,
             Consumer<SettingsPanel> onSetSettingsPanel) {
         this.onStartGame = onStartGame;
@@ -113,7 +106,6 @@ public class MultiplayerScreen {
         this.onCheckBothReady = onCheckBothReady;
         this.onSetPlayer1Ready = onSetPlayer1Ready;
         this.onSetPlayer2Ready = onSetPlayer2Ready;
-        this.onAttachKeyboardHandlers = onAttachKeyboardHandlers;
         this.onGetRootBorderPane = onGetRootBorderPane;
         this.onSetSettingsPanel = onSetSettingsPanel;
         
@@ -124,7 +116,6 @@ public class MultiplayerScreen {
         } else {
             setupPausePanelActions();
         }
-        setupWinningPanelActions();
     }
     
     public void setGameControllers(GameController gameController1, GameController gameController2) {
@@ -139,10 +130,6 @@ public class MultiplayerScreen {
     
     public HBox getContainer() {
         return multiplayerContainer;
-    }
-    
-    public StackPane getWrapper() {
-        return multiplayerWrapper;
     }
     
     public GridPane getGamePanel(int playerNumber) {
@@ -185,146 +172,83 @@ public class MultiplayerScreen {
         return (playerNumber == 1) ? nextBrickPanes1 : nextBrickPanes2;
     }
     
-    public boolean isPlayer1Ready() {
-        return player1Ready;
+    // Simple getters for renderer access
+    public GridPane getP1Grid() {
+        return gamePanel1;
     }
     
-    public boolean isPlayer2Ready() {
-        return player2Ready;
+    public GridPane getP2Grid() {
+        return gamePanel2;
     }
     
-    public void setPlayer1Ready(boolean ready) {
-        player1Ready = ready;
-        if (onSetPlayer1Ready != null) {
-            onSetPlayer1Ready.accept(ready);
-        }
+    public GridPane getP1GhostGrid() {
+        return ghostPanel1;
     }
     
-    public void setPlayer2Ready(boolean ready) {
-        player2Ready = ready;
-        if (onSetPlayer2Ready != null) {
-            onSetPlayer2Ready.accept(ready);
-        }
+    public GridPane getP2GhostGrid() {
+        return ghostPanel2;
     }
     
-    public void show() {
-        if (multiplayerContainer != null) {
-            multiplayerContainer.setVisible(true);
-            multiplayerContainer.setManaged(true);
-        }
-        if (multiplayerWrapper != null) {
-            multiplayerWrapper.setVisible(true);
-            multiplayerWrapper.setManaged(true);
+    public InputEventListener getEventListener(int playerNumber) {
+        return (playerNumber == 1) ? eventListener1 : eventListener2;
+    }
+    
+    public void setCurrentBrickData(ViewData brick, int playerNumber) {
+        if (playerNumber == 1) {
+            currentBrickData1 = brick;
+        } else if (playerNumber == 2) {
+            currentBrickData2 = brick;
         }
     }
     
-    public void hide() {
-        if (multiplayerContainer != null) {
-            multiplayerContainer.setVisible(false);
-            multiplayerContainer.setManaged(false);
-        }
-        if (multiplayerWrapper != null) {
-            multiplayerWrapper.setVisible(false);
-            multiplayerWrapper.setManaged(false);
+    public void setHoldBrickRectangles(Rectangle[][] rectangles, int playerNumber) {
+        if (playerNumber == 1) {
+            holdBrickRectangles1 = rectangles;
+        } else if (playerNumber == 2) {
+            holdBrickRectangles2 = rectangles;
         }
     }
     
-    public void showReadyPanel() {
-        // Reset ready states
-        player1Ready = false;
-        player2Ready = false;
-        
-        // Create ready panel if it doesn't exist
-        if (readyPanel == null) {
-            readyPanel = new BorderPane();
-            readyPanel.getStyleClass().add("ready-panel");
-            
-            VBox mainContainer = new VBox(30);
-            mainContainer.getStyleClass().add("ready-container");
-            mainContainer.setAlignment(Pos.CENTER);
-            
-            // Title
-            Label titleLabel = new Label("GET READY!");
-            titleLabel.getStyleClass().add("ready-title");
-            
-            // Create two separate boxes for each player
-            HBox playersContainer = new HBox(40);
-            playersContainer.setAlignment(Pos.CENTER);
-            
-            // Player 1 box
-            VBox player1Box = new VBox(15);
-            player1Box.getStyleClass().add("ready-player-box");
-            player1Box.setAlignment(Pos.CENTER);
-            player1Box.setMinWidth(300);
-            player1Box.setMinHeight(150);
-            
-            Label player1Title = new Label("PLAYER 1");
-            player1Title.getStyleClass().add("ready-player-title");
-            
-            Label player1Label = new Label("Press SPACE to ready");
-            player1Label.getStyleClass().add("ready-instruction");
-            player1Label.setId("player1ReadyLabel");
-            
-            player1Box.getChildren().addAll(player1Title, player1Label);
-            
-            // Player 2 box
-            VBox player2Box = new VBox(15);
-            player2Box.getStyleClass().add("ready-player-box");
-            player2Box.setAlignment(Pos.CENTER);
-            player2Box.setMinWidth(300);
-            player2Box.setMinHeight(150);
-            
-            Label player2Title = new Label("PLAYER 2");
-            player2Title.getStyleClass().add("ready-player-title");
-            
-            Label player2Label = new Label("Press ENTER to ready");
-            player2Label.getStyleClass().add("ready-instruction");
-            player2Label.setId("player2ReadyLabel");
-            
-            player2Box.getChildren().addAll(player2Title, player2Label);
-            
-            playersContainer.getChildren().addAll(player1Box, player2Box);
-            
-            mainContainer.getChildren().addAll(titleLabel, playersContainer);
-            readyPanel.setCenter(mainContainer);
-        }
-        
-        // Create ready overlay if it doesn't exist
-        if (multiplayerReadyOverlay == null) {
-            multiplayerReadyOverlay = new StackPane();
-            multiplayerReadyOverlay.setAlignment(Pos.CENTER);
-            multiplayerReadyOverlay.setMaxWidth(Double.MAX_VALUE);
-            multiplayerReadyOverlay.setMaxHeight(Double.MAX_VALUE);
-            multiplayerReadyOverlay.setPickOnBounds(true);
-            multiplayerReadyOverlay.setMouseTransparent(false);
-            
-            readyPanel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-            multiplayerReadyOverlay.getChildren().add(readyPanel);
-        }
-        
-        // Add ready overlay to wrapper if it exists
-        if (multiplayerWrapper != null) {
-            if (!multiplayerWrapper.getChildren().contains(multiplayerReadyOverlay)) {
-                multiplayerWrapper.getChildren().add(multiplayerReadyOverlay);
-            }
-            multiplayerReadyOverlay.setVisible(true);
-            multiplayerReadyOverlay.setManaged(true);
-        }
-        
-        // Update ready labels
-        updateReadyLabels();
-    }
-    
-    public void hideReadyPanel() {
-        if (multiplayerReadyOverlay != null) {
-            multiplayerReadyOverlay.setVisible(false);
-            multiplayerReadyOverlay.setManaged(false);
+    public void setNextBrickPanes(List<GridPane> panes, int playerNumber) {
+        if (playerNumber == 1) {
+            nextBrickPanes1 = panes;
+        } else if (playerNumber == 2) {
+            nextBrickPanes2 = panes;
         }
     }
     
-    public void updateReadyLabels() {
-        if (readyPanel == null) return;
-        
+    // Ready panel getters for MultiplayerViewManager
+    public BorderPane getReadyPanel() {
+        return readyPanel;
+    }
+    
+    public void setReadyPanel(BorderPane panel) {
+        this.readyPanel = panel;
+    }
+    
+    public StackPane getReadyOverlay() {
+        return multiplayerReadyOverlay;
+    }
+    
+    public void setReadyOverlay(StackPane overlay) {
+        this.multiplayerReadyOverlay = overlay;
+    }
+    
+    public StackPane getWrapper() {
+        return multiplayerWrapper;
+    }
+    
+    // Winning panel getters for GameStateManager
+    public WinningPanel getWinningPanel() {
+        return multiplayerWinningPanel;
+    }
+    
+    public StackPane getWinningOverlay() {
+        return multiplayerWinningOverlay;
+    }
+    
+    public Label getP1ReadyIcon() {
+        if (readyPanel == null) return null;
         javafx.scene.Node center = readyPanel.getCenter();
         if (center instanceof VBox) {
             VBox mainContainer = (VBox) center;
@@ -338,43 +262,83 @@ public class MultiplayerScreen {
                                 if (labelNode instanceof Label) {
                                     Label label = (Label) labelNode;
                                     if ("player1ReadyLabel".equals(label.getId())) {
-                                        if (player1Ready) {
-                                            label.setText("READY");
-                                            if (!label.getStyleClass().contains("ready-confirmed")) {
-                                                label.getStyleClass().add("ready-confirmed");
+                                        return label;
                                             }
-                                        } else {
-                                            label.setText("Press SPACE to ready");
-                                            label.getStyleClass().remove("ready-confirmed");
                                         }
-                                    } else if ("player2ReadyLabel".equals(label.getId())) {
-                                        if (player2Ready) {
-                                            label.setText("READY");
-                                            if (!label.getStyleClass().contains("ready-confirmed")) {
-                                                label.getStyleClass().add("ready-confirmed");
                                             }
-                                        } else {
-                                            label.setText("Press ENTER to ready");
-                                            label.getStyleClass().remove("ready-confirmed");
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                }
+        return null;
+    }
+    
+    public Label getP2ReadyIcon() {
+        if (readyPanel == null) return null;
+        javafx.scene.Node center = readyPanel.getCenter();
+        if (center instanceof VBox) {
+            VBox mainContainer = (VBox) center;
+            for (javafx.scene.Node node : mainContainer.getChildren()) {
+                if (node instanceof HBox) {
+                    HBox playersContainer = (HBox) node;
+                    for (javafx.scene.Node playerBoxNode : playersContainer.getChildren()) {
+                        if (playerBoxNode instanceof VBox) {
+                            VBox playerBox = (VBox) playerBoxNode;
+                            for (javafx.scene.Node labelNode : playerBox.getChildren()) {
+                                if (labelNode instanceof Label) {
+                                    Label label = (Label) labelNode;
+                                    if ("player2ReadyLabel".equals(label.getId())) {
+                                        return label;
+                                    }
+                                }
+                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+        return null;
+    }
+    
+    public boolean isPlayer1Ready() {
+        return player1Ready;
+    }
+    
+    public boolean isPlayer2Ready() {
+        return player2Ready;
+    }
+    
+    public void setPlayer1ReadyState(boolean ready) {
+        player1Ready = ready;
+    }
+    
+    public void setPlayer2ReadyState(boolean ready) {
+        player2Ready = ready;
+    }
+    
+    public void show() {
+            if (multiplayerContainer != null) {
+            multiplayerContainer.setVisible(true);
+                multiplayerContainer.setManaged(true);
             }
+            if (multiplayerWrapper != null) {
+            multiplayerWrapper.setVisible(true);
+                multiplayerWrapper.setManaged(true);
+            }
+    }
+    
+    public void hide() {
+        if (multiplayerContainer != null) {
+            multiplayerContainer.setVisible(false);
+            multiplayerContainer.setManaged(false);
+        }
+        if (multiplayerWrapper != null) {
+            multiplayerWrapper.setVisible(false);
+            multiplayerWrapper.setManaged(false);
         }
     }
     
-    public void checkBothReady() {
-        if (player1Ready && player2Ready) {
-            hideReadyPanel();
-            if (onStartGame != null) {
-                onStartGame.accept(() -> {});
-            }
-        }
-    }
     
     public void showPausePanel() {
         if (multiplayerPauseOverlay != null && multiplayerPausePanel != null) {
@@ -392,35 +356,6 @@ public class MultiplayerScreen {
         }
     }
     
-    public void showWinningPanel(int winnerPlayerNumber, int timeUsed) {
-        if (multiplayerWinningOverlay != null && multiplayerWinningPanel != null) {
-            multiplayerWinningPanel.setWinner(winnerPlayerNumber);
-            multiplayerWinningPanel.setTimeUsed(timeUsed);
-            multiplayerWinningOverlay.setVisible(true);
-            multiplayerWinningOverlay.setManaged(true);
-            multiplayerWinningOverlay.setMouseTransparent(false);
-            
-            if (multiplayerWrapper != null && multiplayerWrapper.getChildren().contains(multiplayerWinningOverlay)) {
-                multiplayerWrapper.getChildren().remove(multiplayerWinningOverlay);
-                multiplayerWrapper.getChildren().add(multiplayerWinningOverlay);
-            }
-            
-            if (multiplayerContainer != null) {
-                multiplayerContainer.setManaged(true);
-            }
-            if (multiplayerWrapper != null) {
-                multiplayerWrapper.setManaged(true);
-            }
-        }
-    }
-    
-    public void hideWinningPanel() {
-        if (multiplayerWinningOverlay != null) {
-            multiplayerWinningOverlay.setVisible(false);
-            multiplayerWinningOverlay.setManaged(false);
-            multiplayerWinningOverlay.setMouseTransparent(true);
-        }
-    }
     
     public void showSettingsOverlay(SettingsPanel settingsPanel) {
         if (multiplayerSettingsOverlay != null && settingsPanel != null) {
@@ -454,224 +389,7 @@ public class MultiplayerScreen {
         }
     }
     
-    public void refreshBrick(ViewData brick, int playerNumber) {
-        if (brick != null) {
-            if (playerNumber == 1) {
-                currentBrickData1 = brick;
-            } else if (playerNumber == 2) {
-                currentBrickData2 = brick;
-            }
-        }
-        
-        GridPane currentBrickPanel = (playerNumber == 1) ? brickPanel1 : brickPanel2;
-        GridPane currentGhostPanel = (playerNumber == 1) ? ghostPanel1 : ghostPanel2;
-        InputEventListener currentEventListener = (playerNumber == 1) ? eventListener1 : eventListener2;
-        double scale = 0.85;
-        int scaledBrickSize = (int)(BRICK_SIZE * scale);
-        
-        // Delegate rendering to GameViewRenderer
-        renderer.refreshBrick(brick, currentBrickPanel, currentGhostPanel, currentEventListener, scaledBrickSize);
-    }
     
-    public void refreshGameBackground(int[][] board, int playerNumber) {
-        Rectangle[][] matrix = (playerNumber == 1) ? displayMatrix1 : displayMatrix2;
-        // Delegate rendering to GameViewRenderer
-        renderer.refreshGameBackground(board, matrix);
-    }
-    
-    public void updateNextBricks(List<Brick> nextBricks, int playerNumber) {
-        List<GridPane> panes = (playerNumber == 1) ? nextBrickPanes1 : nextBrickPanes2;
-        double scale = 0.85;
-        int brickSize = (int)((BRICK_SIZE - 10) * scale);
-        
-        if (panes == null || panes.isEmpty()) {
-            return;
-        }
-        
-        // For multiplayer, only show the first brick
-        int maxBricks = 1;
-        
-        // Delegate rendering to GameViewRenderer
-        renderer.updateNextBricks(nextBricks, panes, brickSize, maxBricks);
-    }
-    
-    public void updateHoldBrick(Brick heldBrick, int playerNumber) {
-        Rectangle[][] rectangles = (playerNumber == 1) ? holdBrickRectangles1 : holdBrickRectangles2;
-        // Delegate rendering to GameViewRenderer
-        renderer.renderHoldBrick(heldBrick, rectangles);
-    }
-    
-    public void bindScore(IntegerProperty score, int playerNumber) {
-        Label label = (playerNumber == 1) ? scoreLabel1 : scoreLabel2;
-        if (label != null && score != null) {
-            label.textProperty().unbind();
-            label.textProperty().bind(score.asString("%d"));
-        }
-    }
-    
-    public void bindLevel(IntegerProperty level, int playerNumber) {
-        Label label = (playerNumber == 1) ? levelLabel1 : levelLabel2;
-        if (label != null && level != null) {
-            label.textProperty().unbind();
-            label.textProperty().bind(level.asString("%d"));
-        }
-    }
-    
-    public void clearGamePanels() {
-        // Clear displayMatrix1 and displayMatrix2 using renderer
-        renderer.clearDisplayMatrix(displayMatrix1);
-        renderer.clearDisplayMatrix(displayMatrix2);
-        
-        // Clear brick panels
-        double scale = 0.85;
-        int brickSize = (int)(BRICK_SIZE * scale);
-        
-        if (brickPanel1 != null) {
-            brickPanel1.getChildren().clear();
-            initializeBrickPanel(brickPanel1, brickSize);
-        }
-        if (brickPanel2 != null) {
-            brickPanel2.getChildren().clear();
-            initializeBrickPanel(brickPanel2, brickSize);
-        }
-        
-        // Clear ghost panels
-        if (ghostPanel1 != null) {
-            ghostPanel1.getChildren().clear();
-            initializeBrickPanel(ghostPanel1, brickSize);
-        }
-        if (ghostPanel2 != null) {
-            ghostPanel2.getChildren().clear();
-            initializeBrickPanel(ghostPanel2, brickSize);
-        }
-        
-        // Clear hold panels
-        int holdBrickSize = (int)((BRICK_SIZE - 10) * scale);
-        
-        if (holdBrickPanel1 != null) {
-            holdBrickPanel1.getChildren().clear();
-            if (holdBrickRectangles1 == null) {
-                holdBrickRectangles1 = new Rectangle[4][4];
-            }
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
-                    rect.setFill(Color.TRANSPARENT);
-                    rect.setStroke(Color.gray(0.3));
-                    holdBrickRectangles1[i][j] = rect;
-                    holdBrickPanel1.add(rect, j, i);
-                }
-            }
-        }
-        if (holdBrickPanel2 != null) {
-            holdBrickPanel2.getChildren().clear();
-            if (holdBrickRectangles2 == null) {
-                holdBrickRectangles2 = new Rectangle[4][4];
-            }
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
-                    rect.setFill(Color.TRANSPARENT);
-                    rect.setStroke(Color.gray(0.3));
-                    holdBrickRectangles2[i][j] = rect;
-                    holdBrickPanel2.add(rect, j, i);
-                }
-            }
-        }
-        
-        // Clear next bricks panels
-        int nextBrickSize = (int)(80 * scale);
-        
-        if (nextBricksPanel1 != null) {
-            nextBricksPanel1.getChildren().clear();
-            if (nextBrickPanes1 != null) {
-                nextBrickPanes1.clear();
-                GridPane pane = new GridPane();
-                pane.setVgap(1);
-                pane.setHgap(1);
-                pane.setPrefSize(nextBrickSize, nextBrickSize);
-                for (int r = 0; r < 4; r++) {
-                    for (int c = 0; c < 4; c++) {
-                        Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
-                        rect.setFill(Color.TRANSPARENT);
-                        pane.add(rect, c, r);
-                    }
-                }
-                nextBrickPanes1.add(pane);
-                nextBricksPanel1.getChildren().add(pane);
-            }
-        }
-        if (nextBricksPanel2 != null) {
-            nextBricksPanel2.getChildren().clear();
-            if (nextBrickPanes2 != null) {
-                nextBrickPanes2.clear();
-                GridPane pane = new GridPane();
-                pane.setVgap(1);
-                pane.setHgap(1);
-                pane.setPrefSize(nextBrickSize, nextBrickSize);
-                for (int r = 0; r < 4; r++) {
-                    for (int c = 0; c < 4; c++) {
-                        Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
-                        rect.setFill(Color.TRANSPARENT);
-                        pane.add(rect, c, r);
-                    }
-                }
-                nextBrickPanes2.add(pane);
-                nextBricksPanel2.getChildren().add(pane);
-            }
-        }
-        
-        // Reset score labels
-        if (scoreLabel1 != null) {
-            if (scoreLabel1.textProperty().isBound()) {
-                scoreLabel1.textProperty().unbind();
-            }
-            scoreLabel1.setText("0");
-        }
-        if (scoreLabel2 != null) {
-            if (scoreLabel2.textProperty().isBound()) {
-                scoreLabel2.textProperty().unbind();
-            }
-            scoreLabel2.setText("0");
-        }
-        
-        // Reset level labels
-        if (levelLabel1 != null) {
-            if (levelLabel1.textProperty().isBound()) {
-                levelLabel1.textProperty().unbind();
-            }
-            levelLabel1.setText("1");
-        }
-        if (levelLabel2 != null) {
-            if (levelLabel2.textProperty().isBound()) {
-                levelLabel2.textProperty().unbind();
-            }
-            levelLabel2.setText("1");
-        }
-        
-        // Clear stored brick data
-        currentBrickData1 = null;
-        currentBrickData2 = null;
-    }
-    
-    public void setBrickPanelsVisible(boolean visible, SettingsPanel settingsPanel) {
-        if (brickPanel1 != null) {
-            brickPanel1.setVisible(visible);
-        }
-        if (brickPanel2 != null) {
-            brickPanel2.setVisible(visible);
-        }
-        if (ghostPanel1 != null && settingsPanel != null) {
-            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
-            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
-            ghostPanel1.setVisible(showGhost && visible);
-        }
-        if (ghostPanel2 != null && settingsPanel != null) {
-            javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
-            boolean showGhost = ghostCheckBox != null && ghostCheckBox.isSelected();
-            ghostPanel2.setVisible(showGhost && visible);
-        }
-    }
     
     private void initializePanels() {
         double scale = 0.85;
@@ -735,7 +453,6 @@ public class MultiplayerScreen {
         
         multiplayerWinningPanel = new WinningPanel();
         multiplayerWinningPanel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        setupWinningPanelActions();
         multiplayerWinningOverlay.getChildren().add(multiplayerWinningPanel);
         multiplayerWinningOverlay.setVisible(false);
         multiplayerWrapper.getChildren().add(multiplayerWinningOverlay);
@@ -1113,21 +830,6 @@ public class MultiplayerScreen {
         });
     }
     
-    private void setupWinningPanelActions() {
-        if (multiplayerWinningPanel == null) return;
-        
-        multiplayerWinningPanel.setOnRestartAction(() -> {
-            if (onRestartGame != null) {
-                onRestartGame.accept(() -> {});
-            }
-        });
-        
-        multiplayerWinningPanel.setOnMainMenuAction(() -> {
-            if (onQuitToMenu != null) {
-                onQuitToMenu.accept(() -> {});
-            }
-        });
-    }
     
     public Label getTimerLabel() {
         // Return the timer label so it can be registered with TimerManager

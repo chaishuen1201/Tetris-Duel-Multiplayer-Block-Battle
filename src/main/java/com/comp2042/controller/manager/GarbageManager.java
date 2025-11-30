@@ -6,6 +6,7 @@ import com.comp2042.model.ViewData;
 import com.comp2042.util.MatrixOperations;
 import com.comp2042.view.MultiplayerScreen;
 import com.comp2042.view.SinglePlayerScreen;
+import com.comp2042.view.GameViewRenderer;
 import javafx.application.Platform;
 
 /**
@@ -20,7 +21,9 @@ public class GarbageManager {
     private GameController gameController2;
     private MultiplayerScreen multiplayerScreen;
     private SinglePlayerScreen singlePlayerScreen;
+    private SinglePlayerViewManager singlePlayerViewManager;
     private GameOverCallback gameOverCallback;
+    private final GameViewRenderer renderer = new GameViewRenderer();
     
     /**
      * Callback interface for triggering game over.
@@ -53,6 +56,13 @@ public class GarbageManager {
      */
     public void setSinglePlayerScreen(SinglePlayerScreen singlePlayerScreen) {
         this.singlePlayerScreen = singlePlayerScreen;
+    }
+    
+    /**
+     * Sets the single player view manager reference.
+     */
+    public void setSinglePlayerViewManager(SinglePlayerViewManager singlePlayerViewManager) {
+        this.singlePlayerViewManager = singlePlayerViewManager;
     }
     
     /**
@@ -125,9 +135,9 @@ public class GarbageManager {
             
             // Refresh the display
             if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
-                multiplayerScreen.refreshGameBackground(board.getBoardMatrix(), playerNumber);
-            } else if (singlePlayerScreen != null) {
-                singlePlayerScreen.refreshGameBackground(board.getBoardMatrix());
+                renderer.refreshGameBackground(multiplayerScreen, board.getBoardMatrix(), playerNumber);
+            } else if (singlePlayerViewManager != null) {
+                singlePlayerViewManager.refreshGameBackground(board.getBoardMatrix());
             }
             
             // Check if game over after adding garbage
