@@ -305,6 +305,16 @@
    Game Board & Grid - Enhanced
    ============================================== */
 
+/* Main game container wrapper - keeps all panels centered together */
+.game-container-wrapper {
+    -fx-alignment: center;
+    -fx-spacing: 20;
+    -fx-pref-width: -1;
+    -fx-pref-height: -1;
+    -fx-min-width: -1;
+    -fx-min-height: -1;
+}
+
 .game-area-container {
     -fx-alignment: center;
     -fx-padding: 25;

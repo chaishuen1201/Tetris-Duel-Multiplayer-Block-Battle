@@ -35,6 +35,10 @@ public class PanelCoordinator {
     private VBox originalLeftPanel;
     private VBox originalRightPanel;
     
+    // New centered layout container
+    private HBox gameContainerWrapper;
+    private javafx.scene.Parent gameContainerParent; // Can be StackPane or VBox
+    
     public PanelCoordinator() {
     }
     
@@ -101,6 +105,19 @@ public class PanelCoordinator {
     
     public void setOriginalRightPanel(VBox originalRightPanel) {
         this.originalRightPanel = originalRightPanel;
+    }
+    
+    public void setGameContainerWrapper(HBox gameContainerWrapper) {
+        this.gameContainerWrapper = gameContainerWrapper;
+    }
+    
+    public void setGameContainerParent(javafx.scene.Parent gameContainerParent) {
+        this.gameContainerParent = gameContainerParent;
+    }
+    
+    // Legacy method for backward compatibility
+    public void setGameContainerStackPane(StackPane gameContainerStackPane) {
+        this.gameContainerParent = gameContainerStackPane;
     }
     
     // Pause Panel visibility
@@ -343,6 +360,14 @@ public class PanelCoordinator {
     
     // Original Panels (left/right VBoxes) visibility
     public void showOriginalLeftPanel(BorderPane rootPane) {
+        // First try to show the HBox wrapper (new centered layout)
+        if (gameContainerWrapper != null) {
+            gameContainerWrapper.setVisible(true);
+            gameContainerWrapper.setManaged(true);
+            gameContainerWrapper.requestLayout();
+            return;
+        }
+        // Fallback to old layout
         if (originalLeftPanel != null && rootPane != null) {
             originalLeftPanel.setVisible(true);
             originalLeftPanel.setManaged(true);
@@ -352,6 +377,12 @@ public class PanelCoordinator {
     }
     
     public void showOriginalRightPanel(BorderPane rootPane) {
+        // In the new centered layout, showing left panel also shows right panel (they're in the same wrapper)
+        if (gameContainerWrapper != null) {
+            // Already handled by showOriginalLeftPanel
+            return;
+        }
+        // Fallback to old layout
         if (originalRightPanel != null && rootPane != null) {
             originalRightPanel.setVisible(true);
             originalRightPanel.setManaged(true);
@@ -361,6 +392,13 @@ public class PanelCoordinator {
     }
     
     public void hideOriginalLeftPanel(BorderPane rootPane) {
+        // First try to hide the HBox wrapper directly
+        if (gameContainerWrapper != null) {
+            gameContainerWrapper.setVisible(false);
+            gameContainerWrapper.setManaged(false);
+            return;
+        }
+        // Fallback to old layout if wrapper not found
         if (rootPane != null && rootPane.getLeft() != null) {
             rootPane.getLeft().setVisible(false);
             rootPane.getLeft().setManaged(false);
@@ -368,6 +406,13 @@ public class PanelCoordinator {
     }
     
     public void hideOriginalRightPanel(BorderPane rootPane) {
+        // In the new centered layout, hiding left panel also hides right panel (they're in the same wrapper)
+        // So we only need to check if the wrapper isn't already hidden
+        if (gameContainerWrapper != null) {
+            // Already handled by hideOriginalLeftPanel
+            return;
+        }
+        // Fallback to old layout if wrapper not found
         if (rootPane != null && rootPane.getRight() != null) {
             rootPane.getRight().setVisible(false);
             rootPane.getRight().setManaged(false);
@@ -400,6 +445,22 @@ public class PanelCoordinator {
         showScoreLabel();
         showLevelLabel();
         showLinesLabel();
+    }
+    
+    // Show the single player container wrapper (for centered layout)
+    public void showSinglePlayerContainerWrapper() {
+        if (gameContainerWrapper != null) {
+            gameContainerWrapper.setVisible(true);
+            gameContainerWrapper.setManaged(true);
+        }
+    }
+    
+    // Hide the single player container wrapper (for centered layout)
+    public void hideSinglePlayerContainerWrapper() {
+        if (gameContainerWrapper != null) {
+            gameContainerWrapper.setVisible(false);
+            gameContainerWrapper.setManaged(false);
+        }
     }
     
     // Initialize panel states (called during initialization)

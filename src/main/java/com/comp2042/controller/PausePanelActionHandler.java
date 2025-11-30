@@ -383,13 +383,19 @@ public class PausePanelActionHandler {
         BorderPane rootPane = guiController.getRootBorderPane();
         VBox originalLeftPanel = guiController.getOriginalLeftPanel();
         VBox originalRightPanel = guiController.getOriginalRightPanel();
-        if (rootPane != null) {
-            if (originalLeftPanel != null) {
+        
+        // Show the single player container wrapper (new centered layout)
+        guiController.getPanelCoordinator().showSinglePlayerContainerWrapper();
+        
+        // Fallback: If using old layout, restore left and right panels directly
+        if (rootPane != null && guiController.getPanelCoordinator() != null) {
+            // Check if we have the old layout structure
+            if (originalLeftPanel != null && rootPane.getLeft() == null) {
                 originalLeftPanel.setVisible(true);
                 originalLeftPanel.setManaged(true);
                 rootPane.setLeft(originalLeftPanel);
             }
-            if (originalRightPanel != null) {
+            if (originalRightPanel != null && rootPane.getRight() == null) {
                 originalRightPanel.setVisible(true);
                 originalRightPanel.setManaged(true);
                 rootPane.setRight(originalRightPanel);

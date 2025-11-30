@@ -8,7 +8,6 @@ import com.comp2042.view.SettingsPanel;
 import com.comp2042.view.SinglePlayerScreen;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
-import javafx.scene.Parent;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -40,6 +39,7 @@ public class MultiplayerViewManager {
     private SinglePlayerScreen singlePlayerScreen;
     private final GameViewRenderer renderer = new GameViewRenderer();
     private BorderPane gameBoard;
+    private VBox centerVBox; // The main center container for adding multiplayer screen
     private GridPane holdBrickPanel;
     private VBox nextBricksPanel;
     private Label scoreLabel;
@@ -114,6 +114,10 @@ public class MultiplayerViewManager {
     
     public void setGameBoard(BorderPane gameBoard) {
         this.gameBoard = gameBoard;
+    }
+    
+    public void setCenterVBox(VBox centerVBox) {
+        this.centerVBox = centerVBox;
     }
     
     public void setHoldBrickPanel(GridPane holdBrickPanel) {
@@ -247,24 +251,20 @@ public class MultiplayerViewManager {
         panelCoordinator.hideSinglePlayerPanels();
         
         // Show multiplayer container in the center area
-        if (gameBoard != null && gameBoard.getParent() != null) {
-            Parent parent = gameBoard.getParent();
-            if (parent instanceof VBox) {
-                VBox centerVBox = (VBox) parent;
-                centerVBox.setAlignment(javafx.geometry.Pos.CENTER);
-                centerVBox.setFillWidth(true);
-                
-                // Get wrapper from MultiplayerScreen
-                StackPane wrapper = multiplayerScreen.getWrapper();
-                if (wrapper != null && !centerVBox.getChildren().contains(wrapper)) {
-                    centerVBox.getChildren().add(wrapper);
-                }
-                
-                multiplayerScreen.show();
-                
-                // Request immediate layout update
-                centerVBox.requestLayout();
+        if (centerVBox != null) {
+            centerVBox.setAlignment(javafx.geometry.Pos.CENTER);
+            centerVBox.setFillWidth(true);
+            
+            // Get wrapper from MultiplayerScreen
+            StackPane wrapper = multiplayerScreen.getWrapper();
+            if (wrapper != null && !centerVBox.getChildren().contains(wrapper)) {
+                centerVBox.getChildren().add(wrapper);
             }
+            
+            multiplayerScreen.show();
+            
+            // Request immediate layout update
+            centerVBox.requestLayout();
         }
         
         // Show ready panel instead of starting game immediately
@@ -522,26 +522,22 @@ public class MultiplayerViewManager {
         }
         
         // Remove multiplayer wrapper and container from center VBox
-        if (gameBoard != null && gameBoard.getParent() != null) {
-            Parent parent = gameBoard.getParent();
-            if (parent instanceof VBox) {
-                VBox centerVBox = (VBox) parent;
-                if (multiplayerScreen != null) {
-                    // Remove wrapper if present
-                    StackPane wrapper = multiplayerScreen.getWrapper();
-                    if (wrapper != null && centerVBox.getChildren().contains(wrapper)) {
-                        centerVBox.getChildren().remove(wrapper);
-                    }
-                    // Also check and remove container directly if it was added separately
-                    HBox container = multiplayerScreen.getContainer();
-                    if (container != null && centerVBox.getChildren().contains(container)) {
-                        centerVBox.getChildren().remove(container);
-                    }
+        if (centerVBox != null) {
+            if (multiplayerScreen != null) {
+                // Remove wrapper if present
+                StackPane wrapper = multiplayerScreen.getWrapper();
+                if (wrapper != null && centerVBox.getChildren().contains(wrapper)) {
+                    centerVBox.getChildren().remove(wrapper);
                 }
-                // Ensure gameBoard is visible and request layout update
-                panelCoordinator.showGameBoard();
-                centerVBox.requestLayout();
+                // Also check and remove container directly if it was added separately
+                HBox container = multiplayerScreen.getContainer();
+                if (container != null && centerVBox.getChildren().contains(container)) {
+                    centerVBox.getChildren().remove(container);
+                }
             }
+            // Ensure gameBoard is visible and request layout update
+            panelCoordinator.showGameBoard();
+            centerVBox.requestLayout();
         }
         
         // Hide pause panels

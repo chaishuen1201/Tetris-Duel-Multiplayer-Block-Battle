@@ -67,6 +67,8 @@ public class GuiController implements Initializable {
     @FXML private MainMenuPanel mainMenuPanel;
     @FXML private Label countdownLabel;
     @FXML private Label timerLabel;
+    @FXML private VBox centerVBox; // The main center container for both single player and multiplayer
+    @FXML private HBox singlePlayerWrapper; // The wrapper containing single player panels
     
     // Multiplayer game controllers
     private GameController gameController1, gameController2;
@@ -219,6 +221,20 @@ public class GuiController implements Initializable {
         panelCoordinator.setMainMenuPanel(mainMenuPanel);
         panelCoordinator.setCountdownLabel(countdownLabel);
         
+        // Set reference to the centered layout container wrapper (new layout structure)
+        // The gameBoard is inside an HBox, which is inside a VBox (game-area-container)
+        if (gameBoard != null && gameBoard.getParent() != null) {
+            javafx.scene.Parent parent = gameBoard.getParent();
+            if (parent instanceof HBox) {
+                HBox hboxWrapper = (HBox) parent;
+                panelCoordinator.setGameContainerWrapper(hboxWrapper);
+                // Get the VBox or StackPane that contains the HBox
+                if (hboxWrapper.getParent() != null) {
+                    panelCoordinator.setGameContainerParent(hboxWrapper.getParent());
+                }
+            }
+        }
+        
         // Initialize game state manager
         initializeGameStateManager();
         
@@ -240,6 +256,7 @@ public class GuiController implements Initializable {
         multiplayerViewManager.setMultiplayerScreen(multiplayerScreen);
         multiplayerViewManager.setSinglePlayerScreen(singlePlayerScreen);
         multiplayerViewManager.setGameBoard(gameBoard);
+        multiplayerViewManager.setCenterVBox(centerVBox); // Set the center container for multiplayer
         multiplayerViewManager.setHoldBrickPanel(holdBrickPanel);
         multiplayerViewManager.setNextBricksPanel(nextBricksPanel);
         multiplayerViewManager.setScoreLabel(scoreLabel);
@@ -1092,6 +1109,10 @@ public class GuiController implements Initializable {
     // Getters and setters for PausePanelActionHandler
     public GameStateManager getGameStateManager() {
         return gameStateManager;
+    }
+    
+    public PanelCoordinator getPanelCoordinator() {
+        return panelCoordinator;
     }
     
     public MultiplayerScreen getMultiplayerScreen() {
