@@ -86,6 +86,8 @@ class GarbageManagerTest {
         int initialGarbageCount = opponentBoard.getPendingGarbageCount();
 
         // Send 2 garbage lines to opponent (player 2)
+        // Note: This tests that garbage is queued, not the calculation rules
+        // Calculation rules: 1 line→0, 2 lines→1, 3 lines→2, 4 lines→4
         garbageManager.sendGarbageToOpponent(1, 2);
 
         // Wait a bit for Platform.runLater to execute (in real scenario)
@@ -104,6 +106,8 @@ class GarbageManagerTest {
         int initialGarbageCount = opponentBoard.getPendingGarbageCount();
 
         // Send 3 garbage lines
+        // Note: This tests that the exact number of garbage lines is queued correctly
+        // Calculation rules: 1 line→0, 2 lines→1, 3 lines→2, 4 lines→4
         garbageManager.sendGarbageToOpponent(1, 3);
 
         // Check that 3 lines were added
@@ -170,6 +174,70 @@ class GarbageManagerTest {
 
         assertEquals(initialGarbage1, newGarbage1, "Player 1's queue should not change");
         assertTrue(newGarbage2 >= initialGarbage2, "Player 2's queue should increase");
+    }
+
+    @Test
+    void testGarbageCalculationRules_OneLineSendsZeroGarbage() {
+        if (gameController1 == null || gameController2 == null) {
+            return; // Skip if JavaFX not available
+        }
+
+        SimpleBoard opponentBoard = gameController2.getSimpleBoard();
+        int initialGarbageCount = opponentBoard.getPendingGarbageCount();
+
+        // According to rules: 1 line cleared → 0 garbage sent
+        garbageManager.sendGarbageToOpponent(1, 0);
+
+        int newGarbageCount = opponentBoard.getPendingGarbageCount();
+        assertEquals(initialGarbageCount, newGarbageCount, "1 line clear should send 0 garbage");
+    }
+
+    @Test
+    void testGarbageCalculationRules_TwoLinesSendsOneGarbage() {
+        if (gameController1 == null || gameController2 == null) {
+            return; // Skip if JavaFX not available
+        }
+
+        SimpleBoard opponentBoard = gameController2.getSimpleBoard();
+        int initialGarbageCount = opponentBoard.getPendingGarbageCount();
+
+        // According to rules: 2 lines cleared → 1 garbage sent
+        garbageManager.sendGarbageToOpponent(1, 1);
+
+        int newGarbageCount = opponentBoard.getPendingGarbageCount();
+        assertEquals(initialGarbageCount + 1, newGarbageCount, "2 lines clear should send 1 garbage");
+    }
+
+    @Test
+    void testGarbageCalculationRules_ThreeLinesSendsTwoGarbage() {
+        if (gameController1 == null || gameController2 == null) {
+            return; // Skip if JavaFX not available
+        }
+
+        SimpleBoard opponentBoard = gameController2.getSimpleBoard();
+        int initialGarbageCount = opponentBoard.getPendingGarbageCount();
+
+        // According to rules: 3 lines cleared → 2 garbage sent
+        garbageManager.sendGarbageToOpponent(1, 2);
+
+        int newGarbageCount = opponentBoard.getPendingGarbageCount();
+        assertEquals(initialGarbageCount + 2, newGarbageCount, "3 lines clear should send 2 garbage");
+    }
+
+    @Test
+    void testGarbageCalculationRules_FourLinesSendsFourGarbage() {
+        if (gameController1 == null || gameController2 == null) {
+            return; // Skip if JavaFX not available
+        }
+
+        SimpleBoard opponentBoard = gameController2.getSimpleBoard();
+        int initialGarbageCount = opponentBoard.getPendingGarbageCount();
+
+        // According to rules: 4 lines cleared (Tetris) → 4 garbage sent
+        garbageManager.sendGarbageToOpponent(1, 4);
+
+        int newGarbageCount = opponentBoard.getPendingGarbageCount();
+        assertEquals(initialGarbageCount + 4, newGarbageCount, "4 lines clear (Tetris) should send 4 garbage");
     }
 }
 

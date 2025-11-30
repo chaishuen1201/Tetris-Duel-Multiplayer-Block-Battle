@@ -119,7 +119,7 @@ public class GarbageManager {
     
     /**
      * Processes garbage queue for a player, adding pending garbage lines to the board.
-     * This should be called periodically or after certain game events.
+     * Processes all pending garbage lines at once to avoid delays when multiple lines are sent together.
      * @param playerNumber The player number (1 or 2)
      */
     public void processGarbageQueue(int playerNumber) {
@@ -142,31 +142,37 @@ public class GarbageManager {
             return;
         }
         
-        // Only process if there's pending garbage
-        if (board.getPendingGarbageCount() > 0) {
-            // Process one garbage line at a time to give player time to react
-            boolean potentialGameOver = board.processGarbageQueue();
-            
-            // Refresh the display
+        // Process all pending garbage lines at once to avoid delays
+        boolean potentialGameOver = false;
+        while (board.getPendingGarbageCount() > 0) {
+            boolean gameOver = board.processGarbageQueue();
+            if (gameOver) {
+                potentialGameOver = true;
+                // Continue processing remaining garbage to ensure all lines are added
+            }
+        }
+        
+        // Refresh the display after processing all garbage
+        if (board.getPendingGarbageCount() == 0) {
             if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
                 renderer.refreshGameBackground(multiplayerScreen, board.getBoardMatrix(), playerNumber);
             } else if (singlePlayerViewManager != null) {
                 singlePlayerViewManager.refreshGameBackground(board.getBoardMatrix());
             }
-            
-            // Check if game over after adding garbage
-            if (potentialGameOver) {
-                // Get current view data to check brick position
-                ViewData viewData = board.getViewData();
-                if (viewData != null) {
-                    // Check if the current brick position is blocked
-                    if (MatrixOperations.intersect(board.getBoardMatrix(), 
-                            viewData.getBrickData(), 
-                            viewData.getXPosition(), 
-                            viewData.getYPosition())) {
-                        if (gameOverCallback != null) {
-                            gameOverCallback.gameOver(playerNumber);
-                        }
+        }
+        
+        // Check if game over after adding all garbage
+        if (potentialGameOver) {
+            // Get current view data to check brick position
+            ViewData viewData = board.getViewData();
+            if (viewData != null) {
+                // Check if the current brick position is blocked
+                if (MatrixOperations.intersect(board.getBoardMatrix(), 
+                        viewData.getBrickData(), 
+                        viewData.getXPosition(), 
+                        viewData.getYPosition())) {
+                    if (gameOverCallback != null) {
+                        gameOverCallback.gameOver(playerNumber);
                     }
                 }
             }
