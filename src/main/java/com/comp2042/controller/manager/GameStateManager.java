@@ -49,16 +49,6 @@ public class GameStateManager {
     private Runnable onHideMultiplayerPausePanel;
     private Runnable onStartGarbageProcessingTimelines;
     private Runnable onStopGarbageProcessingTimelines;
-    private Runnable onStartMultiplayerTimer;
-    private Runnable onStopMultiplayerTimer;
-    private Runnable onPauseMultiplayerTimer;
-    private Runnable onResumeMultiplayerTimer;
-    private Runnable onResetMultiplayerTimer;
-    private Runnable onStartSinglePlayerTimer;
-    private Runnable onStopSinglePlayerTimer;
-    private Runnable onPauseSinglePlayerTimer;
-    private Runnable onResumeSinglePlayerTimer;
-    private Runnable onResetSinglePlayerTimer;
     private Runnable onUpdateTimelineRate;
     private Runnable onUpdateTimelineRate1;
     private Runnable onUpdateTimelineRate2;
@@ -180,46 +170,6 @@ public class GameStateManager {
         this.onStopGarbageProcessingTimelines = callback;
     }
     
-    public void setOnStartMultiplayerTimer(Runnable callback) {
-        this.onStartMultiplayerTimer = callback;
-    }
-    
-    public void setOnStopMultiplayerTimer(Runnable callback) {
-        this.onStopMultiplayerTimer = callback;
-    }
-    
-    public void setOnPauseMultiplayerTimer(Runnable callback) {
-        this.onPauseMultiplayerTimer = callback;
-    }
-    
-    public void setOnResumeMultiplayerTimer(Runnable callback) {
-        this.onResumeMultiplayerTimer = callback;
-    }
-    
-    public void setOnResetMultiplayerTimer(Runnable callback) {
-        this.onResetMultiplayerTimer = callback;
-    }
-    
-    public void setOnStartSinglePlayerTimer(Runnable callback) {
-        this.onStartSinglePlayerTimer = callback;
-    }
-    
-    public void setOnStopSinglePlayerTimer(Runnable callback) {
-        this.onStopSinglePlayerTimer = callback;
-    }
-    
-    public void setOnPauseSinglePlayerTimer(Runnable callback) {
-        this.onPauseSinglePlayerTimer = callback;
-    }
-    
-    public void setOnResumeSinglePlayerTimer(Runnable callback) {
-        this.onResumeSinglePlayerTimer = callback;
-    }
-    
-    public void setOnResetSinglePlayerTimer(Runnable callback) {
-        this.onResetSinglePlayerTimer = callback;
-    }
-    
     public void setOnUpdateTimelineRate(Runnable callback) {
         this.onUpdateTimelineRate = callback;
     }
@@ -278,7 +228,7 @@ public class GameStateManager {
                 if (timeLine1 != null) timeLine1.pause();
                 if (timeLine2 != null) timeLine2.pause();
                 audioManager.stopGameMusic();
-                if (onPauseMultiplayerTimer != null) onPauseMultiplayerTimer.run();
+                timerManager.pauseMultiplayerTimer();
                 isPause.set(true);
                 if (garbageProcessTimeline1 != null) garbageProcessTimeline1.pause();
                 if (garbageProcessTimeline2 != null) garbageProcessTimeline2.pause();
@@ -294,7 +244,7 @@ public class GameStateManager {
                     if (onUpdateTimelineRate2 != null) onUpdateTimelineRate2.run();
                 }
                 audioManager.playGameMusic();
-                if (onResumeMultiplayerTimer != null) onResumeMultiplayerTimer.run();
+                timerManager.resumeMultiplayerTimer();
                 isPause.set(false);
                 if (garbageProcessTimeline1 != null) garbageProcessTimeline1.play();
                 if (garbageProcessTimeline2 != null) garbageProcessTimeline2.play();
@@ -305,7 +255,7 @@ public class GameStateManager {
                 // Pause the game
                 if (timeLine != null) timeLine.pause();
                 audioManager.stopGameMusic();
-                if (onPauseSinglePlayerTimer != null) onPauseSinglePlayerTimer.run();
+                timerManager.pauseSinglePlayerTimer();
                 isPause.set(true);
                 if (onShowPausePanel != null) onShowPausePanel.run();
             } else {
@@ -315,7 +265,7 @@ public class GameStateManager {
                     if (onUpdateTimelineRate != null) onUpdateTimelineRate.run();
                 }
                 audioManager.playGameMusic();
-                if (onResumeSinglePlayerTimer != null) onResumeSinglePlayerTimer.run();
+                timerManager.resumeSinglePlayerTimer();
                 isPause.set(false);
                 if (onHidePausePanel != null) onHidePausePanel.run();
             }
@@ -347,9 +297,7 @@ public class GameStateManager {
             timeLine.play();
         }
         
-        if (onStartSinglePlayerTimer != null) {
-            onStartSinglePlayerTimer.run();
-        }
+        timerManager.startSinglePlayerTimer();
         
         if (onRequestFocus != null) onRequestFocus.run();
     }
@@ -361,7 +309,7 @@ public class GameStateManager {
         if (timeLine != null) timeLine.stop();
         if (onHideGameOverPanel != null) onHideGameOverPanel.run();
         
-        if (onResetSinglePlayerTimer != null) onResetSinglePlayerTimer.run();
+        timerManager.resetSinglePlayerTimer();
         
         audioManager.playGameMusic();
         
@@ -369,9 +317,7 @@ public class GameStateManager {
         
         if (timeLine != null) timeLine.play();
         
-        if (onStartSinglePlayerTimer != null) {
-            onStartSinglePlayerTimer.run();
-        }
+        timerManager.startSinglePlayerTimer();
         
         isPause.set(false);
         isGameOver.set(false);
@@ -404,9 +350,7 @@ public class GameStateManager {
             }
             
             // Stop multiplayer timer when game ends
-            if (onStopMultiplayerTimer != null) {
-                onStopMultiplayerTimer.run();
-            }
+            timerManager.stopMultiplayerTimer();
             
             if (onHideMultiplayerPausePanel != null) onHideMultiplayerPausePanel.run();
             if (onHidePausePanel != null) onHidePausePanel.run();
@@ -437,7 +381,7 @@ public class GameStateManager {
         // Single player game over
         if (timeLine != null) timeLine.stop();
         
-        if (onStopSinglePlayerTimer != null) onStopSinglePlayerTimer.run();
+        timerManager.stopSinglePlayerTimer();
         
         audioManager.stopGameMusic();
         audioManager.playGameOver();
@@ -481,9 +425,7 @@ public class GameStateManager {
         }
         
         // Start multiplayer timer
-        if (onStartMultiplayerTimer != null) {
-            onStartMultiplayerTimer.run();
-        }
+        timerManager.startMultiplayerTimer();
         
         // Start game music
         audioManager.playGameMusic();
@@ -526,10 +468,8 @@ public class GameStateManager {
         }
         
         // Restart multiplayer timer
-        if (onResetMultiplayerTimer != null) onResetMultiplayerTimer.run();
-        if (onStartMultiplayerTimer != null) {
-            onStartMultiplayerTimer.run();
-        }
+        timerManager.resetMultiplayerTimer();
+        timerManager.startMultiplayerTimer();
         
         // Restart music
         audioManager.playGameMusic();
@@ -548,10 +488,10 @@ public class GameStateManager {
         }
         
         // Stop and reset timers
-        if (onStopMultiplayerTimer != null) onStopMultiplayerTimer.run();
-        if (onResetMultiplayerTimer != null) onResetMultiplayerTimer.run();
-        if (onStopSinglePlayerTimer != null) onStopSinglePlayerTimer.run();
-        if (onResetSinglePlayerTimer != null) onResetSinglePlayerTimer.run();
+        timerManager.stopMultiplayerTimer();
+        timerManager.resetMultiplayerTimer();
+        timerManager.stopSinglePlayerTimer();
+        timerManager.resetSinglePlayerTimer();
         
         // Reset pause state
         isPause.set(false);
@@ -711,6 +651,9 @@ public class GameStateManager {
                 onQuitToMenu.run();
             }
         });
+        
+        // Set up button sounds
+        winningPanel.setupButtonSounds(audioManager);
     }
     
     // ========== Default Values for Score/Level/Lines ==========

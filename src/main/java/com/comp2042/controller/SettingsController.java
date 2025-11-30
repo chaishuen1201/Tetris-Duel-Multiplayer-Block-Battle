@@ -68,9 +68,16 @@ public class SettingsController {
             // Initialize mute button text based on current state
             muteButton.setText(audioManager.isMuted() ? "🔇" : "🔊");
             muteButton.setOnAction(e -> {
+                audioManager.playClickButton();
                 boolean isMuted = audioManager.toggleMute();
                 muteButton.setText(isMuted ? "🔇" : "🔊");
             });
+            muteButton.setOnMouseEntered(e -> {
+                audioManager.playHover();
+            });
+            
+            // Set up button sounds for all buttons in settings panel
+            settingsPanel.setAudioManager(audioManager);
             
             // Set up ghost piece checkbox
             javafx.scene.control.CheckBox ghostPieceCheckBox = settingsPanel.getGhostPieceCheckBox();
@@ -253,9 +260,6 @@ public class SettingsController {
     public void setMultiplayerViewManager(MultiplayerViewManager multiplayerViewManager) {
         this.multiplayerViewManager = multiplayerViewManager;
     }
-    
-    public SettingsPanel getSettingsPanel() {
-        return settingsPanel;
-    }
+
 }
 

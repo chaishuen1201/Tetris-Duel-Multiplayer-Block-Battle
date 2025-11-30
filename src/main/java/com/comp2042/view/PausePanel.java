@@ -1,5 +1,6 @@
 package com.comp2042.view;
 
+import com.comp2042.controller.manager.AudioManager;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
@@ -94,6 +95,40 @@ public class PausePanel extends BorderPane {
     
     public void setOnQuitAction(Runnable action) {
         this.onQuitAction = action;
+    }
+    
+    /**
+     * Sets up button sounds for all buttons in this panel.
+     * @param audioManager The audio manager to use for playing sounds
+     */
+    public void setupButtonSounds(AudioManager audioManager) {
+        if (audioManager == null) return;
+        
+        // Add click and hover sounds to all buttons
+        setupButtonWithSound(resumeButton, audioManager);
+        setupButtonWithSound(restartButton, audioManager);
+        setupButtonWithSound(settingsButton, audioManager);
+        setupButtonWithSound(quitButton, audioManager);
+    }
+    
+    private void setupButtonWithSound(Button button, AudioManager audioManager) {
+        if (button == null || audioManager == null) return;
+        
+        // Store original action
+        javafx.event.EventHandler<javafx.event.ActionEvent> originalHandler = button.getOnAction();
+        
+        // Wrap with click sound
+        button.setOnAction(e -> {
+            audioManager.playClickButton();
+            if (originalHandler != null) {
+                originalHandler.handle(e);
+            }
+        });
+        
+        // Add hover sound
+        button.setOnMouseEntered(e -> {
+            audioManager.playHover();
+        });
     }
 }
 

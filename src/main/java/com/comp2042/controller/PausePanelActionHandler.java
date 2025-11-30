@@ -59,6 +59,9 @@ public class PausePanelActionHandler {
         panel.setOnQuitAction(() -> {
             handleQuitAction();
         });
+        
+        // Set up button sounds
+        panel.setupButtonSounds(guiController.getAudioManager());
     }
     
     /**
@@ -86,6 +89,9 @@ public class PausePanelActionHandler {
         panel.setOnQuitAction(() -> {
             handleQuitAction();
         });
+        
+        // Set up button sounds
+        panel.setupButtonSounds(guiController.getAudioManager());
     }
     
     private void handleRestartAction() {
@@ -289,7 +295,7 @@ public class PausePanelActionHandler {
         
         // Clear local references
         guiController.stopGarbageProcessingTimelines();
-        guiController.stopMultiplayerTimer();
+        guiController.getTimerManager().stopMultiplayerTimer();
         guiController.setGameController1(null);
         guiController.setGameController2(null);
         guiController.setEventListener1(null);

@@ -17,6 +17,7 @@ import javafx.application.Platform;
 public class GarbageManager {
     
     private final GameStateManager gameStateManager;
+    private AudioManager audioManager;
     private GameController gameController1;
     private GameController gameController2;
     private MultiplayerScreen multiplayerScreen;
@@ -34,6 +35,14 @@ public class GarbageManager {
     
     public GarbageManager(GameStateManager gameStateManager) {
         this.gameStateManager = gameStateManager;
+    }
+    
+    /**
+     * Sets the audio manager for playing sounds.
+     * @param audioManager The audio manager to use
+     */
+    public void setAudioManager(AudioManager audioManager) {
+        this.audioManager = audioManager;
     }
     
     /**
@@ -80,6 +89,11 @@ public class GarbageManager {
     public void sendGarbageToOpponent(int fromPlayerNumber, int numGarbageLines) {
         if (!gameStateManager.isMultiplayerMode() || numGarbageLines <= 0) {
             return;
+        }
+        
+        // Play garbage sound when garbage is sent
+        if (audioManager != null) {
+            audioManager.playGarbage();
         }
         
         // Determine opponent's player number

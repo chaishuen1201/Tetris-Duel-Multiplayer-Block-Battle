@@ -1,5 +1,6 @@
 package com.comp2042.view;
 
+import com.comp2042.controller.manager.AudioManager;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
@@ -143,6 +144,34 @@ public class GameOverPanel extends BorderPane {
     
     public void setOnNoAction(Runnable action) {
         this.onNoAction = action;
+    }
+    
+    /**
+     * Sets up button sounds for all buttons in this panel.
+     * @param audioManager The audio manager to use for playing sounds
+     */
+    public void setupButtonSounds(AudioManager audioManager) {
+        if (audioManager == null) return;
+        
+        setupButtonWithSound(yesButton, audioManager);
+        setupButtonWithSound(noButton, audioManager);
+    }
+    
+    private void setupButtonWithSound(Button button, AudioManager audioManager) {
+        if (button == null || audioManager == null) return;
+        
+        javafx.event.EventHandler<javafx.event.ActionEvent> originalHandler = button.getOnAction();
+        
+        button.setOnAction(e -> {
+            audioManager.playClickButton();
+            if (originalHandler != null) {
+                originalHandler.handle(e);
+            }
+        });
+        
+        button.setOnMouseEntered(e -> {
+            audioManager.playHover();
+        });
     }
 }
 

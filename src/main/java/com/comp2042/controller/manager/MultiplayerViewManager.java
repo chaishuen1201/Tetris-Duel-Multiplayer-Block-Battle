@@ -914,6 +914,16 @@ public class MultiplayerViewManager {
         if (label != null && level != null) {
             label.textProperty().unbind();
             label.textProperty().bind(level.asString("%d"));
+            
+            // Add listener for level-up sound
+            level.addListener((obs, oldVal, newVal) -> {
+                int oldLevel = oldVal.intValue();
+                int newLevel = newVal.intValue();
+                // Play level-up sound when level increases
+                if (newLevel > oldLevel && audioManager != null) {
+                    audioManager.playLevelUp();
+                }
+            });
         }
     }
     

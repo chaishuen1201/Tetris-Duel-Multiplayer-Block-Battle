@@ -1,5 +1,6 @@
 package com.comp2042.view;
 
+import com.comp2042.controller.manager.AudioManager;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -19,6 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SettingsPanel extends BorderPane {
+    
+    private AudioManager audioManager;
 
     private Slider volumeSlider;
     private Button muteButton;
@@ -170,6 +173,51 @@ public class SettingsPanel extends BorderPane {
     public void setOnBackAction(Runnable action) {
         this.onBackAction = action;
     }
+    
+    /**
+     * Sets the audio manager for button sounds.
+     * @param audioManager The audio manager to use
+     */
+    public void setAudioManager(AudioManager audioManager) {
+        this.audioManager = audioManager;
+        setupButtonSounds();
+    }
+    
+    /**
+     * Sets up button sounds for all buttons in this panel.
+     */
+    private void setupButtonSounds() {
+        if (audioManager == null) return;
+        
+        // Set up back button
+        if (backButton != null) {
+            setupButtonWithSound(backButton, audioManager);
+        }
+        
+        // Set up all rebind buttons
+        for (Button rebindButton : rebindButtons.values()) {
+            if (rebindButton != null) {
+                setupButtonWithSound(rebindButton, audioManager);
+            }
+        }
+    }
+    
+    private void setupButtonWithSound(Button button, AudioManager audioManager) {
+        if (button == null || audioManager == null) return;
+        
+        javafx.event.EventHandler<javafx.event.ActionEvent> originalHandler = button.getOnAction();
+        
+        button.setOnAction(e -> {
+            audioManager.playClickButton();
+            if (originalHandler != null) {
+                originalHandler.handle(e);
+            }
+        });
+        
+        button.setOnMouseEntered(e -> {
+            audioManager.playHover();
+        });
+    }
 
     public void updateControlsDisplay() {
         controlsContainer.getChildren().clear();
@@ -242,6 +290,11 @@ public class SettingsPanel extends BorderPane {
             rebindButton.setWrapText(true);
 
             rebindButton.setOnAction(e -> startRebinding(key, mode, action, rebindButton));
+            
+            // Set up button sound if audio manager is available
+            if (audioManager != null) {
+                setupButtonWithSound(rebindButton, audioManager);
+            }
 
             rebindButtons.put(key, rebindButton);
 

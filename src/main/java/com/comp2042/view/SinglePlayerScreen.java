@@ -114,65 +114,12 @@ public class SinglePlayerScreen {
         this.timerLabel = timerLabel;
     }
     
-    // Getters for components that GuiController needs
-    public BorderPane getGameBoard() {
-        return gameBoard;
-    }
-    
-    public StackPane getGameStack() {
-        return gameStack;
-    }
-    
-    public GridPane getGamePanel() {
-        return gamePanel;
-    }
-    
-    public Group getGroupNotification() {
-        return groupNotification;
-    }
-    
     public GridPane getBrickPanel() {
         return brickPanel;
     }
     
     public GridPane getGhostPanel() {
         return ghostPanel;
-    }
-    
-    public GameOverPanel getGameOverPanel() {
-        return gameOverPanel;
-    }
-    
-    public PausePanel getPausePanel() {
-        return pausePanel;
-    }
-    
-    public VBox getNextBricksPanel() {
-        return nextBricksPanel;
-    }
-    
-    public GridPane getHoldBrickPanel() {
-        return holdBrickPanel;
-    }
-    
-    public Label getScoreLabel() {
-        return scoreLabel;
-    }
-    
-    public Label getLevelLabel() {
-        return levelLabel;
-    }
-    
-    public Label getLinesLabel() {
-        return linesLabel;
-    }
-    
-    public Label getCountdownLabel() {
-        return countdownLabel;
-    }
-    
-    public Label getTimerLabel() {
-        return timerLabel;
     }
     
     public void setEventListener(InputEventListener eventListener) {
@@ -348,4 +295,5 @@ public class SinglePlayerScreen {
         }
     }
 }
+
 

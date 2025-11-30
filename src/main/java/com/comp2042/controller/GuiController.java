@@ -123,6 +123,7 @@ public class GuiController implements Initializable {
         gameStateManager = new GameStateManager(audioManager, timerManager);
         gameLoopManager = new GameLoopManager(gameStateManager);
         garbageManager = new GarbageManager(gameStateManager);
+        garbageManager.setAudioManager(audioManager);
         multiplayerViewManager = new MultiplayerViewManager(
             gameStateManager,
             gameLoopManager,
@@ -295,10 +296,10 @@ public class GuiController implements Initializable {
 
         // Set up main menu panel
         if (mainMenuPanel != null) {
-            mainMenuPanel.getPlayButton().setOnAction(e -> startGame());
-            mainMenuPanel.getMultiButton().setOnAction(e -> multiplayerViewManager.showMultiplayer());
-            mainMenuPanel.getSettingsButton().setOnAction(e -> settingsController.showSettings());
-            mainMenuPanel.getQuitButton().setOnAction(e -> quitGame());
+            setupButtonWithSound(mainMenuPanel.getPlayButton(), () -> startGame());
+            setupButtonWithSound(mainMenuPanel.getMultiButton(), () -> multiplayerViewManager.showMultiplayer());
+            setupButtonWithSound(mainMenuPanel.getSettingsButton(), () -> settingsController.showSettings());
+            setupButtonWithSound(mainMenuPanel.getQuitButton(), () -> quitGame());
         }
         
         // Initialize settings controller
@@ -349,18 +350,6 @@ public class GuiController implements Initializable {
         
         gameStateManager.setOnStartGarbageProcessingTimelines(() -> gameLoopManager.startGarbageProcessingTimelines());
         gameStateManager.setOnStopGarbageProcessingTimelines(() -> gameLoopManager.stopGarbageProcessingTimelines());
-        
-        gameStateManager.setOnStartMultiplayerTimer(this::startMultiplayerTimer);
-        gameStateManager.setOnStopMultiplayerTimer(this::stopMultiplayerTimer);
-        gameStateManager.setOnPauseMultiplayerTimer(this::pauseMultiplayerTimer);
-        gameStateManager.setOnResumeMultiplayerTimer(this::resumeMultiplayerTimer);
-        gameStateManager.setOnResetMultiplayerTimer(this::resetMultiplayerTimer);
-        
-        gameStateManager.setOnStartSinglePlayerTimer(this::startTimer);
-        gameStateManager.setOnStopSinglePlayerTimer(this::stopTimer);
-        gameStateManager.setOnPauseSinglePlayerTimer(this::pauseTimer);
-        gameStateManager.setOnResumeSinglePlayerTimer(this::resumeTimer);
-        gameStateManager.setOnResetSinglePlayerTimer(this::resetTimer);
         
         gameStateManager.setOnUpdateTimelineRate(() -> gameLoopManager.updateTimelineRate());
         gameStateManager.setOnUpdateTimelineRate1(() -> gameLoopManager.updateTimelineRate(1));
@@ -425,11 +414,14 @@ public class GuiController implements Initializable {
                     if (gameLoopManager.getTimeLine() != null) gameLoopManager.getTimeLine().stop();
                     
                     // Reset timer
-                    resetTimer();
+                    timerManager.resetSinglePlayerTimer();
                     
                     // Stop game over sound and play main menu music
                     audioManager.playMainMenuMusic();
                 });
+                
+                // Set up button sounds
+                gameOverPanel.setupButtonSounds(audioManager);
                 
                 panelCoordinator.showGameOverPanel();
             }
@@ -883,9 +875,15 @@ public class GuiController implements Initializable {
                 
                 // Create and store new listener
                 levelChangeListener = (obs, oldVal, newVal) -> {
-                    currentLevel = newVal.intValue();
+                    int oldLevel = oldVal.intValue();
+                    int newLevel = newVal.intValue();
+                    currentLevel = newLevel;
                     gameLoopManager.setCurrentLevel(currentLevel);
                     gameLoopManager.updateTimelineRate();
+                    // Play level-up sound when level increases
+                    if (newLevel > oldLevel) {
+                        audioManager.playLevelUp();
+                    }
                 };
                 level.addListener(levelChangeListener);
                 currentLevel = level.get();
@@ -1052,9 +1050,9 @@ public class GuiController implements Initializable {
         // Update GameStateManager with current timeline reference
         gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
         
-        // Start timer for single player mode (handled by GameStateManager callback)
+        // Start timer for single player mode (handled by GameStateManager)
         if (!gameStateManager.isMultiplayerMode()) {
-            startTimer();
+            timerManager.startSinglePlayerTimer();
         }
         
         if (gameBoard != null) {
@@ -1090,50 +1088,6 @@ public class GuiController implements Initializable {
         handler.setupPausePanelActions(pausePanel);
     }
     
-    // Timer methods are now handled by TimerManager
-    private void startTimer() {
-        if (!gameStateManager.isMultiplayerMode()) {
-            timerManager.startSinglePlayerTimer();
-        }
-    }
-    
-    private void stopTimer() {
-        timerManager.stopSinglePlayerTimer();
-    }
-    
-    private void pauseTimer() {
-        timerManager.pauseSinglePlayerTimer();
-    }
-    
-    private void resumeTimer() {
-        timerManager.resumeSinglePlayerTimer();
-    }
-    
-    private void resetTimer() {
-        timerManager.resetSinglePlayerTimer();
-    }
-    
-    private void startMultiplayerTimer() {
-        if (gameStateManager.isMultiplayerMode()) {
-            timerManager.startMultiplayerTimer();
-        }
-    }
-    
-    void stopMultiplayerTimer() {
-        timerManager.stopMultiplayerTimer();
-    }
-    
-    private void pauseMultiplayerTimer() {
-        timerManager.pauseMultiplayerTimer();
-    }
-    
-    private void resumeMultiplayerTimer() {
-        timerManager.resumeMultiplayerTimer();
-    }
-    
-    private void resetMultiplayerTimer() {
-        timerManager.resetMultiplayerTimer();
-    }
     
     // Getters and setters for PausePanelActionHandler
     public GameStateManager getGameStateManager() {
@@ -1143,13 +1097,7 @@ public class GuiController implements Initializable {
     public MultiplayerScreen getMultiplayerScreen() {
         return multiplayerScreen;
     }
-    
-    // Delegate methods for multiplayer rendering (use renderer instead of screen)
-    public void refreshMultiplayerBrick(ViewData brick, int playerNumber) {
-        if (multiplayerScreen != null) {
-            gameViewRenderer.refreshBrick(multiplayerScreen, brick, playerNumber);
-        }
-    }
+
     
     public void refreshMultiplayerGameBackground(int[][] board, int playerNumber) {
         if (multiplayerScreen != null) {
@@ -1168,13 +1116,7 @@ public class GuiController implements Initializable {
             gameViewRenderer.updateHoldBrick(multiplayerScreen, heldBrick, playerNumber);
         }
     }
-    
-    // Delegate methods for single player rendering (use SinglePlayerViewManager)
-    public void refreshSinglePlayerBrick(com.comp2042.model.ViewData brick) {
-        if (singlePlayerViewManager != null) {
-            singlePlayerViewManager.refreshBrick(brick);
-        }
-    }
+
     
     public void refreshSinglePlayerGameBackground(int[][] board) {
         if (singlePlayerViewManager != null) {
@@ -1210,6 +1152,10 @@ public class GuiController implements Initializable {
         return audioManager;
     }
     
+    public TimerManager getTimerManager() {
+        return timerManager;
+    }
+    
     public InputHandler getInputHandler() {
         return inputHandler;
     }
@@ -1225,14 +1171,7 @@ public class GuiController implements Initializable {
     public Timeline getTimeLine2() {
         return gameLoopManager.getTimeLine2();
     }
-    
-    public GameController getGameController1() {
-        return gameController1;
-    }
-    
-    public GameController getGameController2() {
-        return gameController2;
-    }
+
     
     public void setGameController1(GameController gameController1) {
         this.gameController1 = gameController1;
@@ -1247,14 +1186,7 @@ public class GuiController implements Initializable {
     public InputEventListener getEventListener() {
         return eventListener;
     }
-    
-    public InputEventListener getEventListener1() {
-        return eventListener1;
-    }
-    
-    public InputEventListener getEventListener2() {
-        return eventListener2;
-    }
+
     
     public void setEventListener1(InputEventListener eventListener1) {
         this.eventListener1 = eventListener1;
@@ -1263,14 +1195,7 @@ public class GuiController implements Initializable {
     public void setEventListener2(InputEventListener eventListener2) {
         this.eventListener2 = eventListener2;
     }
-    
-    public Timeline getGarbageProcessTimeline1() {
-        return gameLoopManager.getGarbageProcessTimeline1();
-    }
-    
-    public Timeline getGarbageProcessTimeline2() {
-        return gameLoopManager.getGarbageProcessTimeline2();
-    }
+
     
     // Setters for compatibility (no-op since GameLoopManager manages timelines)
     public void setTimeLine1(Timeline timeLine1) {
@@ -1369,6 +1294,28 @@ public class GuiController implements Initializable {
     public void setSceneKeyReleasedHandler(javafx.event.EventHandler<KeyEvent> sceneKeyReleasedHandler) {
         this.sceneKeyReleasedHandler = sceneKeyReleasedHandler;
         multiplayerViewManager.setSceneKeyReleasedHandler(sceneKeyReleasedHandler);
+    }
+    
+    /**
+     * Sets up a button with click and hover sound effects.
+     * @param button The button to set up
+     * @param action The action to execute when button is clicked
+     */
+    private void setupButtonWithSound(javafx.scene.control.Button button, Runnable action) {
+        if (button == null) return;
+        
+        // Add click sound
+        button.setOnAction(e -> {
+            audioManager.playClickButton();
+            if (action != null) {
+                action.run();
+            }
+        });
+        
+        // Add hover sound
+        button.setOnMouseEntered(e -> {
+            audioManager.playHover();
+        });
     }
     
 }

@@ -480,8 +480,9 @@ public class MultiplayerScreen {
         vsColumn.setAlignment(Pos.CENTER);
         
         // Create or reuse timer label
+        // Note: Timer text initialization is handled by TimerManager when label is registered
         if (multiplayerTimerLabel == null) {
-            multiplayerTimerLabel = new Label("00:00");
+            multiplayerTimerLabel = new Label();
             multiplayerTimerLabel.getStyleClass().add("multiplayer-timer-label");
             multiplayerTimerLabel.setAlignment(Pos.CENTER);
             multiplayerTimerLabel.setMaxWidth(Double.MAX_VALUE);
@@ -847,9 +848,6 @@ public class MultiplayerScreen {
             handler.setupMultiplayerPausePanelActions(multiplayerPausePanel);
         }
     }
-    
-    public PausePanel getMultiplayerPausePanel() {
-        return multiplayerPausePanel;
-    }
+
 }
 
