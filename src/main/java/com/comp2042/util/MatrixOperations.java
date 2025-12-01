@@ -29,7 +29,12 @@ public final class MatrixOperations {
     }
 
     private static boolean checkOutOfBound(int[][] matrix, int targetX, int targetY) {
-        return !(targetX >= 0 && targetY < matrix.length && targetX < matrix[targetY].length);
+        // Check bounds: targetY must be >= 0 and < matrix.length, then check targetX
+        if (targetY < 0 || targetY >= matrix.length) {
+            return true; // Out of bounds
+        }
+        // Now safe to access matrix[targetY]
+        return !(targetX >= 0 && targetX < matrix[targetY].length);
     }
 
     public static int[][] copy(int[][] original) {

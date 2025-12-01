@@ -55,6 +55,10 @@ public class MultiplayerViewManager {
     private com.comp2042.event.InputEventListener eventListener1;
     private com.comp2042.event.InputEventListener eventListener2;
     
+    // Level change listeners (to prevent duplicate listeners)
+    private javafx.beans.value.ChangeListener<? super Number> levelChangeListener1;
+    private javafx.beans.value.ChangeListener<? super Number> levelChangeListener2;
+    
     // Keyboard handlers
     private EventHandler<KeyEvent> sceneKeyPressedHandler;
     private EventHandler<KeyEvent> sceneKeyReleasedHandler;
@@ -911,15 +915,32 @@ public class MultiplayerViewManager {
             label.textProperty().unbind();
             label.textProperty().bind(level.asString("%d"));
             
-            // Add listener for level-up sound
-            level.addListener((obs, oldVal, newVal) -> {
+            // Remove old listener if it exists to prevent duplicate listeners
+            javafx.beans.value.ChangeListener<? super Number> oldListener = 
+                (playerNumber == 1) ? levelChangeListener1 : levelChangeListener2;
+            if (oldListener != null) {
+                level.removeListener(oldListener);
+            }
+            
+            // Create and store new listener for level-up sound
+            javafx.beans.value.ChangeListener<? super Number> newListener = (obs, oldVal, newVal) -> {
                 int oldLevel = oldVal.intValue();
                 int newLevel = newVal.intValue();
                 // Play level-up sound when level increases
                 if (newLevel > oldLevel && audioManager != null) {
                     audioManager.playLevelUp();
                 }
-            });
+            };
+            
+            // Store the listener
+            if (playerNumber == 1) {
+                levelChangeListener1 = newListener;
+            } else if (playerNumber == 2) {
+                levelChangeListener2 = newListener;
+            }
+            
+            // Add the new listener
+            level.addListener(newListener);
         }
     }
     
