@@ -160,6 +160,39 @@ public class KeyBindingsManager {
         return null;
     }
 
+    /**
+     * Checks if a key is already bound to another player mode.
+     * Only checks between PLAYER1 and PLAYER2 (not SINGLE player).
+     * 
+     * @param keyCode The key code to check
+     * @param currentMode The current player mode trying to bind the key
+     * @return The player mode that already has this key bound, or null if no conflict
+     */
+    public PlayerMode getConflictingPlayerMode(KeyCode keyCode, PlayerMode currentMode) {
+        // Only check conflicts between PLAYER1 and PLAYER2
+        if (currentMode == PlayerMode.PLAYER1) {
+            if (isKeyBound(keyCode, PlayerMode.PLAYER2)) {
+                return PlayerMode.PLAYER2;
+            }
+        } else if (currentMode == PlayerMode.PLAYER2) {
+            if (isKeyBound(keyCode, PlayerMode.PLAYER1)) {
+                return PlayerMode.PLAYER1;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the action that a key is bound to in another player mode.
+     * 
+     * @param keyCode The key code to check
+     * @param conflictingMode The player mode that has the key bound
+     * @return The action the key is bound to in the conflicting mode
+     */
+    public Action getActionInPlayerMode(KeyCode keyCode, PlayerMode conflictingMode) {
+        return getActionForKey(keyCode, conflictingMode);
+    }
+
     public String getKeyBindingDisplay(PlayerMode mode, Action action) {
         KeyCode keyCode = getKeyBinding(mode, action);
         if (keyCode == null) {

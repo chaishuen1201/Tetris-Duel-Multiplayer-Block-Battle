@@ -6,6 +6,8 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -342,6 +344,30 @@ public class SettingsPanel extends BorderPane {
         KeyBindingsManager.PlayerMode mode = info.mode;
         KeyBindingsManager.Action action = info.action;
         Button button = info.button;
+        
+        // Check for conflicts with other player (only for PLAYER1 and PLAYER2)
+        if (mode == KeyBindingsManager.PlayerMode.PLAYER1 || mode == KeyBindingsManager.PlayerMode.PLAYER2) {
+            KeyBindingsManager.PlayerMode conflictingMode = keyBindingsManager.getConflictingPlayerMode(newKey, mode);
+            if (conflictingMode != null) {
+                // Conflict detected - show warning and prevent binding
+                KeyBindingsManager.Action conflictingAction = keyBindingsManager.getActionInPlayerMode(newKey, conflictingMode);
+                String conflictingPlayerName = (conflictingMode == KeyBindingsManager.PlayerMode.PLAYER1) ? "Player 1" : "Player 2";
+                String actionName = (conflictingAction != null) ? conflictingAction.getName().replace("_", " ") : "an action";
+                
+                Alert alert = new Alert(AlertType.WARNING);
+                alert.setTitle("Key Conflict");
+                alert.setHeaderText("Key Already Assigned");
+                alert.setContentText("This key is already assigned to " + conflictingPlayerName + " for " + actionName + ".\n\nPlease choose a different key.");
+                alert.showAndWait();
+                
+                // Restore button text and exit rebinding mode
+                button.setText(keyBindingsManager.getKeyBindingDisplay(mode, action));
+                button.getStyleClass().remove("rebind-button-active");
+                currentRebindingButton = null;
+                rebindingInfoProperty.set(null);
+                return;
+            }
+        }
         
         // Check if key is already bound to another action in the same mode
         KeyBindingsManager.Action existingAction = keyBindingsManager.getActionForKey(newKey, mode);
