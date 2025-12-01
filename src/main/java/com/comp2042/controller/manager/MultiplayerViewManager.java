@@ -926,8 +926,9 @@ public class MultiplayerViewManager {
             javafx.beans.value.ChangeListener<? super Number> newListener = (obs, oldVal, newVal) -> {
                 int oldLevel = oldVal.intValue();
                 int newLevel = newVal.intValue();
-                // Play level-up sound when level increases
-                if (newLevel > oldLevel && audioManager != null) {
+                // Play level-up sound only when level increases from a valid level (>= 1)
+                // This prevents false positives from initialization/reset (where oldLevel might be 0)
+                if (oldLevel >= 1 && newLevel > oldLevel && audioManager != null) {
                     audioManager.playLevelUp();
                 }
             };

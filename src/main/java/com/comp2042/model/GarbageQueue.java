@@ -21,11 +21,19 @@ public class GarbageQueue {
     
     /**
      * Adds garbage lines to the queue.
+     * All lines added in the same call will have the same hole position.
      * @param numLines Number of garbage lines to add
      */
     public void addGarbage(int numLines) {
+        if (numLines <= 0) {
+            return;
+        }
+        
+        // Generate one random hole position that will be used for all rows added at the same time
+        int holePosition = random.nextInt(boardWidth);
+        
         for (int i = 0; i < numLines; i++) {
-            int[] garbageLine = generateGarbageLine();
+            int[] garbageLine = generateGarbageLine(holePosition);
             queue.addLast(garbageLine);
         }
     }
@@ -74,20 +82,20 @@ public class GarbageQueue {
     }
     
     /**
-     * Generates a garbage line with a random hole.
+     * Generates a garbage line with a specified hole position.
      * The line is filled with a garbage block type (using type 8 to distinguish from normal blocks).
-     * One random position is ALWAYS left empty (0) to create a hole, ensuring the row is never completely solid.
+     * One position is ALWAYS left empty (0) to create a hole, ensuring the row is never completely solid.
+     * @param holePosition The position where the hole should be (0 to boardWidth-1)
      */
-    private int[] generateGarbageLine() {
+    private int[] generateGarbageLine(int holePosition) {
         int[] line = new int[boardWidth];
         // Fill the line with garbage blocks (type 8)
         for (int i = 0; i < boardWidth; i++) {
             line[i] = 8; // Use type 8 for garbage blocks
         }
         
-        // ALWAYS create one random hole - this ensures the rubbish row is never completely solid
+        // ALWAYS create one hole at the specified position - this ensures the rubbish row is never completely solid
         // and can only be cleared when the player fills the empty cell
-        int holePosition = random.nextInt(boardWidth);
         line[holePosition] = 0;
         
         return line;

@@ -48,12 +48,19 @@ public class GameController implements InputEventListener {
         ClearRow clearRow = null;
         if (!canMove) {
             board.mergeBrickToBackground();
+            // Check if only garbage rows will be cleared before clearing
+            boolean onlyGarbage = false;
+            if (board instanceof SimpleBoard) {
+                SimpleBoard simpleBoard = (SimpleBoard) board;
+                onlyGarbage = simpleBoard.willClearOnlyGarbage();
+            }
             clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
                 board.getScore().add(clearRow.getScoreBonus());
                 
                 // Send garbage to opponent in multiplayer mode
-                if (playerNumber > 0) {
+                // Only send garbage if regular blocks were cleared, not if only garbage rows were cleared
+                if (playerNumber > 0 && !onlyGarbage) {
                     int garbageToSend = calculateGarbageToSend(clearRow.getLinesRemoved());
                     if (garbageToSend > 0) {
                         viewGuiController.sendGarbageToOpponent(playerNumber, garbageToSend);
@@ -126,12 +133,19 @@ public class GameController implements InputEventListener {
             board.getScore().add(hardDropScore);
             
             board.mergeBrickToBackground();
+            // Check if only garbage rows will be cleared before clearing
+            boolean onlyGarbage = false;
+            if (board instanceof SimpleBoard) {
+                SimpleBoard simpleBoard2 = (SimpleBoard) board;
+                onlyGarbage = simpleBoard2.willClearOnlyGarbage();
+            }
             clearRow = board.clearRows();
             if (clearRow.getLinesRemoved() > 0) {
                 board.getScore().add(clearRow.getScoreBonus());
                 
                 // Send garbage to opponent in multiplayer mode
-                if (playerNumber > 0) {
+                // Only send garbage if regular blocks were cleared, not if only garbage rows were cleared
+                if (playerNumber > 0 && !onlyGarbage) {
                     int garbageToSend = calculateGarbageToSend(clearRow.getLinesRemoved());
                     if (garbageToSend > 0) {
                         viewGuiController.sendGarbageToOpponent(playerNumber, garbageToSend);

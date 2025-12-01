@@ -1,0 +1,9 @@
+com.comp2042
+com.comp2042.controller
+com.comp2042.controller.input
+com.comp2042.controller.manager
+com.comp2042.event
+com.comp2042.logic.bricks
+com.comp2042.model
+com.comp2042.util
+com.comp2042.view

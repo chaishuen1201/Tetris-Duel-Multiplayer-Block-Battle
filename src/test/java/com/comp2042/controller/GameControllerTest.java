@@ -180,5 +180,61 @@ class GameControllerTest {
             assertEquals(4, method.invoke(tempController, 4), "Garbage calculation should return 4 for 4 lines");
         }
     }
+
+    @Test
+    void testGameController_ClearingOnlyGarbageDoesNotSendGarbage() throws Exception {
+        // Test that clearing only garbage rows does not send garbage to opponent
+        GameController tempController = null;
+        try {
+            tempController = new GameController(mockGuiController, 1); // Player 1 for multiplayer
+        } catch (Exception e) {
+            return; // Skip if JavaFX not available
+        }
+        
+        mockGuiController.reset();
+        
+        com.comp2042.model.SimpleBoard board = tempController.getSimpleBoard();
+        if (board == null) {
+            return;
+        }
+        
+        // Fill rows with only garbage blocks (type 8)
+        try {
+            java.lang.reflect.Field matrixField = com.comp2042.model.SimpleBoard.class.getDeclaredField("currentGameMatrix");
+            matrixField.setAccessible(true);
+            int[][] matrix = (int[][]) matrixField.get(board);
+            
+            // Fill 2 rows with only garbage blocks (type 8)
+            for (int row = 18; row < 20; row++) { // Bottom 2 rows
+                for (int col = 0; col < 10; col++) {
+                    matrix[row][col] = 8; // Garbage blocks
+                }
+                // Create one hole in each row (required for garbage rows)
+                matrix[row][0] = 0; // Hole at position 0
+            }
+        } catch (Exception e) {
+            return; // Skip if we can't fill rows
+        }
+        
+        // Create a brick and move it down to fill the holes and clear the garbage rows
+        board.createNewBrick();
+        
+        // Move brick down until it hits bottom
+        while (board.moveBrickDown()) {
+            // Keep moving
+        }
+        
+        // Trigger onDownEvent which should clear rows
+        com.comp2042.event.MoveEvent event = new com.comp2042.event.MoveEvent(
+            com.comp2042.event.EventType.DOWN, 
+            com.comp2042.event.EventSource.USER
+        );
+        
+        tempController.onDownEvent(event);
+        
+        // Verify that no garbage was sent (because only garbage rows were cleared)
+        assertEquals(0, mockGuiController.getGarbageSent(), 
+            "Should not send garbage when only garbage rows are cleared");
+    }
 }
 

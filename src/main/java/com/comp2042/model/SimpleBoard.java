@@ -171,6 +171,39 @@ public class SimpleBoard implements Board {
                 (int) currentOffset.getX(), (int) currentOffset.getY());
     }
 
+    /**
+     * Checks if the rows that will be cleared contain only garbage blocks (type 8).
+     * This is used to determine if garbage should be sent to opponent.
+     * @return true if rows will be cleared AND all of them contain only garbage blocks, false otherwise
+     */
+    public boolean willClearOnlyGarbage() {
+        boolean foundRowToClear = false;
+        // Check which rows will be cleared
+        for (int i = 0; i < currentGameMatrix.length; i++) {
+            boolean rowToClear = true;
+            for (int j = 0; j < currentGameMatrix[i].length; j++) {
+                if (currentGameMatrix[i][j] == 0) {
+                    rowToClear = false;
+                    break;
+                }
+            }
+            if (rowToClear) {
+                foundRowToClear = true;
+                // This row will be cleared - check if it contains only garbage blocks (type 8)
+                for (int j = 0; j < currentGameMatrix[i].length; j++) {
+                    int cellValue = currentGameMatrix[i][j];
+                    // If any cell is not garbage (type 8) and not empty (0), it's a regular block
+                    if (cellValue != 0 && cellValue != 8) {
+                        return false; // Found a regular block, not only garbage
+                    }
+                }
+            }
+        }
+        // If we found rows to clear and all of them contain only garbage, return true
+        // If no rows will be cleared, return false (so garbage will be sent if regular blocks are cleared)
+        return foundRowToClear;
+    }
+
     @Override
     public ClearRow clearRows() {
         ClearRow clearRow = MatrixOperations.checkRemoving(currentGameMatrix);
@@ -353,6 +386,21 @@ public class SimpleBoard implements Board {
         int[] garbageLine = garbageQueue.pollGarbageLine();
         if (garbageLine == null) {
             return false;
+        }
+        
+        // Check if the top row (row 0) contains any blocks before shifting
+        // If it does, shifting will push blocks off the board, causing game over
+        boolean topRowHasBlocks = false;
+        for (int col = 0; col < height; col++) {
+            if (currentGameMatrix[0][col] != 0) {
+                topRowHasBlocks = true;
+                break;
+            }
+        }
+        
+        // If top row has blocks, shifting will push them off the board = game over
+        if (topRowHasBlocks) {
+            return true; // Indicates game over due to blocks being pushed off
         }
         
         // The matrix is [width][height] = [20][10]

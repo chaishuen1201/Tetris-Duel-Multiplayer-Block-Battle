@@ -531,6 +531,12 @@ public class GuiController implements Initializable {
             }
             
             @Override
+            public boolean isCountdownActive() {
+                // Check if countdown label is visible to determine if countdown is active
+                return countdownLabel != null && countdownLabel.isVisible();
+            }
+            
+            @Override
             public void refreshBrick(ViewData viewData) {
                 if (singlePlayerViewManager != null) {
                     singlePlayerViewManager.refreshBrick(viewData);

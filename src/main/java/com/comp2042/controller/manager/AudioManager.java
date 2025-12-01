@@ -7,8 +7,13 @@ import javafx.util.Duration;
 import java.net.URL;
 
 /**
- * Manages all audio operations for the game.
- * Follows Single Responsibility Principle - only handles audio playback.
+ * Manages all audio operations for the game, including loading, playing, and controlling
+ * various sound effects and background music. This class handles audio files for game events
+ * such as countdown, line clears, game over, winner announcements, button clicks, hover effects,
+ * garbage blocks, and level ups. It also manages background music for the main menu and gameplay.
+ * The AudioManager provides volume control, mute functionality, and ensures proper resource
+ * management for all MediaPlayer instances. Follows Single Responsibility Principle by
+ * exclusively handling audio playback operations.
  */
 public class AudioManager {
     
@@ -29,7 +34,12 @@ public class AudioManager {
     private boolean isMuted = false;
     
     /**
-     * Initializes all audio players by loading audio files.
+     * Initializes all audio players by loading audio files from the resources directory.
+     * Loads all sound effects and music tracks, sets their initial volume, and prepares
+     * them for playback. If any audio file fails to load, an error message is printed
+     * but initialization continues for other files.
+     * 
+     * @throws Exception if a critical error occurs during audio file loading
      */
     public void initialize() {
         try {
@@ -49,6 +59,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the countdown sound effect from resources.
+     * Creates a MediaPlayer instance for the 3-2-1 countdown audio file.
+     */
     private void loadCountdownSound() {
         URL countdownUrl = getClass().getClassLoader().getResource("audio/3-2-1-countdown.mp3");
         if (countdownUrl != null) {
@@ -57,6 +71,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the game background music from resources.
+     * Creates a MediaPlayer instance for the game music and sets it to loop indefinitely.
+     */
     private void loadGameMusic() {
         URL gameMusicUrl = getClass().getClassLoader().getResource("audio/A-Type Music (Korobeiniki).mp3");
         if (gameMusicUrl != null) {
@@ -66,6 +84,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the game over sound effect from resources.
+     * Creates a MediaPlayer instance for the game over audio file.
+     */
     private void loadGameOverSound() {
         URL gameOverUrl = getClass().getClassLoader().getResource("audio/Game Over.mp3");
         if (gameOverUrl != null) {
@@ -74,6 +96,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the line clear sound effect from resources.
+     * Creates a MediaPlayer instance for the line clear audio file.
+     */
     private void loadLineClearSound() {
         URL lineClearUrl = getClass().getClassLoader().getResource("audio/Stage Clear.mp3");
         if (lineClearUrl != null) {
@@ -82,6 +108,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the main menu background music from resources.
+     * Creates a MediaPlayer instance for the main menu music and sets it to loop indefinitely.
+     */
     private void loadMainMenuMusic() {
         URL mainMenuUrl = getClass().getClassLoader().getResource("audio/tetris-party-deluxe-main-menu-music.mp3");
         if (mainMenuUrl != null) {
@@ -91,6 +121,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the winner sound effect from resources.
+     * Creates a MediaPlayer instance for the winner announcement audio file.
+     */
     private void loadWinnerSound() {
         URL winnerUrl = getClass().getClassLoader().getResource("audio/winners_W9Cpenj.mp3");
         if (winnerUrl != null) {
@@ -99,6 +133,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the button click sound effect from resources.
+     * Creates a MediaPlayer instance for the button click audio file.
+     */
     private void loadClickButtonSound() {
         URL clickButtonUrl = getClass().getClassLoader().getResource("audio/click-button.mp3");
         if (clickButtonUrl != null) {
@@ -107,6 +145,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the garbage block sound effect from resources.
+     * Creates a MediaPlayer instance for the garbage block audio file.
+     */
     private void loadGarbageSound() {
         URL garbageUrl = getClass().getClassLoader().getResource("audio/garbage.mp3");
         if (garbageUrl != null) {
@@ -115,6 +157,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the hover sound effect from resources.
+     * Creates a MediaPlayer instance for the hover audio file.
+     */
     private void loadHoverSound() {
         URL hoverUrl = getClass().getClassLoader().getResource("audio/hover.mp3");
         if (hoverUrl != null) {
@@ -123,6 +169,10 @@ public class AudioManager {
         }
     }
     
+    /**
+     * Loads the level up sound effect from resources.
+     * Creates a MediaPlayer instance for the level up audio file.
+     */
     private void loadLevelUpSound() {
         URL levelUpUrl = getClass().getClassLoader().getResource("audio/level-up.mp3");
         if (levelUpUrl != null) {
@@ -133,7 +183,12 @@ public class AudioManager {
     
     /**
      * Sets the volume for all audio players.
-     * @param volume Volume level between 0.0 and 1.0
+     * Updates the current volume setting and applies it to all MediaPlayer instances
+     * if the audio is not muted. The volume change takes effect immediately for all
+     * currently loaded audio players.
+     * 
+     * @param volume Volume level between 0.0 and 1.0 (0.0 is silent, 1.0 is maximum)
+     * @throws IllegalArgumentException if volume is outside the valid range [0.0, 1.0]
      */
     public void setVolume(double volume) {
         if (volume < 0.0 || volume > 1.0) {
@@ -146,16 +201,22 @@ public class AudioManager {
     }
     
     /**
-     * Gets the current volume level.
-     * @return Current volume between 0.0 and 1.0
+     * Gets the current volume level setting.
+     * Returns the stored volume value, which may differ from the actual playback volume
+     * if the audio is currently muted.
+     * 
+     * @return Current volume level between 0.0 and 1.0
      */
     public double getVolume() {
         return currentVolume;
     }
     
     /**
-     * Toggles mute state.
-     * @return true if now muted, false if now unmuted
+     * Toggles the mute state of all audio playback.
+     * When muting, sets all audio players to volume 0.0. When unmuting, restores
+     * all audio players to the previously set volume level.
+     * 
+     * @return true if audio is now muted, false if audio is now unmuted
      */
     public boolean toggleMute() {
         isMuted = !isMuted;
@@ -169,12 +230,20 @@ public class AudioManager {
     
     /**
      * Checks if audio is currently muted.
-     * @return true if muted, false otherwise
+     * 
+     * @return true if audio is muted, false if audio is playing at the set volume level
      */
     public boolean isMuted() {
         return isMuted;
     }
     
+    /**
+     * Applies the specified volume level to all loaded MediaPlayer instances.
+     * Iterates through all audio players and sets their volume, skipping any
+     * players that have not been initialized.
+     * 
+     * @param volume The volume level to apply (between 0.0 and 1.0)
+     */
     private void applyVolumeToAllPlayers(double volume) {
         if (countdownSound != null) {
             countdownSound.setVolume(volume);
@@ -209,7 +278,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the countdown sound.
+     * Plays the countdown sound effect.
+     * Stops any currently playing countdown sound, resets it to the beginning,
+     * and starts playback. Does nothing if the countdown sound has not been loaded.
      */
     public void playCountdown() {
         if (countdownSound != null) {
@@ -220,7 +291,10 @@ public class AudioManager {
     }
     
     /**
-     * Plays the game music (looping).
+     * Plays the game background music in a continuous loop.
+     * Stops the main menu music if it is playing, then starts the game music.
+     * The music will loop indefinitely until stopped. Does nothing if the game
+     * music has not been loaded.
      */
     public void playGameMusic() {
         if (gameMusic != null) {
@@ -230,7 +304,8 @@ public class AudioManager {
     }
     
     /**
-     * Stops the game music.
+     * Stops the game background music playback.
+     * Does nothing if the game music has not been loaded or is not currently playing.
      */
     public void stopGameMusic() {
         if (gameMusic != null) {
@@ -239,7 +314,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the game over sound.
+     * Plays the game over sound effect.
+     * Stops any currently playing game over sound, resets it to the beginning,
+     * and starts playback. Does nothing if the game over sound has not been loaded.
      */
     public void playGameOver() {
         if (gameOverSound != null) {
@@ -250,7 +327,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the line clear sound.
+     * Plays the line clear sound effect.
+     * Stops any currently playing line clear sound, resets it to the beginning,
+     * and starts playback. Does nothing if the line clear sound has not been loaded.
      */
     public void playLineClear() {
         if (lineClearSound != null) {
@@ -261,7 +340,10 @@ public class AudioManager {
     }
     
     /**
-     * Plays the main menu music (looping).
+     * Plays the main menu background music in a continuous loop.
+     * Stops the game music if it is currently playing, then starts the main menu music.
+     * The music will loop indefinitely until stopped. Does nothing if the main menu
+     * music has not been loaded.
      */
     public void playMainMenuMusic() {
         if (mainMenuMusic != null) {
@@ -271,7 +353,8 @@ public class AudioManager {
     }
     
     /**
-     * Stops the main menu music.
+     * Stops the main menu background music playback.
+     * Does nothing if the main menu music has not been loaded or is not currently playing.
      */
     public void stopMainMenuMusic() {
         if (mainMenuMusic != null) {
@@ -280,7 +363,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the winner sound.
+     * Plays the winner announcement sound effect.
+     * Stops any currently playing winner sound, resets it to the beginning,
+     * and starts playback. Does nothing if the winner sound has not been loaded.
      */
     public void playWinner() {
         if (winnerSound != null) {
@@ -291,7 +376,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the button click sound.
+     * Plays the button click sound effect.
+     * Stops any currently playing button click sound, resets it to the beginning,
+     * and starts playback. Does nothing if the button click sound has not been loaded.
      */
     public void playClickButton() {
         if (clickButtonSound != null) {
@@ -302,7 +389,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the garbage sound.
+     * Plays the garbage block sound effect.
+     * Stops any currently playing garbage sound, resets it to the beginning,
+     * and starts playback. Does nothing if the garbage sound has not been loaded.
      */
     public void playGarbage() {
         if (garbageSound != null) {
@@ -313,7 +402,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the hover sound.
+     * Plays the hover sound effect (typically used for UI button hover events).
+     * Stops any currently playing hover sound, resets it to the beginning,
+     * and starts playback. Does nothing if the hover sound has not been loaded.
      */
     public void playHover() {
         if (hoverSound != null) {
@@ -324,7 +415,9 @@ public class AudioManager {
     }
     
     /**
-     * Plays the level up sound.
+     * Plays the level up sound effect.
+     * Stops any currently playing level up sound, resets it to the beginning,
+     * and starts playback. Does nothing if the level up sound has not been loaded.
      */
     public void playLevelUp() {
         if (levelUpSound != null) {
@@ -335,7 +428,9 @@ public class AudioManager {
     }
     
     /**
-     * Stops all audio playback.
+     * Stops all audio playback for all loaded MediaPlayer instances.
+     * This includes all sound effects and background music. Does nothing for
+     * audio players that have not been loaded or are not currently playing.
      */
     public void stopAll() {
         if (countdownSound != null) {
@@ -371,7 +466,10 @@ public class AudioManager {
     }
     
     /**
-     * Cleans up resources when audio manager is no longer needed.
+     * Cleans up all audio resources when the audio manager is no longer needed.
+     * Stops all audio playback and releases all MediaPlayer references to allow
+     * garbage collection. Should be called when the AudioManager is being destroyed
+     * to prevent resource leaks.
      */
     public void dispose() {
         stopAll();
