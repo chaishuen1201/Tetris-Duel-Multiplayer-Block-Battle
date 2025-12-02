@@ -6,10 +6,23 @@ import javafx.scene.control.Label;
 import javafx.util.Duration;
 
 /**
- * Manages game timers for single player and multiplayer modes.
- * Follows Single Responsibility Principle - only handles timer operations.
+ * Manages game timers for both single player and multiplayer modes.
+ * This class provides separate timer instances for single player and multiplayer games,
+ * tracking elapsed time in seconds and updating UI labels with formatted time displays
+ * (MM:SS format). It handles timer lifecycle operations including start, stop, pause,
+ * resume, and reset. The manager uses JavaFX Timeline to update the timer every second,
+ * automatically updating the associated label when set. It follows the Single Responsibility
+ * Principle by exclusively handling timer operations and time formatting.
  */
 public class TimerManager {
+
+    /**
+     * Default constructor. Initializes the TimerManager.
+     * Timers are created when start methods are called.
+     */
+    public TimerManager() {
+        // Default constructor - timers initialized when needed
+    }
     
     private Timeline singlePlayerTimer;
     private Timeline multiplayerTimer;
@@ -20,7 +33,9 @@ public class TimerManager {
     
     /**
      * Sets the timer label for single player mode.
-     * @param label The label to display the timer
+     * Initializes the label to display "00:00" when set.
+     * 
+     * @param label The Label to display the single player timer
      */
     public void setSinglePlayerTimerLabel(Label label) {
         this.singlePlayerTimerLabel = label;
@@ -31,7 +46,9 @@ public class TimerManager {
     
     /**
      * Sets the timer label for multiplayer mode.
-     * @param label The label to display the timer
+     * Initializes the label to display "00:00" when set.
+     * 
+     * @param label The Label to display the multiplayer timer
      */
     public void setMultiplayerTimerLabel(Label label) {
         this.multiplayerTimerLabel = label;
@@ -42,6 +59,9 @@ public class TimerManager {
     
     /**
      * Starts the single player timer.
+     * Stops any existing timer, resets elapsed time to 0, initializes the label,
+     * creates a new Timeline that updates every second, and begins counting.
+     * The timer will continue running indefinitely until stopped or paused.
      */
     public void startSinglePlayerTimer() {
         stopSinglePlayerTimer();
@@ -61,7 +81,8 @@ public class TimerManager {
     }
     
     /**
-     * Stops the single player timer.
+     * Stops the single player timer and releases the Timeline instance.
+     * The elapsed time is preserved and can be retrieved using getSinglePlayerElapsedSeconds().
      */
     public void stopSinglePlayerTimer() {
         if (singlePlayerTimer != null) {
@@ -71,7 +92,8 @@ public class TimerManager {
     }
     
     /**
-     * Resets the single player timer (stops and resets elapsed time to 0).
+     * Resets the single player timer by stopping it and resetting elapsed time to 0.
+     * Updates the timer label to display "00:00".
      */
     public void resetSinglePlayerTimer() {
         stopSinglePlayerTimer();
@@ -82,7 +104,8 @@ public class TimerManager {
     }
     
     /**
-     * Pauses the single player timer.
+     * Pauses the single player timer without resetting elapsed time.
+     * The timer can be resumed later using resumeSinglePlayerTimer().
      */
     public void pauseSinglePlayerTimer() {
         if (singlePlayerTimer != null) {
@@ -91,7 +114,8 @@ public class TimerManager {
     }
     
     /**
-     * Resumes the single player timer.
+     * Resumes the single player timer from where it was paused.
+     * The elapsed time continues from the value it had when paused.
      */
     public void resumeSinglePlayerTimer() {
         if (singlePlayerTimer != null) {
@@ -100,8 +124,9 @@ public class TimerManager {
     }
     
     /**
-     * Gets the elapsed time in seconds for single player.
-     * @return Elapsed seconds
+     * Gets the elapsed time in seconds for single player mode.
+     * 
+     * @return The number of seconds elapsed since the timer was started or reset
      */
     public int getSinglePlayerElapsedSeconds() {
         return singlePlayerElapsedSeconds;
@@ -109,6 +134,9 @@ public class TimerManager {
     
     /**
      * Starts the multiplayer timer.
+     * Stops any existing timer, resets elapsed time to 0, initializes the label,
+     * creates a new Timeline that updates every second, and begins counting.
+     * The timer will continue running indefinitely until stopped or paused.
      */
     public void startMultiplayerTimer() {
         stopMultiplayerTimer();
@@ -128,7 +156,8 @@ public class TimerManager {
     }
     
     /**
-     * Stops the multiplayer timer.
+     * Stops the multiplayer timer and releases the Timeline instance.
+     * The elapsed time is preserved and can be retrieved using getMultiplayerElapsedSeconds().
      */
     public void stopMultiplayerTimer() {
         if (multiplayerTimer != null) {
@@ -138,7 +167,8 @@ public class TimerManager {
     }
     
     /**
-     * Resets the multiplayer timer (stops and resets elapsed time to 0).
+     * Resets the multiplayer timer by stopping it and resetting elapsed time to 0.
+     * Updates the timer label to display "00:00".
      */
     public void resetMultiplayerTimer() {
         stopMultiplayerTimer();
@@ -149,7 +179,8 @@ public class TimerManager {
     }
     
     /**
-     * Pauses the multiplayer timer.
+     * Pauses the multiplayer timer without resetting elapsed time.
+     * The timer can be resumed later using resumeMultiplayerTimer().
      */
     public void pauseMultiplayerTimer() {
         if (multiplayerTimer != null) {
@@ -158,7 +189,8 @@ public class TimerManager {
     }
     
     /**
-     * Resumes the multiplayer timer.
+     * Resumes the multiplayer timer from where it was paused.
+     * The elapsed time continues from the value it had when paused.
      */
     public void resumeMultiplayerTimer() {
         if (multiplayerTimer != null) {
@@ -167,17 +199,20 @@ public class TimerManager {
     }
     
     /**
-     * Gets the elapsed time in seconds for multiplayer.
-     * @return Elapsed seconds
+     * Gets the elapsed time in seconds for multiplayer mode.
+     * 
+     * @return The number of seconds elapsed since the timer was started or reset
      */
     public int getMultiplayerElapsedSeconds() {
         return multiplayerElapsedSeconds;
     }
     
     /**
-     * Formats elapsed seconds as MM:SS.
-     * @param seconds Total seconds
-     * @return Formatted time string
+     * Formats elapsed seconds as MM:SS (minutes:seconds).
+     * Converts total seconds into a two-digit minutes and two-digit seconds format.
+     * 
+     * @param seconds The total number of seconds to format
+     * @return A formatted time string in MM:SS format (e.g., "05:23" for 323 seconds)
      */
     private String formatTime(int seconds) {
         int minutes = seconds / 60;
@@ -187,6 +222,8 @@ public class TimerManager {
     
     /**
      * Stops all timers and cleans up resources.
+     * Stops both single player and multiplayer timers, releasing Timeline instances.
+     * Should be called when the TimerManager is no longer needed to prevent resource leaks.
      */
     public void dispose() {
         stopSinglePlayerTimer();

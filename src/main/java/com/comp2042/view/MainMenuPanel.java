@@ -6,6 +6,17 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 
+/**
+ * Main menu panel component displaying the game's main menu.
+ * This JavaFX BorderPane component serves as the entry point to the game,
+ * providing navigation buttons for starting a single player game (PLAY),
+ * starting a multiplayer game (MULTIPLAYER), accessing settings (SETTINGS),
+ * and quitting the application (QUIT). The panel features a "TETRIS" title
+ * using a custom PublicPixel font for a retro game aesthetic, and all
+ * buttons are styled with CSS classes. The panel uses a vertical layout
+ * with the title at the top and buttons arranged below it. Button actions
+ * are configured externally by accessing the button references through getter methods.
+ */
 public class MainMenuPanel extends BorderPane {
 
     final Button playButton;
@@ -13,6 +24,13 @@ public class MainMenuPanel extends BorderPane {
     final Button multiButton;
     final Button quitButton;
 
+    /**
+     * Creates a new MainMenuPanel with all UI components initialized.
+     * Sets up the layout with a "TETRIS" title using the PublicPixel font,
+     * and four menu buttons (PLAY, MULTIPLAYER, SETTINGS, QUIT) arranged
+     * vertically. All components are styled with CSS classes. If the PublicPixel
+     * font cannot be loaded, the title falls back to the default font.
+     */
     public MainMenuPanel() {
         VBox menuBox = new VBox(30);
         menuBox.getStyleClass().add("main-menu-container");
@@ -60,18 +78,38 @@ public class MainMenuPanel extends BorderPane {
         setCenter(menuBox);
     }
 
+    /**
+     * Gets the PLAY button for starting a single player game.
+     * 
+     * @return The Button instance for the PLAY action
+     */
     public Button getPlayButton() {
         return playButton;
     }
 
+    /**
+     * Gets the SETTINGS button for accessing game settings.
+     * 
+     * @return The Button instance for the SETTINGS action
+     */
     public Button getSettingsButton() {
         return settingsButton;
     }
 
+    /**
+     * Gets the QUIT button for exiting the application.
+     * 
+     * @return The Button instance for the QUIT action
+     */
     public Button getQuitButton() {
         return quitButton;
     }
 
+    /**
+     * Gets the MULTIPLAYER button for starting a multiplayer game.
+     * 
+     * @return The Button instance for the MULTIPLAYER action
+     */
     public Button getMultiButton() {
         return multiButton;
     }

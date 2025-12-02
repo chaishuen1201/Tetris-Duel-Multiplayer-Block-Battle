@@ -13,6 +13,18 @@ import javafx.scene.shape.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Manages the single player game screen UI components and rendering.
+ * This class handles the complete UI setup for single-player Tetris gameplay, including
+ * game board initialization, brick display panels, ghost piece rendering, next bricks
+ * preview, hold brick display, and score/level/lines label bindings. The class uses
+ * dependency injection pattern where UI components are set via setter methods (typically
+ * injected from FXML). It initializes game panels with proper grid constraints, creates
+ * display matrices for rendering, and manages the state of current brick data. The class
+ * delegates actual rendering operations to GameViewRenderer, keeping rendering logic
+ * separate from UI component management. It supports reactive property binding for score,
+ * level, and lines using JavaFX IntegerProperty.
+ */
 public class SinglePlayerScreen {
     
     // Constants
@@ -49,87 +61,194 @@ public class SinglePlayerScreen {
     // Rendering - delegated to GameViewRenderer
     private final GameViewRenderer renderer = new GameViewRenderer();
     
+    /**
+     * Creates a new SinglePlayerScreen instance.
+     * UI components must be set via setter methods (typically injected from FXML)
+     * before the screen can be used. The renderer is initialized automatically.
+     */
     public SinglePlayerScreen() {
         // Components will be injected via setters
     }
     
-    // Setters for FXML-injected components
+    /**
+     * Sets the game board BorderPane (typically injected from FXML).
+     * 
+     * @param gameBoard The BorderPane containing the game board layout
+     */
     public void setGameBoard(BorderPane gameBoard) {
         this.gameBoard = gameBoard;
     }
     
+    /**
+     * Sets the game stack StackPane (typically injected from FXML).
+     * 
+     * @param gameStack The StackPane for layering game components
+     */
     public void setGameStack(StackPane gameStack) {
         this.gameStack = gameStack;
     }
     
+    /**
+     * Sets the game panel GridPane for the background grid (typically injected from FXML).
+     * 
+     * @param gamePanel The GridPane representing the game board background
+     */
     public void setGamePanel(GridPane gamePanel) {
         this.gamePanel = gamePanel;
     }
     
+    /**
+     * Sets the notification group for displaying notifications (typically injected from FXML).
+     * 
+     * @param groupNotification The Group container for notification panels
+     */
     public void setGroupNotification(Group groupNotification) {
         this.groupNotification = groupNotification;
     }
     
+    /**
+     * Sets the brick panel GridPane for rendering the current brick (typically injected from FXML).
+     * 
+     * @param brickPanel The GridPane for rendering the falling brick
+     */
     public void setBrickPanel(GridPane brickPanel) {
         this.brickPanel = brickPanel;
     }
     
+    /**
+     * Sets the ghost panel GridPane for rendering the ghost piece (typically injected from FXML).
+     * 
+     * @param ghostPanel The GridPane for rendering the ghost piece preview
+     */
     public void setGhostPanel(GridPane ghostPanel) {
         this.ghostPanel = ghostPanel;
     }
     
+    /**
+     * Sets the game over panel (typically injected from FXML).
+     * 
+     * @param gameOverPanel The GameOverPanel instance
+     */
     public void setGameOverPanel(GameOverPanel gameOverPanel) {
         this.gameOverPanel = gameOverPanel;
     }
     
+    /**
+     * Sets the pause panel (typically injected from FXML).
+     * 
+     * @param pausePanel The PausePanel instance
+     */
     public void setPausePanel(PausePanel pausePanel) {
         this.pausePanel = pausePanel;
     }
     
+    /**
+     * Sets the next bricks panel VBox (typically injected from FXML).
+     * 
+     * @param nextBricksPanel The VBox container for next brick previews
+     */
     public void setNextBricksPanel(VBox nextBricksPanel) {
         this.nextBricksPanel = nextBricksPanel;
     }
     
+    /**
+     * Sets the hold brick panel GridPane (typically injected from FXML).
+     * 
+     * @param holdBrickPanel The GridPane for displaying the held brick
+     */
     public void setHoldBrickPanel(GridPane holdBrickPanel) {
         this.holdBrickPanel = holdBrickPanel;
     }
     
+    /**
+     * Sets the score label (typically injected from FXML).
+     * 
+     * @param scoreLabel The Label for displaying the score
+     */
     public void setScoreLabel(Label scoreLabel) {
         this.scoreLabel = scoreLabel;
     }
     
+    /**
+     * Sets the level label (typically injected from FXML).
+     * 
+     * @param levelLabel The Label for displaying the level
+     */
     public void setLevelLabel(Label levelLabel) {
         this.levelLabel = levelLabel;
     }
     
+    /**
+     * Sets the lines label (typically injected from FXML).
+     * 
+     * @param linesLabel The Label for displaying the lines cleared
+     */
     public void setLinesLabel(Label linesLabel) {
         this.linesLabel = linesLabel;
     }
     
+    /**
+     * Sets the countdown label (typically injected from FXML).
+     * 
+     * @param countdownLabel The Label for displaying the countdown
+     */
     public void setCountdownLabel(Label countdownLabel) {
         this.countdownLabel = countdownLabel;
     }
     
+    /**
+     * Sets the timer label (typically injected from FXML).
+     * 
+     * @param timerLabel The Label for displaying the game timer
+     */
     public void setTimerLabel(Label timerLabel) {
         this.timerLabel = timerLabel;
     }
     
+    /**
+     * Gets the brick panel GridPane.
+     * 
+     * @return The GridPane for rendering the current falling brick
+     */
     public GridPane getBrickPanel() {
         return brickPanel;
     }
     
+    /**
+     * Gets the ghost panel GridPane.
+     * 
+     * @return The GridPane for rendering the ghost piece
+     */
     public GridPane getGhostPanel() {
         return ghostPanel;
     }
     
+    /**
+     * Sets the event listener for handling game input events.
+     * 
+     * @param eventListener The InputEventListener to handle game events
+     */
     public void setEventListener(InputEventListener eventListener) {
         this.eventListener = eventListener;
     }
     
+    /**
+     * Gets the event listener for handling game input events.
+     * 
+     * @return The InputEventListener instance, or null if not set
+     */
     public InputEventListener getEventListener() {
         return eventListener;
     }
     
+    /**
+     * Initializes the game panels (game panel, brick panel, and ghost panel).
+     * Sets up grid constraints, creates display matrices, and configures panels
+     * with proper sizing and transparency. The game panel is initialized with
+     * a grid of transparent rectangles with gray borders representing the game
+     * board. Brick and ghost panels are configured to be mouse-transparent so
+     * they don't interfere with input handling.
+     */
     public void initializeGamePanel() {
         if (gamePanel != null) {
             gamePanel.getChildren().clear();
@@ -196,6 +315,12 @@ public class SinglePlayerScreen {
         }
     }
 
+    /**
+     * Initializes the hold brick panel.
+     * Creates a 4x4 grid of transparent rectangles with gray borders for
+     * displaying the held brick. The rectangles are slightly smaller than
+     * the standard brick size (BRICK_SIZE - 10) for visual distinction.
+     */
     public void initializeHoldPanel() {
         if (holdBrickPanel != null) {
             holdBrickPanel.getChildren().clear();
@@ -212,6 +337,12 @@ public class SinglePlayerScreen {
         }
     }
 
+    /**
+     * Initializes the next bricks preview panel.
+     * Creates three 4x4 grid panes for displaying the next three upcoming bricks.
+     * The panes are initially hidden and will be shown when the game starts.
+     * Each pane contains a grid of transparent rectangles for rendering brick shapes.
+     */
     public void initializeNextBricksPanel() {
         if (nextBricksPanel != null) {
             nextBrickPanes.clear();
@@ -237,6 +368,13 @@ public class SinglePlayerScreen {
     }
 
     
+    /**
+     * Binds the score property to the score label.
+     * Unbinds any existing binding and creates a new binding that formats
+     * the score value as "Score: {value}".
+     * 
+     * @param score The IntegerProperty representing the score
+     */
     public void bindScore(IntegerProperty score) {
         if (scoreLabel != null && score != null) {
             scoreLabel.textProperty().unbind();
@@ -244,6 +382,13 @@ public class SinglePlayerScreen {
         }
     }
 
+    /**
+     * Binds the level property to the level label.
+     * Unbinds any existing binding and creates a new binding that formats
+     * the level value as "Level: {value}".
+     * 
+     * @param level The IntegerProperty representing the level
+     */
     public void bindLevel(IntegerProperty level) {
         if (levelLabel != null && level != null) {
             levelLabel.textProperty().unbind();
@@ -251,6 +396,13 @@ public class SinglePlayerScreen {
         }
     }
 
+    /**
+     * Binds the lines property to the lines label.
+     * Unbinds any existing binding and creates a new binding that formats
+     * the lines value as "Lines: {value}".
+     * 
+     * @param lines The IntegerProperty representing the number of lines cleared
+     */
     public void bindLines(IntegerProperty lines) {
         if (linesLabel != null && lines != null) {
             linesLabel.textProperty().unbind();
@@ -258,28 +410,56 @@ public class SinglePlayerScreen {
         }
     }
     
+    /**
+     * Gets the current brick data.
+     * 
+     * @return The ViewData containing the current brick information, or null if not set
+     */
     public ViewData getCurrentBrickData() {
         return currentBrickData;
     }
     
+    /**
+     * Sets the current brick data.
+     * 
+     * @param currentBrickData The ViewData containing the current brick information
+     */
     public void setCurrentBrickData(ViewData currentBrickData) {
         this.currentBrickData = currentBrickData;
     }
     
+    /**
+     * Gets the display matrix for the game board.
+     * 
+     * @return The 2D array of Rectangle objects representing the game board cells
+     */
     public Rectangle[][] getDisplayMatrix() {
         return displayMatrix;
     }
     
+    /**
+     * Gets the list of next brick preview panes.
+     * 
+     * @return The list of GridPane objects for displaying upcoming bricks
+     */
     public List<GridPane> getNextBrickPanes() {
         return nextBrickPanes;
     }
     
+    /**
+     * Gets the hold brick rectangles array.
+     * 
+     * @return The 2D array of Rectangle objects for rendering the held brick
+     */
     public Rectangle[][] getHoldBrickRectangles() {
         return holdBrickRectangles;
     }
     
     /**
      * Clears all panels (display matrix, hold brick, next bricks) using the renderer.
+     * Resets the game board display, hold brick display, and next bricks display
+     * to their empty/transparent state. This is typically called when starting a
+     * new game or resetting the display.
      */
     public void clearAllPanels() {
         // Clear display matrix

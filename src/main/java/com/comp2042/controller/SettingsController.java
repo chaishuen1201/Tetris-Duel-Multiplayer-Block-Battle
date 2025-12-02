@@ -10,6 +10,18 @@ import com.comp2042.view.SettingsPanel;
 import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
 
+/**
+ * Manages the settings panel functionality including volume control, mute toggle,
+ * ghost piece visibility, and key rebinding operations. This class coordinates
+ * the settings panel UI, handling its display in both single player and multiplayer
+ * modes. It manages volume slider bindings, mute button state, ghost piece checkbox
+ * state, and ensures the settings panel is displayed in the correct container
+ * (gameStack for single player, overlay for multiplayer). The controller coordinates
+ * with PanelCoordinator for panel visibility, AudioManager for audio settings,
+ * GameStateManager for game state checks, and MultiplayerViewManager for multiplayer
+ * view updates. It follows the Single Responsibility Principle by exclusively
+ * handling settings panel operations.
+ */
 public class SettingsController {
     
     private SettingsPanel settingsPanel;
@@ -22,9 +34,27 @@ public class SettingsController {
     private MainMenuPanel mainMenuPanel;
     private javafx.scene.layout.GridPane ghostPanel;
     
+    /**
+     * Creates a new SettingsController instance.
+     * The controller must be initialized using the initialize() method before use
+     * to set up all required dependencies and configure the settings panel.
+     */
     public SettingsController() {
     }
     
+    /**
+     * Initializes the settings controller with all required dependencies.
+     * Sets up volume slider, mute button, ghost piece checkbox, and back button actions.
+     * 
+     * @param settingsPanel The settings panel UI component
+     * @param audioManager The audio manager for volume and mute control
+     * @param panelCoordinator The panel coordinator for managing panel visibility
+     * @param gameStateManager The game state manager for checking game state
+     * @param multiplayerScreen The multiplayer screen for multiplayer-specific operations
+     * @param gameStack The stack pane container for the settings panel
+     * @param mainMenuPanel The main menu panel reference
+     * @param ghostPanel The ghost panel for ghost piece visibility control
+     */
     public void initialize(
             SettingsPanel settingsPanel,
             AudioManager audioManager,
@@ -97,6 +127,13 @@ public class SettingsController {
         }
     }
     
+    /**
+     * Shows the settings panel from the main menu.
+     * Hides the main menu panel, ensures the settings panel is in the correct container
+     * (gameStack for single player mode), removes it from multiplayer overlay if present,
+     * updates the controls display to show current key bindings, requests focus for
+     * key rebinding operations, and forces a layout update to ensure proper display.
+     */
     public void showSettings() {
         if (settingsPanel != null && mainMenuPanel != null) {
             panelCoordinator.hideMainMenuPanel();
@@ -139,6 +176,13 @@ public class SettingsController {
         }
     }
     
+    /**
+     * Shows the settings panel from the pause menu.
+     * Handles both single player and multiplayer modes, ensuring the panel is displayed
+     * in the correct container (gameStack for single player, overlay for multiplayer).
+     * Updates the controls display, requests focus for key rebinding, hides the pause
+     * panel, and ensures proper container placement based on the current game mode.
+     */
     public void showSettingsFromPause() {
         if (settingsPanel != null) {
             // Refresh controls display to show current bindings
@@ -195,6 +239,14 @@ public class SettingsController {
         }
     }
     
+    /**
+     * Hides the settings panel and returns to either the pause menu or main menu
+     * depending on the current game state. Handles both single player and multiplayer modes.
+     * For multiplayer, hides the settings overlay and shows pause panel if game is paused,
+     * or shows main menu otherwise. For single player, hides the settings panel and shows
+     * pause panel if game is paused, or shows main menu otherwise. The settings panel
+     * remains in gameStack for single player mode for future use.
+     */
     public void hideSettings() {
         if (settingsPanel != null) {
             if (gameStateManager.isMultiplayerMode() && multiplayerScreen != null) {
@@ -227,7 +279,11 @@ public class SettingsController {
         }
     }
     
-    // Method to check if ghost piece is enabled (used by other controllers)
+    /**
+     * Checks if the ghost piece feature is enabled based on the checkbox state.
+     * 
+     * @return True if ghost piece is enabled, false otherwise. Defaults to true if settings are not initialized.
+     */
     public boolean isGhostPieceEnabled() {
         if (settingsPanel != null && ghostPanel != null) {
             javafx.scene.control.CheckBox ghostCheckBox = settingsPanel.getGhostPieceCheckBox();
@@ -236,7 +292,12 @@ public class SettingsController {
         return true; // Default to enabled
     }
     
-    // Method to ensure settings panel is in correct container (used by other controllers)
+    /**
+     * Ensures the settings panel is in the correct container (gameStack) for single player mode.
+     * Removes it from multiplayer overlay if present, adds it to gameStack if needed,
+     * and hides the settings panel. This method is called defensively to ensure proper
+     * container placement when transitioning from multiplayer to single player mode.
+     */
     public void ensureSettingsPanelInGameStack() {
         if (!gameStateManager.isMultiplayerMode() && gameStack != null && settingsPanel != null) {
             // Remove from multiplayer overlay if it's there
@@ -252,11 +313,20 @@ public class SettingsController {
         }
     }
     
-    // Setters for updating references (e.g., when multiplayer screen is created)
+    /**
+     * Sets the multiplayer screen reference for multiplayer-specific operations.
+     * 
+     * @param multiplayerScreen The multiplayer screen instance
+     */
     public void setMultiplayerScreen(MultiplayerScreen multiplayerScreen) {
         this.multiplayerScreen = multiplayerScreen;
     }
     
+    /**
+     * Sets the multiplayer view manager reference for coordinating multiplayer view updates.
+     * 
+     * @param multiplayerViewManager The multiplayer view manager instance
+     */
     public void setMultiplayerViewManager(MultiplayerViewManager multiplayerViewManager) {
         this.multiplayerViewManager = multiplayerViewManager;
     }

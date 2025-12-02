@@ -9,9 +9,13 @@ import javafx.scene.layout.StackPane;
 import java.util.List;
 
 /**
- * Manages the countdown sequence before starting a game.
- * Handles hiding next bricks, playing sound, showing countdown numbers,
- * centering the label, animations, and starting the timeline.
+ * Manages the countdown sequence before starting a game session.
+ * This class coordinates the visual and audio countdown (3-2-1) that occurs before gameplay begins.
+ * It handles UI visibility management (hiding next bricks, showing game panels), plays countdown
+ * sound effects, displays countdown numbers with proper centering, coordinates with the game loop
+ * manager for timeline animations, and executes a completion callback when the countdown finishes.
+ * The countdown ensures players are ready and provides a smooth transition from the ready state
+ * to active gameplay.
  */
 public class CountdownManager {
     
@@ -30,6 +34,13 @@ public class CountdownManager {
     // Callback for when countdown completes
     private Runnable onCountdownComplete;
     
+    /**
+     * Creates a new CountdownManager with the specified dependencies.
+     * 
+     * @param audioManager The audio manager for playing countdown sounds
+     * @param panelCoordinator The panel coordinator for managing panel visibility
+     * @param gameLoopManager The game loop manager for timeline operations
+     */
     public CountdownManager(
             AudioManager audioManager,
             PanelCoordinator panelCoordinator,
@@ -41,6 +52,8 @@ public class CountdownManager {
     
     /**
      * Sets the countdown label.
+     * 
+     * @param countdownLabel The label to display the countdown numbers
      */
     public void setCountdownLabel(Label countdownLabel) {
         this.countdownLabel = countdownLabel;
@@ -48,6 +61,8 @@ public class CountdownManager {
     
     /**
      * Sets the game stack pane (for centering the label).
+     * 
+     * @param gameStack The StackPane container for the countdown label
      */
     public void setGameStack(StackPane gameStack) {
         this.gameStack = gameStack;
@@ -55,6 +70,8 @@ public class CountdownManager {
     
     /**
      * Sets the ghost panel (for visibility control).
+     * 
+     * @param ghostPanel The GridPane for the ghost piece display
      */
     public void setGhostPanel(GridPane ghostPanel) {
         this.ghostPanel = ghostPanel;
@@ -62,6 +79,8 @@ public class CountdownManager {
     
     /**
      * Sets the single player screen (for accessing next brick panes).
+     * 
+     * @param singlePlayerScreen The SinglePlayerScreen instance
      */
     public void setSinglePlayerScreen(SinglePlayerScreen singlePlayerScreen) {
         this.singlePlayerScreen = singlePlayerScreen;
@@ -69,6 +88,8 @@ public class CountdownManager {
     
     /**
      * Sets the settings controller (for checking ghost piece setting).
+     * 
+     * @param settingsController The SettingsController instance
      */
     public void setSettingsController(SettingsController settingsController) {
         this.settingsController = settingsController;
@@ -76,15 +97,28 @@ public class CountdownManager {
     
     /**
      * Sets the callback to be called when countdown completes.
+     * 
+     * @param onCountdownComplete The Runnable callback to execute when countdown finishes
      */
     public void setOnCountdownComplete(Runnable onCountdownComplete) {
         this.onCountdownComplete = onCountdownComplete;
     }
     
     /**
-     * Starts the countdown sequence.
-     * Hides next bricks, plays sound, shows countdown numbers,
-     * centers the label, and starts the timeline.
+     * Starts the countdown sequence before game begins.
+     * Performs the following operations:
+     * <ul>
+     *   <li>Stops main menu music</li>
+     *   <li>Shows game panel, brick panel, and ghost panel (if enabled)</li>
+     *   <li>Hides next brick preview panes during countdown</li>
+     *   <li>Plays countdown sound effect</li>
+     *   <li>Displays and centers the countdown label</li>
+     *   <li>Shows initial countdown number (3)</li>
+     *   <li>Sets up countdown callbacks for tick updates and completion</li>
+     *   <li>Creates and starts the countdown timeline animation</li>
+     * </ul>
+     * If the countdown label is not set, the completion callback is executed immediately
+     * without performing the countdown sequence.
      */
     public void startCountdown() {
         if (countdownLabel == null) {

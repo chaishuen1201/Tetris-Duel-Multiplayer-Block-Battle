@@ -3,7 +3,7 @@ package com.comp2042.view;
 import com.comp2042.controller.GameConstants;
 import com.comp2042.controller.GameController;
 import com.comp2042.event.InputEventListener;
-import com.comp2042.logic.bricks.Brick;
+import com.comp2042.bricks.Brick;
 import com.comp2042.model.SimpleBoard;
 import com.comp2042.model.ViewData;
 import javafx.scene.layout.GridPane;
@@ -17,6 +17,13 @@ import java.util.List;
  * Handles drawing of bricks, ghost pieces, board background, next bricks, and hold bricks.
  */
 public class GameViewRenderer {
+
+    /**
+     * Default constructor. Initializes the GameViewRenderer.
+     */
+    public GameViewRenderer() {
+        // Default constructor - all methods are static utility methods
+    }
     
     private static final int BOARD_WIDTH = GameConstants.BOARD_WIDTH;
     private static final int BOARD_HEIGHT = GameConstants.BOARD_HEIGHT;

@@ -2,7 +2,7 @@ package com.comp2042.controller.manager;
 
 import com.comp2042.controller.GameConstants;
 import com.comp2042.event.InputEventListener;
-import com.comp2042.logic.bricks.Brick;
+import com.comp2042.bricks.Brick;
 import com.comp2042.model.ViewData;
 import com.comp2042.view.GameViewRenderer;
 import com.comp2042.view.SinglePlayerScreen;
@@ -12,7 +12,12 @@ import java.util.List;
 
 /**
  * Manages single player view operations and UI state transitions.
- * Handles refreshing bricks, game background, next bricks, hold brick, and visibility logic.
+ * This class coordinates the display and rendering of all visual elements in single player mode,
+ * including the current brick, ghost piece, game board background, next brick previews, and hold
+ * brick. It handles visibility logic based on game state (e.g., hiding bricks during countdown),
+ * delegates actual rendering to GameViewRenderer, and manages the relationship between the game
+ * logic and the single player screen UI. The manager ensures that visual updates only occur when
+ * appropriate (e.g., after game start) and coordinates with PanelCoordinator for panel visibility.
  */
 public class SinglePlayerViewManager {
     
@@ -27,6 +32,12 @@ public class SinglePlayerViewManager {
     // Constants
     private static final int BRICK_SIZE = GameConstants.BRICK_SIZE;
     
+    /**
+     * Creates a new SinglePlayerViewManager with the specified dependencies.
+     * 
+     * @param gameStateManager The game state manager for checking game state
+     * @param panelCoordinator The panel coordinator for managing panel visibility
+     */
     public SinglePlayerViewManager(
             GameStateManager gameStateManager,
             PanelCoordinator panelCoordinator) {
@@ -35,15 +46,23 @@ public class SinglePlayerViewManager {
     }
     
     // Setters for UI components
+    /**
+     * Sets the single player screen reference.
+     * 
+     * @param singlePlayerScreen The SinglePlayerScreen instance for single player mode
+     */
     public void setSinglePlayerScreen(SinglePlayerScreen singlePlayerScreen) {
         this.singlePlayerScreen = singlePlayerScreen;
     }
     
     /**
-     * Refreshes the brick display.
-     * Handles gameStarted condition - doesn't show brick if game hasn't started.
+     * Refreshes the brick display with updated brick data.
+     * Always stores the current brick data, but only renders the brick visually
+     * if the game has started (to prevent showing bricks during main menu or countdown).
+     * Delegates the actual rendering to GameViewRenderer, which handles both the
+     * current brick and ghost piece display.
      * 
-     * @param brick The brick data to display
+     * @param brick The ViewData containing brick position, shape, and state information
      */
     public void refreshBrick(ViewData brick) {
         if (singlePlayerScreen == null) {
@@ -70,9 +89,11 @@ public class SinglePlayerViewManager {
     }
     
     /**
-     * Refreshes the game background display.
+     * Refreshes the game background display with the current board state.
+     * Updates the visual representation of all placed blocks on the game board.
+     * Delegates the actual rendering to GameViewRenderer.
      * 
-     * @param board The board matrix to display
+     * @param board The 2D integer array representing the game board matrix
      */
     public void refreshGameBackground(int[][] board) {
         if (singlePlayerScreen == null) {
@@ -84,10 +105,13 @@ public class SinglePlayerViewManager {
     }
     
     /**
-     * Updates the next bricks display.
-     * Handles visibility logic - only shows next bricks when game has started.
+     * Updates the next bricks display with the upcoming brick previews.
+     * Handles visibility logic by showing next brick panes only when the game
+     * has started (after countdown), hiding them during main menu or countdown.
+     * Calculates appropriate brick size for previews and delegates rendering to
+     * GameViewRenderer, which displays up to the maximum number of available panes.
      * 
-     * @param nextBricks The list of next bricks to display
+     * @param nextBricks The list of Brick objects representing upcoming pieces
      */
     public void updateNextBricks(List<Brick> nextBricks) {
         if (singlePlayerScreen == null) {
@@ -115,9 +139,11 @@ public class SinglePlayerViewManager {
     }
     
     /**
-     * Updates the hold brick display.
+     * Updates the hold brick display with the currently held brick.
+     * If no brick is held, clears the hold brick display. Delegates the actual
+     * rendering to GameViewRenderer.
      * 
-     * @param heldBrick The brick being held (can be null)
+     * @param heldBrick The Brick object being held, or null if no brick is held
      */
     public void updateHoldBrick(Brick heldBrick) {
         if (singlePlayerScreen == null) {
@@ -129,9 +155,9 @@ public class SinglePlayerViewManager {
     }
     
     /**
-     * Gets the current brick data from the screen.
+     * Gets the current brick data stored in the single player screen.
      * 
-     * @return The current brick data
+     * @return The ViewData containing current brick information, or null if no brick data is stored
      */
     public ViewData getCurrentBrickData() {
         if (singlePlayerScreen == null) {
@@ -141,9 +167,10 @@ public class SinglePlayerViewManager {
     }
     
     /**
-     * Sets the current brick data on the screen.
+     * Sets the current brick data on the single player screen.
+     * Stores the brick data for later retrieval or rendering.
      * 
-     * @param brickData The brick data to store
+     * @param brickData The ViewData containing brick information to store
      */
     public void setCurrentBrickData(ViewData brickData) {
         if (singlePlayerScreen != null) {
@@ -153,8 +180,10 @@ public class SinglePlayerViewManager {
     
     /**
      * Sets the event listener for the single player screen.
+     * The event listener is used for processing game move events and determining
+     * ghost piece positions.
      * 
-     * @param eventListener The event listener
+     * @param eventListener The InputEventListener instance for processing game events
      */
     public void setEventListener(InputEventListener eventListener) {
         if (singlePlayerScreen != null) {

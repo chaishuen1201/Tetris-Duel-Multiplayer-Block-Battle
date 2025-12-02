@@ -9,16 +9,40 @@ import com.comp2042.model.ClearRow;
 import com.comp2042.model.SimpleBoard;
 import com.comp2042.model.ViewData;
 
+/**
+ * Controls the game logic and coordinates between the game board model and the GUI view.
+ * This class serves as the primary controller for game operations, handling player input
+ * events, managing game state transitions, calculating scores, and coordinating view updates.
+ * It implements InputEventListener to process move events from both user input and automatic
+ * game progression (timeline-driven movement). The controller manages brick movement (left,
+ * right, down, rotate, hard drop, hold), line clearing, score calculation, garbage sending
+ * in multiplayer mode, and game over detection. It supports both single player (playerNumber = 0)
+ * and multiplayer modes (playerNumber = 1 or 2), delegating view updates to the appropriate
+ * GUI controller methods based on the player number.
+ */
 public class GameController implements InputEventListener {
 
     private final Board board;
     private final GuiController viewGuiController;
     private final int playerNumber; // 1 for player 1, 2 for player 2, 0 for single player
 
+    /**
+     * Creates a new GameController for single player mode.
+     * 
+     * @param c The GUI controller to coordinate with for view updates
+     */
     public GameController(GuiController c) {
         this(c, 0); // Default to single player (0)
     }
 
+    /**
+     * Creates a new GameController for the specified player.
+     * Initializes the game board, creates the first brick, sets up event listeners,
+     * and binds score, level, and lines properties to the GUI.
+     * 
+     * @param c The GUI controller to coordinate with for view updates
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public GameController(GuiController c, int playerNumber) {
         this.viewGuiController = c;
         this.playerNumber = playerNumber;
@@ -42,6 +66,16 @@ public class GameController implements InputEventListener {
         }
     }
 
+    /**
+     * Handles the automatic down move event, moving the current brick down by one position.
+     * If the brick cannot move down, it merges to the background, clears completed rows,
+     * awards score bonuses, sends garbage to opponents in multiplayer mode (if applicable),
+     * and creates a new brick. If the brick can still move, awards soft drop points for
+     * user-initiated moves. Updates the game background and next/hold brick displays.
+     * 
+     * @param event The move event containing event type and source information
+     * @return DownData containing information about cleared rows and updated view data
+     */
     @Override
     public DownData onDownEvent(MoveEvent event) {
         boolean canMove = board.moveBrickDown();
@@ -104,24 +138,51 @@ public class GameController implements InputEventListener {
         return new DownData(clearRow, board.getViewData());
     }
 
+    /**
+     * Handles the left move event, moving the current brick one position to the left.
+     * 
+     * @param event The move event containing event type and source information
+     * @return ViewData containing the updated brick position and state
+     */
     @Override
     public ViewData onLeftEvent(MoveEvent event) {
         board.moveBrickLeft();
         return board.getViewData();
     }
 
+    /**
+     * Handles the right move event, moving the current brick one position to the right.
+     * 
+     * @param event The move event containing event type and source information
+     * @return ViewData containing the updated brick position and state
+     */
     @Override
     public ViewData onRightEvent(MoveEvent event) {
         board.moveBrickRight();
         return board.getViewData();
     }
 
+    /**
+     * Handles the rotate event, rotating the current brick 90 degrees counter-clockwise.
+     * 
+     * @param event The move event containing event type and source information
+     * @return ViewData containing the updated brick position and rotation state
+     */
     @Override
     public ViewData onRotateEvent(MoveEvent event) {
         board.rotateLeftBrick();
         return board.getViewData();
     }
 
+    /**
+     * Handles the hard drop event, instantly dropping the current brick to the bottom.
+     * Awards points based on the number of cells dropped (2 points per cell).
+     * Merges the brick, clears completed rows, and creates a new brick.
+     * In multiplayer mode, sends garbage to the opponent when lines are cleared.
+     * 
+     * @param event The move event containing event type and source information
+     * @return DownData containing information about cleared rows and updated view data
+     */
     @Override
     public DownData onHardDropEvent(MoveEvent event) {
         ClearRow clearRow = null;
@@ -169,6 +230,13 @@ public class GameController implements InputEventListener {
         return new DownData(clearRow, board.getViewData());
     }
 
+    /**
+     * Handles the hold event, storing the current brick and swapping it with the previously held brick.
+     * If no brick is currently held, stores the current brick and creates a new one.
+     * 
+     * @param event The move event containing event type and source information
+     * @return ViewData containing the updated brick state after holding
+     */
     @Override
     public ViewData onHoldEvent(MoveEvent event) {
             if (board instanceof SimpleBoard) {
@@ -183,6 +251,12 @@ public class GameController implements InputEventListener {
         return board.getViewData();
     }
 
+    /**
+     * Resets the game board and starts a new game session.
+     * Clears the board, resets the score, re-binds the score property to the GUI,
+     * refreshes the game background, and updates next bricks and hold brick displays.
+     * Creates a new initial brick to begin the game.
+     */
     @Override
     public void createNewGame() {
         board.newGame();
@@ -207,28 +281,39 @@ public class GameController implements InputEventListener {
         }
     }
 
-    // Expose score property for re-binding when needed
+    /**
+     * Gets the score property for binding to the GUI.
+     * 
+     * @return The IntegerProperty representing the current score
+     */
     public javafx.beans.property.IntegerProperty getScoreProperty() {
         return board.getScore().scoreProperty();
     }
     
-    // Expose board for ghost position calculation
+    /**
+     * Gets the game board instance for ghost position calculation and other operations.
+     * 
+     * @return The Board instance representing the game state
+     */
     public Board getBoard() {
         return board;
     }
     
-    // Get player number
+    /**
+     * Gets the player number for this game controller.
+     * 
+     * @return The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public int getPlayerNumber() {
         return playerNumber;
     }
     
     /**
-     * Calculates how many garbage lines to send based on lines cleared.
-     * Rules:
-     * - Single (1 line): 0 garbage lines
-     * - Double (2 lines): 1 garbage line
-     * - Triple (3 lines): 2 garbage lines
-     * - Tetris (4 lines): 4 garbage lines
+     * Calculates how many garbage lines to send to the opponent based on lines cleared.
+     * This implements the standard Tetris garbage sending rules for multiplayer mode.
+     * 
+     * @param linesCleared The number of lines cleared in a single move
+     * @return The number of garbage lines to send (0 for single, 1 for double, 2 for triple, 4 for tetris)
      */
     private int calculateGarbageToSend(int linesCleared) {
         switch (linesCleared) {
@@ -246,7 +331,9 @@ public class GameController implements InputEventListener {
     }
     
     /**
-     * Gets the board instance (for garbage processing).
+     * Gets the board instance as a SimpleBoard for garbage processing and other operations.
+     * 
+     * @return The SimpleBoard instance if the board is a SimpleBoard, null otherwise
      */
     public SimpleBoard getSimpleBoard() {
         return board instanceof SimpleBoard ? (SimpleBoard) board : null;

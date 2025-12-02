@@ -8,8 +8,14 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 
 /**
- * Manages game state transitions and flags.
- * Handles pause, start, new game, game over, and multiplayer game state management.
+ * Manages game state transitions and flags for both single player and multiplayer modes.
+ * This class coordinates all game state changes including pause/resume, game start/restart,
+ * game over conditions, and mode switching. It maintains state flags using JavaFX properties
+ * for reactive UI binding, manages timeline playback (pause/play/stop), coordinates audio
+ * playback, timer management, and UI panel visibility. The manager also handles winning
+ * panel display in multiplayer mode and provides callbacks for UI updates. It serves as
+ * a central coordinator for game state, ensuring consistent state transitions and proper
+ * resource management across different game modes.
  */
 public class GameStateManager {
     
@@ -58,152 +64,332 @@ public class GameStateManager {
     private Runnable onHideMainMenu;
     private Runnable onRequestFocus;
     
+    /**
+     * Creates a new GameStateManager with the specified dependencies.
+     * 
+     * @param audioManager The audio manager for controlling game music and sound effects
+     * @param timerManager The timer manager for managing game timers
+     */
     public GameStateManager(AudioManager audioManager, TimerManager timerManager) {
         this.audioManager = audioManager;
         this.timerManager = timerManager;
     }
     
     // Getters for state properties
+    /**
+     * Gets the pause state property for reactive binding.
+     * 
+     * @return The BooleanProperty representing the pause state
+     */
     public BooleanProperty isPauseProperty() {
         return isPause;
     }
     
+    /**
+     * Checks if the game is currently paused.
+     * 
+     * @return true if the game is paused, false otherwise
+     */
     public boolean isPaused() {
         return isPause.get();
     }
     
+    /**
+     * Gets the game over state property for single player mode (for reactive binding).
+     * 
+     * @return The BooleanProperty representing the game over state
+     */
     public BooleanProperty isGameOverProperty() {
         return isGameOver;
     }
     
+    /**
+     * Checks if the single player game is over.
+     * 
+     * @return true if the game is over, false otherwise
+     */
     public boolean isGameOver() {
         return isGameOver.get();
     }
     
+    /**
+     * Gets the game over state property for player 1 in multiplayer mode (for reactive binding).
+     * 
+     * @return The BooleanProperty representing player 1's game over state
+     */
     public BooleanProperty isGameOver1Property() {
         return isGameOver1;
     }
     
+    /**
+     * Checks if player 1's game is over in multiplayer mode.
+     * 
+     * @return true if player 1 has lost, false otherwise
+     */
     public boolean isGameOver1() {
         return isGameOver1.get();
     }
     
+    /**
+     * Gets the game over state property for player 2 in multiplayer mode (for reactive binding).
+     * 
+     * @return The BooleanProperty representing player 2's game over state
+     */
     public BooleanProperty isGameOver2Property() {
         return isGameOver2;
     }
     
+    /**
+     * Checks if player 2's game is over in multiplayer mode.
+     * 
+     * @return true if player 2 has lost, false otherwise
+     */
     public boolean isGameOver2() {
         return isGameOver2.get();
     }
     
+    /**
+     * Checks if the game has started.
+     * 
+     * @return true if the game has started, false if it's in the initial/ready state
+     */
     public boolean isGameStarted() {
         return gameStarted;
     }
     
+    /**
+     * Checks if the game is in multiplayer mode.
+     * 
+     * @return true if in multiplayer mode, false for single player mode
+     */
     public boolean isMultiplayerMode() {
         return isMultiplayerMode;
     }
     
     // Setters for game components
+    /**
+     * Sets the single player game loop timeline.
+     * 
+     * @param timeLine The Timeline for single player game loop
+     */
     public void setTimeLine(Timeline timeLine) {
         this.timeLine = timeLine;
     }
     
+    /**
+     * Sets the player 1 game loop timeline for multiplayer mode.
+     * 
+     * @param timeLine1 The Timeline for player 1's game loop
+     */
     public void setTimeLine1(Timeline timeLine1) {
         this.timeLine1 = timeLine1;
     }
     
+    /**
+     * Sets the player 2 game loop timeline for multiplayer mode.
+     * 
+     * @param timeLine2 The Timeline for player 2's game loop
+     */
     public void setTimeLine2(Timeline timeLine2) {
         this.timeLine2 = timeLine2;
     }
     
+    /**
+     * Sets the garbage processing timeline for player 1 in multiplayer mode.
+     * 
+     * @param garbageProcessTimeline1 The Timeline for processing player 1's garbage queue
+     */
     public void setGarbageProcessTimeline1(Timeline garbageProcessTimeline1) {
         this.garbageProcessTimeline1 = garbageProcessTimeline1;
     }
     
+    /**
+     * Sets the garbage processing timeline for player 2 in multiplayer mode.
+     * 
+     * @param garbageProcessTimeline2 The Timeline for processing player 2's garbage queue
+     */
     public void setGarbageProcessTimeline2(Timeline garbageProcessTimeline2) {
         this.garbageProcessTimeline2 = garbageProcessTimeline2;
     }
     
+    /**
+     * Sets the game controller for player 1 in multiplayer mode.
+     * 
+     * @param gameController1 The GameController for player 1
+     */
     public void setGameController1(GameController gameController1) {
         this.gameController1 = gameController1;
     }
     
+    /**
+     * Sets the game controller for player 2 in multiplayer mode.
+     * 
+     * @param gameController2 The GameController for player 2
+     */
     public void setGameController2(GameController gameController2) {
         this.gameController2 = gameController2;
     }
     
+    /**
+     * Sets the event listener for single player mode.
+     * 
+     * @param eventListener The InputEventListener for single player
+     */
     public void setEventListener(InputEventListener eventListener) {
         this.eventListener = eventListener;
     }
     
+    /**
+     * Sets the event listener for player 1 in multiplayer mode.
+     * 
+     * @param eventListener1 The InputEventListener for player 1
+     */
     public void setEventListener1(InputEventListener eventListener1) {
         this.eventListener1 = eventListener1;
     }
     
+    /**
+     * Sets the event listener for player 2 in multiplayer mode.
+     * 
+     * @param eventListener2 The InputEventListener for player 2
+     */
     public void setEventListener2(InputEventListener eventListener2) {
         this.eventListener2 = eventListener2;
     }
     
     // Setters for callbacks
+    /**
+     * Sets the callback to show the single player pause panel.
+     * 
+     * @param callback The Runnable to execute when showing the pause panel
+     */
     public void setOnShowPausePanel(Runnable callback) {
         this.onShowPausePanel = callback;
     }
     
+    /**
+     * Sets the callback to hide the single player pause panel.
+     * 
+     * @param callback The Runnable to execute when hiding the pause panel
+     */
     public void setOnHidePausePanel(Runnable callback) {
         this.onHidePausePanel = callback;
     }
     
+    /**
+     * Sets the callback to show the multiplayer pause panel.
+     * 
+     * @param callback The Runnable to execute when showing the multiplayer pause panel
+     */
     public void setOnShowMultiplayerPausePanel(Runnable callback) {
         this.onShowMultiplayerPausePanel = callback;
     }
     
+    /**
+     * Sets the callback to hide the multiplayer pause panel.
+     * 
+     * @param callback The Runnable to execute when hiding the multiplayer pause panel
+     */
     public void setOnHideMultiplayerPausePanel(Runnable callback) {
         this.onHideMultiplayerPausePanel = callback;
     }
     
+    /**
+     * Sets the callback to start garbage processing timelines in multiplayer mode.
+     * 
+     * @param callback The Runnable to execute when starting garbage processing
+     */
     public void setOnStartGarbageProcessingTimelines(Runnable callback) {
         this.onStartGarbageProcessingTimelines = callback;
     }
     
+    /**
+     * Sets the callback to stop garbage processing timelines in multiplayer mode.
+     * 
+     * @param callback The Runnable to execute when stopping garbage processing
+     */
     public void setOnStopGarbageProcessingTimelines(Runnable callback) {
         this.onStopGarbageProcessingTimelines = callback;
     }
     
+    /**
+     * Sets the callback to update the single player timeline rate.
+     * 
+     * @param callback The Runnable to execute when updating timeline rate
+     */
     public void setOnUpdateTimelineRate(Runnable callback) {
         this.onUpdateTimelineRate = callback;
     }
     
+    /**
+     * Sets the callback to update player 1's timeline rate in multiplayer mode.
+     * 
+     * @param callback The Runnable to execute when updating player 1's timeline rate
+     */
     public void setOnUpdateTimelineRate1(Runnable callback) {
         this.onUpdateTimelineRate1 = callback;
     }
     
+    /**
+     * Sets the callback to update player 2's timeline rate in multiplayer mode.
+     * 
+     * @param callback The Runnable to execute when updating player 2's timeline rate
+     */
     public void setOnUpdateTimelineRate2(Runnable callback) {
         this.onUpdateTimelineRate2 = callback;
     }
     
+    /**
+     * Sets the callback to show the game over panel.
+     * 
+     * @param callback The Runnable to execute when showing the game over panel
+     */
     public void setOnShowGameOverPanel(Runnable callback) {
         this.onShowGameOverPanel = callback;
     }
     
+    /**
+     * Sets the callback to hide the game over panel.
+     * 
+     * @param callback The Runnable to execute when hiding the game over panel
+     */
     public void setOnHideGameOverPanel(Runnable callback) {
         this.onHideGameOverPanel = callback;
     }
     
+    /**
+     * Sets the callback to show the main menu.
+     * 
+     * @param callback The Runnable to execute when showing the main menu
+     */
     public void setOnShowMainMenu(Runnable callback) {
         this.onShowMainMenu = callback;
     }
     
+    /**
+     * Sets the callback to hide the main menu.
+     * 
+     * @param callback The Runnable to execute when hiding the main menu
+     */
     public void setOnHideMainMenu(Runnable callback) {
         this.onHideMainMenu = callback;
     }
     
+    /**
+     * Sets the callback to request focus on the game window.
+     * 
+     * @param callback The Runnable to execute when requesting focus
+     */
     public void setOnRequestFocus(Runnable callback) {
         this.onRequestFocus = callback;
     }
     
     /**
-     * Pauses or resumes the game.
+     * Pauses or resumes the game for both single player and multiplayer modes.
+     * Toggles the pause state, pausing/resuming timelines, stopping/playing game music,
+     * pausing/resuming timers, and showing/hiding pause panels. Only works when the game
+     * has started and is not in a game over state. For multiplayer, pauses/resumes both
+     * players' timelines and garbage processing timelines.
      */
     public void pauseGame() {
         // Only allow pause/resume when game is actually playing
@@ -274,7 +460,9 @@ public class GameStateManager {
     }
     
     /**
-     * Starts a new single player game.
+     * Initiates the start of a new single player game.
+     * Hides the main menu if the game hasn't started yet. The actual game start
+     * (after countdown) is handled by actuallyStartGame().
      */
     public void startGame() {
         if (!gameStarted && onHideMainMenu != null) {
@@ -284,7 +472,9 @@ public class GameStateManager {
     }
     
     /**
-     * Actually starts the game after countdown (called by GuiController).
+     * Actually starts the game after countdown completes (called by GuiController).
+     * Sets game state flags, starts the game timeline, plays game music, starts
+     * the single player timer, and requests focus on the game window.
      */
     public void actuallyStartGame() {
         gameStarted = true;
@@ -304,6 +494,10 @@ public class GameStateManager {
     
     /**
      * Starts a new game (restart from game over or pause menu).
+     * Stops the current timeline, hides game over panel, resets the timer, plays
+     * game music, creates a new game through the event listener, restarts the timeline,
+     * resets game state flags, and hides panels. Used for restarting a game without
+     * going through the countdown sequence.
      */
     public void newGame() {
         if (timeLine != null) timeLine.stop();
@@ -330,7 +524,12 @@ public class GameStateManager {
     }
     
     /**
-     * Handles game over for single player or multiplayer.
+     * Handles game over condition for single player or multiplayer mode.
+     * Stops timelines, timers, and game music. For multiplayer, determines the winner
+     * if only one player loses, or handles a tie if both players lose. Shows appropriate
+     * panels (game over or winning panel) and plays appropriate sound effects.
+     * 
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
      */
     public void gameOver(int playerNumber) {
         if (isMultiplayerMode && playerNumber > 0) {
@@ -396,7 +595,10 @@ public class GameStateManager {
     }
     
     /**
-     * Starts a multiplayer game.
+     * Starts a multiplayer game after countdown completes.
+     * Resets game over states, sets game started flag, hides pause panels,
+     * starts both players' timelines, starts garbage processing timelines,
+     * starts the multiplayer timer, and plays game music.
      */
     public void startMultiplayerGame() {
         // Reset game over states
@@ -432,7 +634,10 @@ public class GameStateManager {
     }
     
     /**
-     * Restarts a multiplayer game.
+     * Restarts a multiplayer game from the winning panel.
+     * Creates new games for both players, resets game over states, hides the
+     * winning panel, restarts all timelines and garbage processing, resets and
+     * restarts the multiplayer timer, and plays game music.
      */
     public void restartMultiplayerGame() {
         // Restart both games
@@ -477,6 +682,9 @@ public class GameStateManager {
     
     /**
      * Quits to main menu and resets all game states.
+     * Stops all timelines, stops and resets all timers, resets all state flags,
+     * hides all panels, stops game music, plays main menu music, and shows the main menu.
+     * This method provides a complete reset to return to the initial application state.
      */
     public void quitToMainMenu() {
         // Stop all timelines
@@ -519,6 +727,8 @@ public class GameStateManager {
     
     /**
      * Resets all game states to initial values.
+     * Sets all pause, game over, game started, and multiplayer mode flags to false.
+     * Does not stop timelines or timers - use quitToMainMenu() for a complete reset.
      */
     public void resetGameStates() {
         isPause.set(false);
@@ -530,14 +740,18 @@ public class GameStateManager {
     }
     
     /**
-     * Sets multiplayer mode flag.
+     * Sets the multiplayer mode flag.
+     * 
+     * @param isMultiplayerMode true to enable multiplayer mode, false for single player mode
      */
     public void setMultiplayerMode(boolean isMultiplayerMode) {
         this.isMultiplayerMode = isMultiplayerMode;
     }
     
     /**
-     * Clears multiplayer references (controllers, listeners, timelines).
+     * Clears all multiplayer references (controllers, listeners, timelines).
+     * Sets all multiplayer-specific component references to null. Used when
+     * switching from multiplayer mode back to single player mode to free resources.
      */
     public void clearMultiplayerReferences() {
         gameController1 = null;
@@ -552,20 +766,26 @@ public class GameStateManager {
     
     /**
      * Sets the MultiplayerScreen reference for winning panel management.
+     * 
+     * @param screen The MultiplayerScreen instance containing winning panel components
      */
     public void setMultiplayerScreen(MultiplayerScreen screen) {
         this.multiplayerScreen = screen;
     }
     
     /**
-     * Sets the callback for restarting the game (from winning panel).
+     * Sets the callback for restarting the game from the winning panel.
+     * 
+     * @param callback The Runnable to execute when restart button is clicked
      */
     public void setOnRestartGame(Runnable callback) {
         this.onRestartGame = callback;
     }
     
     /**
-     * Sets the callback for quitting to main menu (from winning panel).
+     * Sets the callback for quitting to main menu from the winning panel.
+     * 
+     * @param callback The Runnable to execute when quit to menu button is clicked
      */
     public void setOnQuitToMenu(Runnable callback) {
         this.onQuitToMenu = callback;
@@ -617,7 +837,8 @@ public class GameStateManager {
     }
     
     /**
-     * Hides the winning panel.
+     * Hides the winning panel overlay in multiplayer mode.
+     * Makes the overlay invisible, unmanaged, and mouse-transparent.
      */
     public void hideWinningPanel() {
         if (multiplayerScreen == null) {
@@ -633,7 +854,10 @@ public class GameStateManager {
     }
     
     /**
-     * Sets up the winning panel action handlers.
+     * Sets up the winning panel action handlers for restart and quit to menu buttons.
+     * Configures button click handlers and sets up button sound effects.
+     * 
+     * @param winningPanel The WinningPanel instance to set up
      */
     private void setupWinningPanelActions(com.comp2042.view.WinningPanel winningPanel) {
         if (winningPanel == null) {

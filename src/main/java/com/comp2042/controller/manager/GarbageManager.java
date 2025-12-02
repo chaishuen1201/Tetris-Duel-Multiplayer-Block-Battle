@@ -11,8 +11,12 @@ import javafx.application.Platform;
 
 /**
  * Manages garbage block sending and processing in multiplayer mode.
- * Handles sending garbage to opponents when lines are cleared and processing
- * garbage queues for each player.
+ * This class coordinates the attack mechanism where players send garbage lines
+ * to their opponents when they clear lines. It handles queuing garbage blocks,
+ * processing them at appropriate intervals, adding them to the opponent's board,
+ * and detecting game over conditions when garbage blocks reach the top of the board.
+ * The manager integrates with game controllers, boards, view renderers, and audio
+ * to provide a complete garbage block attack system for competitive multiplayer gameplay.
  */
 public class GarbageManager {
     
@@ -27,12 +31,22 @@ public class GarbageManager {
     private final GameViewRenderer renderer = new GameViewRenderer();
     
     /**
-     * Callback interface for triggering game over.
+     * Callback interface for triggering game over when garbage blocks cause a player to lose.
      */
     public interface GameOverCallback {
+        /**
+         * Called when a player's game is over due to garbage blocks.
+         * 
+         * @param playerNumber The player number (1 or 2) whose game is over
+         */
         void gameOver(int playerNumber);
     }
     
+    /**
+     * Creates a new GarbageManager with the specified game state manager.
+     * 
+     * @param gameStateManager The game state manager for checking game state and mode
+     */
     public GarbageManager(GameStateManager gameStateManager) {
         this.gameStateManager = gameStateManager;
     }
@@ -46,7 +60,10 @@ public class GarbageManager {
     }
     
     /**
-     * Sets the game controllers for both players.
+     * Sets the game controllers for both players in multiplayer mode.
+     * 
+     * @param gameController1 The GameController for player 1
+     * @param gameController2 The GameController for player 2
      */
     public void setGameControllers(GameController gameController1, GameController gameController2) {
         this.gameController1 = gameController1;
@@ -54,7 +71,9 @@ public class GarbageManager {
     }
     
     /**
-     * Sets the multiplayer screen reference.
+     * Sets the multiplayer screen reference for rendering updates.
+     * 
+     * @param multiplayerScreen The MultiplayerScreen instance for multiplayer mode
      */
     public void setMultiplayerScreen(MultiplayerScreen multiplayerScreen) {
         this.multiplayerScreen = multiplayerScreen;
@@ -62,29 +81,39 @@ public class GarbageManager {
     
     /**
      * Sets the single player screen reference.
+     * 
+     * @param singlePlayerScreen The SinglePlayerScreen instance (currently unused but kept for consistency)
      */
     public void setSinglePlayerScreen(SinglePlayerScreen singlePlayerScreen) {
         this.singlePlayerScreen = singlePlayerScreen;
     }
     
     /**
-     * Sets the single player view manager reference.
+     * Sets the single player view manager reference for rendering updates.
+     * 
+     * @param singlePlayerViewManager The SinglePlayerViewManager instance for single player mode
      */
     public void setSinglePlayerViewManager(SinglePlayerViewManager singlePlayerViewManager) {
         this.singlePlayerViewManager = singlePlayerViewManager;
     }
     
     /**
-     * Sets the game over callback.
+     * Sets the callback to be invoked when garbage blocks cause a game over condition.
+     * 
+     * @param gameOverCallback The GameOverCallback implementation to handle game over events
      */
     public void setGameOverCallback(GameOverCallback gameOverCallback) {
         this.gameOverCallback = gameOverCallback;
     }
     
     /**
-     * Sends garbage to the opponent's queue when lines are cleared in multiplayer mode.
+     * Sends garbage lines to the opponent's queue when lines are cleared in multiplayer mode.
+     * This is the attack mechanism where clearing lines sends garbage blocks to the opponent.
+     * The garbage is added to the opponent's queue and processed immediately to ensure
+     * it appears right away. Plays a garbage sound effect when garbage is sent.
+     * 
      * @param fromPlayerNumber The player number who cleared lines (1 or 2)
-     * @param numGarbageLines Number of garbage lines to send
+     * @param numGarbageLines Number of garbage lines to send to the opponent
      */
     public void sendGarbageToOpponent(int fromPlayerNumber, int numGarbageLines) {
         if (!gameStateManager.isMultiplayerMode() || numGarbageLines <= 0) {
@@ -118,9 +147,14 @@ public class GarbageManager {
     }
     
     /**
-     * Processes garbage queue for a player, adding pending garbage lines to the board.
-     * Processes all pending garbage lines at once to avoid delays when multiple lines are sent together.
-     * @param playerNumber The player number (1 or 2)
+     * Processes the garbage queue for a player, adding pending garbage lines to the board.
+     * Processes all pending garbage lines at once to avoid delays when multiple lines
+     * are sent together. After processing, refreshes the game display and checks for
+     * game over conditions. The method checks if the game is paused or already over
+     * before processing, and verifies that the current brick position is blocked
+     * before triggering game over.
+     * 
+     * @param playerNumber The player number (1 or 2) whose garbage queue should be processed
      */
     public void processGarbageQueue(int playerNumber) {
         if (!gameStateManager.isMultiplayerMode() || playerNumber <= 0) {

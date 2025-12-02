@@ -20,8 +20,15 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Manages multiplayer view operations and UI state transitions.
- * Handles showing multiplayer screen, starting/restarting games, quitting to main menu, and keyboard handler attachment.
+ * Manages multiplayer view operations and UI state transitions for multiplayer mode.
+ * This class coordinates the display and interaction of the multiplayer game screen,
+ * handling UI setup, game initialization, ready state management, keyboard input handling,
+ * score/level binding, panel visibility, and transitions between multiplayer and single
+ * player modes. It integrates with game controllers, event listeners, view renderers,
+ * and various managers to provide a complete multiplayer game experience. The manager
+ * handles the ready panel system where both players must confirm readiness before
+ * starting, manages keyboard event filtering at the scene level, and coordinates
+ * cleanup when returning to the main menu.
  */
 public class MultiplayerViewManager {
     
@@ -78,18 +85,56 @@ public class MultiplayerViewManager {
     // Callback for starting game when both players are ready
     private Runnable onStartGameCallback;
     
+    /**
+     * Factory interface for creating game controllers for multiplayer players.
+     */
     public interface GameControllerFactory {
+        /**
+         * Creates a new game controller for the specified player.
+         * 
+         * @param playerNumber The player number (1 or 2) for which to create the controller
+         * @return A new GameController instance for the specified player
+         */
         GameController createGameController(int playerNumber);
     }
     
+    /**
+     * Callback interface for syncing game controllers back to the main controller.
+     */
     public interface GameControllerSyncCallback {
+        /**
+         * Called to sync the created game controllers back to the main controller.
+         * 
+         * @param gameController1 The GameController for player 1
+         * @param gameController2 The GameController for player 2
+         */
         void syncGameControllers(GameController gameController1, GameController gameController2);
     }
     
+    /**
+     * Callback interface for syncing original panels back to the main controller.
+     */
     public interface OriginalPanelSyncCallback {
+        /**
+         * Called to sync the original left and right panels back to the main controller.
+         * 
+         * @param originalLeftPanel The original left panel VBox
+         * @param originalRightPanel The original right panel VBox
+         */
         void syncOriginalPanels(VBox originalLeftPanel, VBox originalRightPanel);
     }
     
+    /**
+     * Creates a new MultiplayerViewManager with the specified dependencies.
+     * 
+     * @param gameStateManager The game state manager for checking game state
+     * @param gameLoopManager The game loop manager for timeline operations
+     * @param panelCoordinator The panel coordinator for managing panel visibility
+     * @param timerManager The timer manager for multiplayer timer operations
+     * @param audioManager The audio manager for playing sound effects
+     * @param inputHandler The input handler for processing keyboard input
+     * @param garbageManager The garbage manager for multiplayer garbage operations
+     */
     public MultiplayerViewManager(
             GameStateManager gameStateManager,
             GameLoopManager gameLoopManager,
@@ -108,104 +153,227 @@ public class MultiplayerViewManager {
     }
     
     // Setters for UI components
+    /**
+     * Sets the multiplayer screen reference.
+     * 
+     * @param multiplayerScreen The MultiplayerScreen instance for multiplayer mode
+     */
     public void setMultiplayerScreen(MultiplayerScreen multiplayerScreen) {
         this.multiplayerScreen = multiplayerScreen;
     }
     
+    /**
+     * Sets the single player screen reference.
+     * 
+     * @param singlePlayerScreen The SinglePlayerScreen instance
+     */
     public void setSinglePlayerScreen(SinglePlayerScreen singlePlayerScreen) {
         this.singlePlayerScreen = singlePlayerScreen;
     }
     
+    /**
+     * Sets the game board BorderPane reference.
+     * 
+     * @param gameBoard The BorderPane containing the game board
+     */
     public void setGameBoard(BorderPane gameBoard) {
         this.gameBoard = gameBoard;
     }
     
+    /**
+     * Sets the center VBox container for adding multiplayer screen.
+     * 
+     * @param centerVBox The VBox container in the center area
+     */
     public void setCenterVBox(VBox centerVBox) {
         this.centerVBox = centerVBox;
     }
     
+    /**
+     * Sets the hold brick panel GridPane reference.
+     * 
+     * @param holdBrickPanel The GridPane for displaying held bricks
+     */
     public void setHoldBrickPanel(GridPane holdBrickPanel) {
         this.holdBrickPanel = holdBrickPanel;
     }
     
+    /**
+     * Sets the next bricks panel VBox reference.
+     * 
+     * @param nextBricksPanel The VBox container for next brick previews
+     */
     public void setNextBricksPanel(VBox nextBricksPanel) {
         this.nextBricksPanel = nextBricksPanel;
     }
     
+    /**
+     * Sets the score label reference.
+     * 
+     * @param scoreLabel The Label for displaying score
+     */
     public void setScoreLabel(Label scoreLabel) {
         this.scoreLabel = scoreLabel;
     }
     
+    /**
+     * Sets the level label reference.
+     * 
+     * @param levelLabel The Label for displaying level
+     */
     public void setLevelLabel(Label levelLabel) {
         this.levelLabel = levelLabel;
     }
     
+    /**
+     * Sets the lines label reference.
+     * 
+     * @param linesLabel The Label for displaying lines cleared
+     */
     public void setLinesLabel(Label linesLabel) {
         this.linesLabel = linesLabel;
     }
     
+    /**
+     * Sets the settings panel reference.
+     * 
+     * @param settingsPanel The SettingsPanel instance
+     */
     public void setSettingsPanel(SettingsPanel settingsPanel) {
         this.settingsPanel = settingsPanel;
     }
     
+    /**
+     * Sets the original left panel VBox reference.
+     * 
+     * @param originalLeftPanel The original left panel VBox to restore later
+     */
     public void setOriginalLeftPanel(VBox originalLeftPanel) {
         this.originalLeftPanel = originalLeftPanel;
     }
     
+    /**
+     * Sets the original right panel VBox reference.
+     * 
+     * @param originalRightPanel The original right panel VBox to restore later
+     */
     public void setOriginalRightPanel(VBox originalRightPanel) {
         this.originalRightPanel = originalRightPanel;
     }
     
+    /**
+     * Sets the game controller for player 1.
+     * 
+     * @param gameController1 The GameController for player 1
+     */
     public void setGameController1(GameController gameController1) {
         this.gameController1 = gameController1;
     }
     
+    /**
+     * Sets the game controller for player 2.
+     * 
+     * @param gameController2 The GameController for player 2
+     */
     public void setGameController2(GameController gameController2) {
         this.gameController2 = gameController2;
     }
     
+    /**
+     * Sets the event listener for player 1.
+     * 
+     * @param eventListener1 The InputEventListener for player 1
+     */
     public void setEventListener1(com.comp2042.event.InputEventListener eventListener1) {
         this.eventListener1 = eventListener1;
     }
     
+    /**
+     * Sets the event listener for player 2.
+     * 
+     * @param eventListener2 The InputEventListener for player 2
+     */
     public void setEventListener2(com.comp2042.event.InputEventListener eventListener2) {
         this.eventListener2 = eventListener2;
     }
     
+    /**
+     * Sets the supplier for getting the root BorderPane.
+     * 
+     * @param rootBorderPaneSupplier The Supplier that provides the root BorderPane
+     */
     public void setRootBorderPaneSupplier(Supplier<BorderPane> rootBorderPaneSupplier) {
         this.rootBorderPaneSupplier = rootBorderPaneSupplier;
     }
     
+    /**
+     * Sets the factory for creating game controllers.
+     * 
+     * @param gameControllerFactory The GameControllerFactory implementation
+     */
     public void setGameControllerFactory(GameControllerFactory gameControllerFactory) {
         this.gameControllerFactory = gameControllerFactory;
     }
     
+    /**
+     * Sets the callback for syncing game controllers back to the main controller.
+     * 
+     * @param gameControllerSyncCallback The GameControllerSyncCallback implementation
+     */
     public void setGameControllerSyncCallback(GameControllerSyncCallback gameControllerSyncCallback) {
         this.gameControllerSyncCallback = gameControllerSyncCallback;
     }
     
+    /**
+     * Sets the callback for syncing original panels back to the main controller.
+     * 
+     * @param originalPanelSyncCallback The OriginalPanelSyncCallback implementation
+     */
     public void setOriginalPanelSyncCallback(OriginalPanelSyncCallback originalPanelSyncCallback) {
         this.originalPanelSyncCallback = originalPanelSyncCallback;
     }
     
+    /**
+     * Gets the scene key pressed event handler.
+     * 
+     * @return The EventHandler for key pressed events
+     */
     public EventHandler<KeyEvent> getSceneKeyPressedHandler() {
         return sceneKeyPressedHandler;
     }
     
+    /**
+     * Gets the scene key released event handler.
+     * 
+     * @return The EventHandler for key released events
+     */
     public EventHandler<KeyEvent> getSceneKeyReleasedHandler() {
         return sceneKeyReleasedHandler;
     }
     
+    /**
+     * Sets the scene key pressed event handler.
+     * 
+     * @param sceneKeyPressedHandler The EventHandler for key pressed events
+     */
     public void setSceneKeyPressedHandler(EventHandler<KeyEvent> sceneKeyPressedHandler) {
         this.sceneKeyPressedHandler = sceneKeyPressedHandler;
     }
     
+    /**
+     * Sets the scene key released event handler.
+     * 
+     * @param sceneKeyReleasedHandler The EventHandler for key released events
+     */
     public void setSceneKeyReleasedHandler(EventHandler<KeyEvent> sceneKeyReleasedHandler) {
         this.sceneKeyReleasedHandler = sceneKeyReleasedHandler;
     }
     
     /**
      * Shows the multiplayer screen and sets up the UI for multiplayer mode.
+     * Hides the main menu, sets multiplayer mode flag, initializes multiplayer panels,
+     * registers timer label, stores and hides original panels, shows the multiplayer
+     * container, displays the ready panel, and attaches keyboard handlers to the scene.
      */
     public void showMultiplayer() {
         panelCoordinator.hideMainMenuPanel();
@@ -282,6 +450,9 @@ public class MultiplayerViewManager {
     
     /**
      * Attaches keyboard handlers to the scene for multiplayer mode.
+     * Removes any existing handlers to avoid duplicates, then adds event filters
+     * at the scene level so they work regardless of focus. For multiplayer mode,
+     * uses scene-level filters; for single player mode, uses node-level handlers.
      */
     public void attachKeyboardHandlersToScene() {
         // Get the scene from any node (preferably gameBoard)
@@ -337,7 +508,11 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Starts a new multiplayer game.
+     * Starts a new multiplayer game after both players are ready.
+     * Hides the ready panel, creates game controllers for both players, updates
+     * managers with controllers and listeners, sets up garbage manager, hides
+     * winning panel, resets ready states, starts the game through GameStateManager,
+     * makes brick panels visible, and attaches keyboard handlers.
      */
     public void startMultiplayerGame() {
         hideReadyPanel();
@@ -407,7 +582,11 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Restarts the multiplayer game.
+     * Restarts the multiplayer game from the winning panel.
+     * Clears game panels, resets score and level labels, clears display matrices,
+     * reinitializes multiplayer panels, updates managers with current references,
+     * restarts the game through GameStateManager, makes brick panels visible,
+     * and renders initial bricks for both players.
      */
     public void restartMultiplayerGame() {
         // Clear all multiplayer game panels
@@ -495,6 +674,11 @@ public class MultiplayerViewManager {
     
     /**
      * Quits from multiplayer mode back to the main menu.
+     * Clears all multiplayer game panels, resets labels, updates GameStateManager,
+     * clears multiplayer references, hides multiplayer screen and panels,
+     * removes multiplayer wrapper from center VBox, restores original panels,
+     * reinitializes single player panels, shows main menu, and switches audio
+     * from game music to main menu music.
      */
     public void quitToMainMenuFromMultiplayer() {
         // Clear all multiplayer game panels
@@ -639,7 +823,9 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Gets the root BorderPane from the scene.
+     * Gets the root BorderPane from the scene using the supplier.
+     * 
+     * @return The root BorderPane, or null if the supplier is not set
      */
     private BorderPane getRootBorderPane() {
         if (rootBorderPaneSupplier != null) {
@@ -650,6 +836,8 @@ public class MultiplayerViewManager {
     
     /**
      * Sets the callback for starting the game when both players are ready.
+     * 
+     * @param callback The Runnable to execute when both players are ready
      */
     public void setOnStartGameCallback(Runnable callback) {
         this.onStartGameCallback = callback;
@@ -659,6 +847,10 @@ public class MultiplayerViewManager {
     
     /**
      * Shows the ready panel for multiplayer game start.
+     * Resets ready states, creates the ready panel UI if it doesn't exist,
+     * creates the ready overlay, adds it to the wrapper, and updates ready labels.
+     * The ready panel displays instructions for both players to press their
+     * respective keys (SPACE for player 1, ENTER for player 2) to indicate readiness.
      */
     public void showReadyPanel() {
         if (multiplayerScreen == null) {
@@ -760,7 +952,8 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Hides the ready panel.
+     * Hides the ready panel overlay.
+     * Makes the ready overlay invisible and unmanaged.
      */
     public void hideReadyPanel() {
         if (multiplayerScreen == null) {
@@ -775,7 +968,9 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Sets player 1 ready state.
+     * Sets player 1's ready state and updates the UI.
+     * 
+     * @param ready True to mark player 1 as ready, false otherwise
      */
     public void setPlayer1Ready(boolean ready) {
         if (multiplayerScreen == null) {
@@ -788,7 +983,9 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Sets player 2 ready state.
+     * Sets player 2's ready state and updates the UI.
+     * 
+     * @param ready True to mark player 2 as ready, false otherwise
      */
     public void setPlayer2Ready(boolean ready) {
         if (multiplayerScreen == null) {
@@ -802,6 +999,8 @@ public class MultiplayerViewManager {
     
     /**
      * Updates the ready labels UI to reflect current ready states.
+     * Changes the text and styling of player 1 and player 2 ready labels
+     * based on whether each player is ready or not.
      */
     public void updateReadyLabels() {
         if (multiplayerScreen == null) {
@@ -838,6 +1037,8 @@ public class MultiplayerViewManager {
     
     /**
      * Checks if both players are ready and starts the game if so.
+     * Hides the ready panel and invokes the start game callback when
+     * both players have indicated they are ready.
      */
     public void checkBothReady() {
         if (multiplayerScreen == null) {
@@ -871,10 +1072,20 @@ public class MultiplayerViewManager {
     }
     
     // Getters for game controllers
+    /**
+     * Gets the game controller for player 1.
+     * 
+     * @return The GameController for player 1, or null if not set
+     */
     public GameController getGameController1() {
         return gameController1;
     }
     
+    /**
+     * Gets the game controller for player 2.
+     * 
+     * @return The GameController for player 2, or null if not set
+     */
     public GameController getGameController2() {
         return gameController2;
     }
@@ -883,9 +1094,10 @@ public class MultiplayerViewManager {
     
     /**
      * Binds the score property to the score label for a player.
+     * Unbinds any existing binding before applying the new one to avoid conflicts.
      * 
-     * @param score The score property to bind
-     * @param playerNumber The player number (1 or 2)
+     * @param score The score property to bind to the label
+     * @param playerNumber The player number (1 or 2) whose score label to bind
      */
     public void bindScore(javafx.beans.property.IntegerProperty score, int playerNumber) {
         if (multiplayerScreen == null) {
@@ -901,9 +1113,13 @@ public class MultiplayerViewManager {
     
     /**
      * Binds the level property to the level label for a player.
+     * Unbinds any existing binding and removes old listeners before applying
+     * the new binding. Also sets up a level change listener to play level-up
+     * sound effects when the level increases. Prevents duplicate listeners
+     * by storing and removing old listeners.
      * 
-     * @param level The level property to bind
-     * @param playerNumber The player number (1 or 2)
+     * @param level The level property to bind to the label
+     * @param playerNumber The player number (1 or 2) whose level label to bind
      */
     public void bindLevel(javafx.beans.property.IntegerProperty level, int playerNumber) {
         if (multiplayerScreen == null) {
@@ -947,9 +1163,11 @@ public class MultiplayerViewManager {
     
     /**
      * Sets the visibility of brick panels and ghost panels for both players.
+     * For ghost panels, also checks the ghost piece setting from the settings
+     * panel to determine if they should be shown even when visible is true.
      * 
-     * @param visible Whether the panels should be visible
-     * @param settingsPanel The settings panel to check ghost visibility setting
+     * @param visible Whether the panels should be visible (ghost panels also require ghost setting enabled)
+     * @param settingsPanel The settings panel to check ghost piece visibility setting
      */
     public void setBrickPanelsVisible(boolean visible, SettingsPanel settingsPanel) {
         if (multiplayerScreen == null) {
@@ -987,8 +1205,9 @@ public class MultiplayerViewManager {
     }
     
     /**
-     * Resets score and level labels to default values.
-     * Used when clearing game panels.
+     * Resets score and level labels to default values for both players.
+     * Unbinds any existing bindings before setting default text values.
+     * Used when clearing game panels or restarting games.
      */
     private void resetScoreAndLevelLabels() {
         if (multiplayerScreen == null) {

@@ -15,6 +15,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Manages the multiplayer game screen UI components and rendering.
+ * This class handles the complete UI setup for two-player Tetris gameplay, including
+ * side-by-side game boards, score/level displays, next brick previews, hold brick displays,
+ * ghost piece rendering, pause/winning/settings overlays, and ready state management.
+ * The screen uses a scaled-down layout (85% scale) to fit both players' boards side-by-side
+ * with a VS column in the middle showing the timer. It manages all UI components for both
+ * players including game panels, brick panels, ghost panels, side panels with next bricks
+ * and hold bricks, and overlay panels for pause, settings, winning, and ready states.
+ * The class coordinates with GameController, InputEventListener, and various manager classes
+ * to provide a complete multiplayer gaming experience with synchronized display updates.
+ */
 public class MultiplayerScreen {
     
     // Constants
@@ -81,10 +93,32 @@ public class MultiplayerScreen {
     private InputEventListener eventListener1, eventListener2;
     private ViewData currentBrickData1, currentBrickData2;
     
+    /**
+     * Creates a new MultiplayerScreen and initializes all UI panels.
+     * Sets up the main container, wrapper, overlays, and game panels for both players.
+     */
     public MultiplayerScreen() {
         initializePanels();
     }
     
+    /**
+     * Sets all callback functions for interaction with GuiController.
+     * Configures callbacks for game control actions (start, restart, quit, resume, settings),
+     * ready state management, and UI coordination. After setting callbacks, re-configures
+     * the pause panel actions if a pause panel action handler is available.
+     * 
+     * @param onStartGame Callback for starting the game
+     * @param onRestartGame Callback for restarting the game
+     * @param onQuitToMenu Callback for quitting to main menu
+     * @param onResumeGame Callback for resuming the game
+     * @param onShowSettings Callback for showing settings
+     * @param onUpdateReadyLabels Callback for updating ready state labels
+     * @param onCheckBothReady Callback for checking if both players are ready
+     * @param onSetPlayer1Ready Callback for setting player 1 ready state
+     * @param onSetPlayer2Ready Callback for setting player 2 ready state
+     * @param onGetRootBorderPane Callback for getting the root border pane
+     * @param onSetSettingsPanel Callback for setting the settings panel
+     */
     public void setCallbacks(
             Consumer<Runnable> onStartGame,
             Consumer<Runnable> onRestartGame,
@@ -118,81 +152,189 @@ public class MultiplayerScreen {
         }
     }
     
+    /**
+     * Sets the game controllers for both players.
+     * 
+     * @param gameController1 The GameController for player 1
+     * @param gameController2 The GameController for player 2
+     */
     public void setGameControllers(GameController gameController1, GameController gameController2) {
         this.gameController1 = gameController1;
         this.gameController2 = gameController2;
     }
     
+    /**
+     * Sets the event listeners for both players.
+     * 
+     * @param eventListener1 The InputEventListener for player 1
+     * @param eventListener2 The InputEventListener for player 2
+     */
     public void setEventListeners(InputEventListener eventListener1, InputEventListener eventListener2) {
         this.eventListener1 = eventListener1;
         this.eventListener2 = eventListener2;
     }
     
+    /**
+     * Gets the main multiplayer container HBox.
+     * 
+     * @return The HBox container holding both players' game panels
+     */
     public HBox getContainer() {
         return multiplayerContainer;
     }
     
+    /**
+     * Gets the game panel (background grid) for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The GridPane representing the game board background for the player
+     */
     public GridPane getGamePanel(int playerNumber) {
         return (playerNumber == 1) ? gamePanel1 : gamePanel2;
     }
     
+    /**
+     * Gets the brick panel for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The GridPane for rendering the current falling brick
+     */
     public GridPane getBrickPanel(int playerNumber) {
         return (playerNumber == 1) ? brickPanel1 : brickPanel2;
     }
     
+    /**
+     * Gets the ghost panel for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The GridPane for rendering the ghost piece (landing position preview)
+     */
     public GridPane getGhostPanel(int playerNumber) {
         return (playerNumber == 1) ? ghostPanel1 : ghostPanel2;
     }
     
+    /**
+     * Gets the display matrix for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The 2D array of Rectangle objects representing the game board cells
+     */
     public Rectangle[][] getDisplayMatrix(int playerNumber) {
         return (playerNumber == 1) ? displayMatrix1 : displayMatrix2;
     }
     
+    /**
+     * Gets the score label for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The Label displaying the player's score
+     */
     public Label getScoreLabel(int playerNumber) {
         return (playerNumber == 1) ? scoreLabel1 : scoreLabel2;
     }
     
+    /**
+     * Gets the level label for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The Label displaying the player's level
+     */
     public Label getLevelLabel(int playerNumber) {
         return (playerNumber == 1) ? levelLabel1 : levelLabel2;
     }
     
+    /**
+     * Gets the hold brick panel for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The GridPane for displaying the held brick
+     */
     public GridPane getHoldBrickPanel(int playerNumber) {
         return (playerNumber == 1) ? holdBrickPanel1 : holdBrickPanel2;
     }
     
+    /**
+     * Gets the next bricks panel container for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The VBox container holding the next brick preview panes
+     */
     public VBox getNextBricksPanel(int playerNumber) {
         return (playerNumber == 1) ? nextBricksPanel1 : nextBricksPanel2;
     }
     
+    /**
+     * Gets the hold brick rectangles array for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The 2D array of Rectangle objects for rendering the held brick
+     */
     public Rectangle[][] getHoldBrickRectangles(int playerNumber) {
         return (playerNumber == 1) ? holdBrickRectangles1 : holdBrickRectangles2;
     }
     
+    /**
+     * Gets the list of next brick preview panes for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The list of GridPane objects for displaying upcoming bricks
+     */
     public List<GridPane> getNextBrickPanes(int playerNumber) {
         return (playerNumber == 1) ? nextBrickPanes1 : nextBrickPanes2;
     }
     
-    // Simple getters for renderer access
+    /**
+     * Gets the game panel grid for player 1 (renderer access).
+     * 
+     * @return The GridPane for player 1's game board background
+     */
     public GridPane getP1Grid() {
         return gamePanel1;
     }
     
+    /**
+     * Gets the game panel grid for player 2 (renderer access).
+     * 
+     * @return The GridPane for player 2's game board background
+     */
     public GridPane getP2Grid() {
         return gamePanel2;
     }
     
+    /**
+     * Gets the ghost panel grid for player 1 (renderer access).
+     * 
+     * @return The GridPane for player 1's ghost piece
+     */
     public GridPane getP1GhostGrid() {
         return ghostPanel1;
     }
     
+    /**
+     * Gets the ghost panel grid for player 2 (renderer access).
+     * 
+     * @return The GridPane for player 2's ghost piece
+     */
     public GridPane getP2GhostGrid() {
         return ghostPanel2;
     }
     
+    /**
+     * Gets the event listener for the specified player.
+     * 
+     * @param playerNumber The player number (1 or 2)
+     * @return The InputEventListener for the player
+     */
     public InputEventListener getEventListener(int playerNumber) {
         return (playerNumber == 1) ? eventListener1 : eventListener2;
     }
     
+    /**
+     * Sets the current brick data for the specified player.
+     * 
+     * @param brick The ViewData containing the current brick information
+     * @param playerNumber The player number (1 or 2)
+     */
     public void setCurrentBrickData(ViewData brick, int playerNumber) {
         if (playerNumber == 1) {
             currentBrickData1 = brick;
@@ -201,6 +343,12 @@ public class MultiplayerScreen {
         }
     }
     
+    /**
+     * Sets the hold brick rectangles array for the specified player.
+     * 
+     * @param rectangles The 2D array of Rectangle objects for rendering the held brick
+     * @param playerNumber The player number (1 or 2)
+     */
     public void setHoldBrickRectangles(Rectangle[][] rectangles, int playerNumber) {
         if (playerNumber == 1) {
             holdBrickRectangles1 = rectangles;
@@ -209,6 +357,12 @@ public class MultiplayerScreen {
         }
     }
     
+    /**
+     * Sets the list of next brick preview panes for the specified player.
+     * 
+     * @param panes The list of GridPane objects for displaying upcoming bricks
+     * @param playerNumber The player number (1 or 2)
+     */
     public void setNextBrickPanes(List<GridPane> panes, int playerNumber) {
         if (playerNumber == 1) {
             nextBrickPanes1 = panes;
@@ -217,36 +371,75 @@ public class MultiplayerScreen {
         }
     }
     
-    // Ready panel getters for MultiplayerViewManager
+    /**
+     * Gets the ready panel BorderPane.
+     * 
+     * @return The BorderPane displaying the ready state UI
+     */
     public BorderPane getReadyPanel() {
         return readyPanel;
     }
     
+    /**
+     * Sets the ready panel BorderPane.
+     * 
+     * @param panel The BorderPane to use for the ready state UI
+     */
     public void setReadyPanel(BorderPane panel) {
         this.readyPanel = panel;
     }
     
+    /**
+     * Gets the ready overlay StackPane.
+     * 
+     * @return The StackPane overlay for the ready panel
+     */
     public StackPane getReadyOverlay() {
         return multiplayerReadyOverlay;
     }
     
+    /**
+     * Sets the ready overlay StackPane.
+     * 
+     * @param overlay The StackPane overlay for the ready panel
+     */
     public void setReadyOverlay(StackPane overlay) {
         this.multiplayerReadyOverlay = overlay;
     }
     
+    /**
+     * Gets the main wrapper StackPane containing all multiplayer UI components.
+     * 
+     * @return The StackPane wrapper for the multiplayer screen
+     */
     public StackPane getWrapper() {
         return multiplayerWrapper;
     }
     
-    // Winning panel getters for GameStateManager
+    /**
+     * Gets the winning panel for displaying game winner.
+     * 
+     * @return The WinningPanel instance
+     */
     public WinningPanel getWinningPanel() {
         return multiplayerWinningPanel;
     }
     
+    /**
+     * Gets the winning overlay StackPane.
+     * 
+     * @return The StackPane overlay for the winning panel
+     */
     public StackPane getWinningOverlay() {
         return multiplayerWinningOverlay;
     }
     
+    /**
+     * Gets the ready icon label for player 1.
+     * Searches through the ready panel structure to find the label with ID "player1ReadyLabel".
+     * 
+     * @return The Label displaying player 1's ready state, or null if not found
+     */
     public Label getP1ReadyIcon() {
         if (readyPanel == null) return null;
         javafx.scene.Node center = readyPanel.getCenter();
@@ -274,6 +467,12 @@ public class MultiplayerScreen {
         return null;
     }
     
+    /**
+     * Gets the ready icon label for player 2.
+     * Searches through the ready panel structure to find the label with ID "player2ReadyLabel".
+     * 
+     * @return The Label displaying player 2's ready state, or null if not found
+     */
     public Label getP2ReadyIcon() {
         if (readyPanel == null) return null;
         javafx.scene.Node center = readyPanel.getCenter();
@@ -301,22 +500,45 @@ public class MultiplayerScreen {
         return null;
     }
     
+    /**
+     * Checks if player 1 is ready.
+     * 
+     * @return true if player 1 is ready, false otherwise
+     */
     public boolean isPlayer1Ready() {
         return player1Ready;
     }
     
+    /**
+     * Checks if player 2 is ready.
+     * 
+     * @return true if player 2 is ready, false otherwise
+     */
     public boolean isPlayer2Ready() {
         return player2Ready;
     }
     
+    /**
+     * Sets the ready state for player 1.
+     * 
+     * @param ready true if player 1 is ready, false otherwise
+     */
     public void setPlayer1ReadyState(boolean ready) {
         player1Ready = ready;
     }
     
+    /**
+     * Sets the ready state for player 2.
+     * 
+     * @param ready true if player 2 is ready, false otherwise
+     */
     public void setPlayer2ReadyState(boolean ready) {
         player2Ready = ready;
     }
     
+    /**
+     * Shows the multiplayer screen by making the container and wrapper visible.
+     */
     public void show() {
             if (multiplayerContainer != null) {
             multiplayerContainer.setVisible(true);
@@ -328,6 +550,9 @@ public class MultiplayerScreen {
             }
     }
     
+    /**
+     * Hides the multiplayer screen by making the container and wrapper invisible.
+     */
     public void hide() {
         if (multiplayerContainer != null) {
             multiplayerContainer.setVisible(false);
@@ -340,6 +565,10 @@ public class MultiplayerScreen {
     }
     
     
+    /**
+     * Shows the pause panel overlay.
+     * Makes the pause overlay visible and enables mouse interaction.
+     */
     public void showPausePanel() {
         if (multiplayerPauseOverlay != null && multiplayerPausePanel != null) {
             multiplayerPauseOverlay.setVisible(true);
@@ -348,6 +577,10 @@ public class MultiplayerScreen {
         }
     }
     
+    /**
+     * Hides the pause panel overlay.
+     * Makes the pause overlay invisible and disables mouse interaction.
+     */
     public void hidePausePanel() {
         if (multiplayerPauseOverlay != null) {
             multiplayerPauseOverlay.setVisible(false);
@@ -357,6 +590,13 @@ public class MultiplayerScreen {
     }
     
     
+    /**
+     * Shows the settings panel overlay.
+     * Adds the settings panel to the overlay if not already present, configures
+     * its size constraints, makes it visible, and brings it to the front.
+     * 
+     * @param settingsPanel The SettingsPanel to display in the overlay
+     */
     public void showSettingsOverlay(SettingsPanel settingsPanel) {
         if (multiplayerSettingsOverlay != null && settingsPanel != null) {
             if (!multiplayerSettingsOverlay.getChildren().contains(settingsPanel)) {
@@ -381,6 +621,10 @@ public class MultiplayerScreen {
         }
     }
     
+    /**
+     * Hides the settings panel overlay.
+     * Makes the settings overlay invisible and disables mouse interaction.
+     */
     public void hideSettingsOverlay() {
         if (multiplayerSettingsOverlay != null) {
             multiplayerSettingsOverlay.setVisible(false);
@@ -461,6 +705,12 @@ public class MultiplayerScreen {
         initializeMultiplayerPanels();
     }
     
+    /**
+     * Initializes or re-initializes the multiplayer game panels.
+     * Creates scaled-down game panels for both players (85% scale), side panels
+     * with next bricks and hold bricks, and a VS column with timer in the middle.
+     * Clears any existing panels before creating new ones.
+     */
     public void initializeMultiplayerPanels() {
         double scale = 0.85;
         int scaledBrickSize = (int)(BRICK_SIZE * scale);
@@ -832,6 +1082,11 @@ public class MultiplayerScreen {
     }
     
     
+    /**
+     * Gets the multiplayer timer label.
+     * 
+     * @return The Label displaying the multiplayer game timer
+     */
     public Label getTimerLabel() {
         // Return the timer label so it can be registered with TimerManager
         return multiplayerTimerLabel;
@@ -841,6 +1096,13 @@ public class MultiplayerScreen {
      * Sets the pause panel action handler to use for setting up pause panel actions.
      * If set, this will be used instead of the callback-based setup.
      * @param handler The pause panel action handler
+     */
+    /**
+     * Sets the pause panel action handler for configuring pause panel actions.
+     * If set before callbacks are configured, the handler will be used when
+     * callbacks are set. Otherwise, callback-based setup is used.
+     * 
+     * @param handler The PausePanelActionHandler instance to use
      */
     public void setPausePanelActionHandler(com.comp2042.controller.PausePanelActionHandler handler) {
         this.pausePanelActionHandler = handler;

@@ -1,8 +1,8 @@
 package com.comp2042.util;
 
-import com.comp2042.logic.bricks.Brick;
-import com.comp2042.logic.bricks.BrickGenerator;
-import com.comp2042.logic.bricks.RandomBrickGenerator;
+import com.comp2042.bricks.Brick;
+import com.comp2042.logic.BrickGenerator;
+import com.comp2042.logic.RandomBrickGenerator;
 import com.comp2042.model.NextShapeInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

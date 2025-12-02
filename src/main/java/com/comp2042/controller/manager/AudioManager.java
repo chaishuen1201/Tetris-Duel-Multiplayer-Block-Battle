@@ -16,6 +16,14 @@ import java.net.URL;
  * exclusively handling audio playback operations.
  */
 public class AudioManager {
+
+    /**
+     * Default constructor. Initializes the AudioManager.
+     * Audio files are loaded lazily when first needed.
+     */
+    public AudioManager() {
+        // Default constructor - audio files loaded on demand
+    }
     
     private static final double DEFAULT_VOLUME = 0.5;
     
@@ -38,8 +46,6 @@ public class AudioManager {
      * Loads all sound effects and music tracks, sets their initial volume, and prepares
      * them for playback. If any audio file fails to load, an error message is printed
      * but initialization continues for other files.
-     * 
-     * @throws Exception if a critical error occurs during audio file loading
      */
     public void initialize() {
         try {
@@ -463,6 +469,30 @@ public class AudioManager {
         if (levelUpSound != null) {
             levelUpSound.stop();
         }
+    }
+    
+    /**
+     * Sets up a button with click and hover sound effects.
+     * Configures the button to play click sound on action and hover sound on mouse enter.
+     * 
+     * @param button The button to set up
+     * @param action The action to execute when button is clicked
+     */
+    public void setupButtonWithSound(javafx.scene.control.Button button, Runnable action) {
+        if (button == null) return;
+        
+        // Add click sound
+        button.setOnAction(e -> {
+            playClickButton();
+            if (action != null) {
+                action.run();
+            }
+        });
+        
+        // Add hover sound
+        button.setOnMouseEntered(e -> {
+            playHover();
+        });
     }
     
     /**

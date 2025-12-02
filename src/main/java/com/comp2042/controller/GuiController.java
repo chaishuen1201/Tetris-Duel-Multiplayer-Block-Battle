@@ -41,7 +41,31 @@ import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
 
+/**
+ * Main GUI controller that coordinates all UI components and game logic.
+ * This class serves as the central coordinator for the entire game application,
+ * managing both single player and multiplayer game modes. It handles user input
+ * through keyboard events, coordinates panel visibility through PanelCoordinator,
+ * manages audio playback through AudioManager, controls game timers through
+ * TimerManager, and maintains game state through GameStateManager. The controller
+ * initializes all game components, sets up event listeners and callbacks, delegates
+ * specialized functionality to manager classes (GameLoopManager, GarbageManager,
+ * MultiplayerViewManager, SinglePlayerViewManager, CountdownManager), and coordinates
+ * view updates through GameViewRenderer. It implements JavaFX Initializable to set
+ * up the UI when the FXML is loaded, and provides methods for game control (start,
+ * pause, new game, quit), view updates (brick refresh, background refresh, next bricks,
+ * hold brick), and property binding (score, level, lines).
+ */
 public class GuiController implements Initializable {
+
+    /**
+     * Default constructor. Initializes the controller.
+     * The actual initialization is performed by the initialize() method
+     * which is called by JavaFX when the FXML is loaded.
+     */
+    public GuiController() {
+        // Default constructor - initialization handled by initialize() method
+    }
 
     // Single player screen - manages all single player UI
     private SinglePlayerScreen singlePlayerScreen;
@@ -137,6 +161,14 @@ public class GuiController implements Initializable {
         );
     }
 
+    /**
+     * Initializes the GUI controller and all game components.
+     * Sets up fonts, initializes screens, managers, panels, input handlers, and audio.
+     * Configures callbacks and event listeners for game state management.
+     * 
+     * @param _location The location used to resolve relative paths for the root object (not used)
+     * @param _resources The resources used to localize the root object (not used)
+     */
     @Override
     public void initialize(URL _location, ResourceBundle _resources) {
         // Parameters are required by Initializable interface but not used
@@ -313,10 +345,10 @@ public class GuiController implements Initializable {
 
         // Set up main menu panel
         if (mainMenuPanel != null) {
-            setupButtonWithSound(mainMenuPanel.getPlayButton(), () -> startGame());
-            setupButtonWithSound(mainMenuPanel.getMultiButton(), () -> multiplayerViewManager.showMultiplayer());
-            setupButtonWithSound(mainMenuPanel.getSettingsButton(), () -> settingsController.showSettings());
-            setupButtonWithSound(mainMenuPanel.getQuitButton(), () -> quitGame());
+            audioManager.setupButtonWithSound(mainMenuPanel.getPlayButton(), () -> startGame());
+            audioManager.setupButtonWithSound(mainMenuPanel.getMultiButton(), () -> multiplayerViewManager.showMultiplayer());
+            audioManager.setupButtonWithSound(mainMenuPanel.getSettingsButton(), () -> settingsController.showSettings());
+            audioManager.setupButtonWithSound(mainMenuPanel.getQuitButton(), () -> quitGame());
         }
         
         // Initialize settings controller
@@ -347,6 +379,10 @@ public class GuiController implements Initializable {
     
     // Audio initialization is now handled by AudioManager
     
+    /**
+     * Initializes the game state manager with callbacks for UI updates and game state changes.
+     * Sets up handlers for pause panel, game over panel, main menu, and game loop operations.
+     */
     private void initializeGameStateManager() {
         // Set up callbacks for UI updates
         gameStateManager.setOnShowPausePanel(() -> {
@@ -461,6 +497,10 @@ public class GuiController implements Initializable {
         });
     }
     
+    /**
+     * Initializes the game loop manager with callbacks for move down operations,
+     * garbage processing, and UI refresh operations.
+     */
     private void initializeGameLoopManager() {
         // Set up callbacks for move down operations
         gameLoopManager.setMoveDownCallbacks(new GameLoopManager.MoveDownCallbacks() {
@@ -500,6 +540,10 @@ public class GuiController implements Initializable {
         // Countdown callbacks are now handled by CountdownManager
     }
     
+    /**
+     * Initializes the input handler with callbacks for single player and multiplayer actions.
+     * Sets up keyboard event handling for both game modes.
+     */
     private void initializeInputHandler() {
         inputHandler.setSettingsPanel(settingsPanel);
         
@@ -691,6 +735,10 @@ public class GuiController implements Initializable {
         });
     }
     
+    /**
+     * Sets up callbacks for the multiplayer screen including pause panel actions,
+     * game start/restart/quit handlers, and ready state management.
+     */
     private void setupMultiplayerScreenCallbacks() {
         if (multiplayerScreen == null) return;
         
@@ -718,12 +766,22 @@ public class GuiController implements Initializable {
     
     
     
+    /**
+     * Resumes the multiplayer game by toggling the pause state.
+     * Delegates to pauseGame to ensure consistent pause/resume logic.
+     */
     private void resumeMultiplayerGame() {
         // Resume the game by calling pauseGame which toggles the pause state
         // This ensures all pause/resume logic is handled consistently
         pauseGame(null);
     }
     
+    /**
+     * Gets the root BorderPane from the scene hierarchy.
+     * Traverses up from the gameBoard to find the root BorderPane.
+     * 
+     * @return The root BorderPane, or null if not found
+     */
     BorderPane getRootBorderPane() {
         // Get root BorderPane from scene (FXML root is BorderPane)
         if (gameBoard != null && gameBoard.getScene() != null) {
@@ -749,10 +807,24 @@ public class GuiController implements Initializable {
         return null;
     }
 
+    /**
+     * Initializes the game view for single player mode.
+     * 
+     * @param boardMatrix The initial board state matrix
+     * @param brick The initial brick view data
+     */
     public void initGameView(int[][] boardMatrix, ViewData brick) {
         initGameView(boardMatrix, brick, 0);
     }
     
+    /**
+     * Initializes the game view for the specified player.
+     * Sets up the initial display, creates game timelines, and updates next bricks display.
+     * 
+     * @param boardMatrix The initial board state matrix
+     * @param brick The initial brick view data
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public void initGameView(int[][] boardMatrix, ViewData brick, int playerNumber) {
         if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             // Initialize multiplayer game view
@@ -841,6 +913,11 @@ public class GuiController implements Initializable {
         }
     }
 
+    /**
+     * Sets the event listener for single player mode.
+     * 
+     * @param listener The InputEventListener to handle game events
+     */
     public void setEventListener(InputEventListener listener) { 
         this.eventListener = listener;
         gameLoopManager.setEventListener(listener);
@@ -849,6 +926,12 @@ public class GuiController implements Initializable {
         }
     }
     
+    /**
+     * Sets the event listener for the specified player.
+     * 
+     * @param listener The InputEventListener to handle game events
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public void setEventListener(InputEventListener listener, int playerNumber) {
         if (playerNumber == 1) {
             this.eventListener1 = listener;
@@ -869,10 +952,21 @@ public class GuiController implements Initializable {
         }
     }
 
+    /**
+     * Binds the score property to the GUI for single player mode.
+     * 
+     * @param score The IntegerProperty representing the score
+     */
     public void bindScore(IntegerProperty score) {
         bindScore(score, 0);
     }
     
+    /**
+     * Binds the score property to the GUI for the specified player.
+     * 
+     * @param score The IntegerProperty representing the score
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public void bindScore(IntegerProperty score, int playerNumber) {
         if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             multiplayerViewManager.bindScore(score, playerNumber);
@@ -884,10 +978,24 @@ public class GuiController implements Initializable {
         }
     }
 
+    /**
+     * Binds the level property to the GUI for single player mode.
+     * 
+     * @param level The IntegerProperty representing the level
+     */
     public void bindLevel(IntegerProperty level) {
         bindLevel(level, 0);
     }
     
+    /**
+     * Binds the level property to the GUI for the specified player.
+     * For multiplayer mode, delegates to MultiplayerViewManager. For single player,
+     * binds to the level label and sets up a level change listener for level-up sounds
+     * and timeline rate updates.
+     * 
+     * @param level The IntegerProperty representing the level
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public void bindLevel(IntegerProperty level, int playerNumber) {
         if (gameStateManager.isMultiplayerMode() && playerNumber > 0) {
             multiplayerViewManager.bindLevel(level, playerNumber);
@@ -916,10 +1024,22 @@ public class GuiController implements Initializable {
         }
     }
 
+    /**
+     * Binds the lines property to the GUI for single player mode.
+     * 
+     * @param lines The IntegerProperty representing the number of lines cleared
+     */
     public void bindLines(IntegerProperty lines) {
         bindLines(lines, 0);
     }
     
+    /**
+     * Binds the lines property to the GUI for the specified player.
+     * Note: For multiplayer, lines binding is not used in side panels but kept for compatibility.
+     * 
+     * @param lines The IntegerProperty representing the number of lines cleared
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public void bindLines(IntegerProperty lines, int playerNumber) {
         // For multiplayer, lines binding is not used in side panels, but we keep the method for compatibility
         if (playerNumber == 0 && singlePlayerScreen != null && lines != null) {
@@ -928,20 +1048,30 @@ public class GuiController implements Initializable {
     }
     
     /**
-     * Sends garbage to the opponent's queue when lines are cleared in multiplayer mode.
-     * Delegates to GarbageManager.
-     * @param fromPlayerNumber The player number who cleared lines (1 or 2)
-     * @param numGarbageLines Number of garbage lines to send
+     * Sends garbage lines to the opponent in multiplayer mode.
+     * Delegates to GarbageManager to handle the garbage sending logic.
+     * 
+     * @param fromPlayerNumber The player number (1 or 2) who is sending garbage
+     * @param numGarbageLines The number of garbage lines to send
      */
     public void sendGarbageToOpponent(int fromPlayerNumber, int numGarbageLines) {
         garbageManager.sendGarbageToOpponent(fromPlayerNumber, numGarbageLines);
     }
     
 
+    /**
+     * Handles game over for single player mode.
+     */
     public void gameOver() {
         gameOver(0);
     }
     
+    /**
+     * Handles game over for the specified player.
+     * Updates timeline references and delegates to GameStateManager.
+     * 
+     * @param playerNumber The player number (0 for single player, 1 or 2 for multiplayer)
+     */
     public void gameOver(int playerNumber) {
         // Update GameStateManager with current timeline references
         gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
@@ -952,6 +1082,19 @@ public class GuiController implements Initializable {
         gameStateManager.gameOver(playerNumber);
     }
 
+    /**
+     * Starts a new game session.
+     * Resets the game state, creates a new game board, and sets up bindings.
+     * 
+     * @param actionEvent The action event that triggered this method (can be null)
+     */
+    /**
+     * Starts a new game, resetting the current game state.
+     * Updates GameStateManager with current timeline reference and delegates
+     * to GameStateManager to handle the new game initialization.
+     * 
+     * @param actionEvent The action event that triggered this method (can be null)
+     */
     public void newGame(ActionEvent actionEvent) {
         // Update GameStateManager with current timeline reference
         gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
@@ -996,6 +1139,11 @@ public class GuiController implements Initializable {
         }
     }
 
+    /**
+     * Starts a new game session.
+     * Initiates the game start process through GameStateManager, hides the main menu,
+     * and starts the countdown sequence if the game hasn't started yet.
+     */
     public void startGame() {
         gameStateManager.startGame();
         if (!gameStateManager.isGameStarted() && mainMenuPanel != null) {
@@ -1005,6 +1153,10 @@ public class GuiController implements Initializable {
         }
     }
     
+    /**
+     * Actually starts the game after the countdown completes.
+     * Initializes game state, starts music, sets up bindings, and makes panels visible.
+     */
     private void actuallyStartGame() {
         // Update GameStateManager with current timeline reference
         gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
@@ -1089,10 +1241,19 @@ public class GuiController implements Initializable {
         }
     }
 
+    /**
+     * Quits the game application by exiting the JavaFX platform.
+     */
     public void quitGame() {
         javafx.application.Platform.exit();
     }
 
+    /**
+     * Toggles the pause state of the game.
+     * Updates timeline references and delegates to GameStateManager.
+     * 
+     * @param actionEvent The action event that triggered this method (can be null)
+     */
     public void pauseGame(ActionEvent actionEvent) {
         // Update GameStateManager with current timeline references
         gameStateManager.setTimeLine(gameLoopManager.getTimeLine());
@@ -1105,6 +1266,9 @@ public class GuiController implements Initializable {
         gameStateManager.pauseGame();
     }
     
+    /**
+     * Initializes the pause panel with action handlers.
+     */
     private void initializePausePanel() {
         if (pausePanel == null) return;
         PausePanelActionHandler handler = new PausePanelActionHandler(this);
@@ -1113,236 +1277,421 @@ public class GuiController implements Initializable {
     
     
     // Getters and setters for PausePanelActionHandler
+    /**
+     * Gets the game state manager.
+     * @return The GameStateManager instance
+     */
     public GameStateManager getGameStateManager() {
         return gameStateManager;
     }
     
+    /**
+     * Gets the panel coordinator.
+     * @return The PanelCoordinator instance
+     */
     public PanelCoordinator getPanelCoordinator() {
         return panelCoordinator;
     }
     
+    /**
+     * Gets the multiplayer screen.
+     * @return The MultiplayerScreen instance
+     */
     public MultiplayerScreen getMultiplayerScreen() {
         return multiplayerScreen;
     }
 
     
+    /**
+     * Refreshes the game background display for a multiplayer player.
+     * 
+     * @param board The 2D integer array representing the game board matrix
+     * @param playerNumber The player number (1 or 2) whose background should be refreshed
+     */
     public void refreshMultiplayerGameBackground(int[][] board, int playerNumber) {
         if (multiplayerScreen != null) {
             gameViewRenderer.refreshGameBackground(multiplayerScreen, board, playerNumber);
         }
     }
     
-    public void updateMultiplayerNextBricks(List<com.comp2042.logic.bricks.Brick> nextBricks, int playerNumber) {
+    /**
+     * Updates the next bricks display for a multiplayer player.
+     * 
+     * @param nextBricks The list of Brick objects representing upcoming pieces
+     * @param playerNumber The player number (1 or 2) whose next bricks should be updated
+     */
+    public void updateMultiplayerNextBricks(List<com.comp2042.bricks.Brick> nextBricks, int playerNumber) {
         if (multiplayerScreen != null) {
             gameViewRenderer.updateNextBricks(multiplayerScreen, nextBricks, playerNumber);
         }
     }
     
-    public void updateMultiplayerHoldBrick(com.comp2042.logic.bricks.Brick heldBrick, int playerNumber) {
+    /**
+     * Updates the hold brick display for a multiplayer player.
+     * 
+     * @param heldBrick The Brick object being held, or null if no brick is held
+     * @param playerNumber The player number (1 or 2) whose hold brick should be updated
+     */
+    public void updateMultiplayerHoldBrick(com.comp2042.bricks.Brick heldBrick, int playerNumber) {
         if (multiplayerScreen != null) {
             gameViewRenderer.updateHoldBrick(multiplayerScreen, heldBrick, playerNumber);
         }
     }
 
-    
+    /**
+     * Refreshes the game background display for single player mode.
+     * 
+     * @param board The 2D integer array representing the game board matrix
+     */
     public void refreshSinglePlayerGameBackground(int[][] board) {
         if (singlePlayerViewManager != null) {
             singlePlayerViewManager.refreshGameBackground(board);
         }
     }
     
-    public void updateSinglePlayerNextBricks(List<com.comp2042.logic.bricks.Brick> nextBricks) {
+    /**
+     * Updates the next bricks display for single player mode.
+     * 
+     * @param nextBricks The list of Brick objects representing upcoming pieces
+     */
+    public void updateSinglePlayerNextBricks(List<com.comp2042.bricks.Brick> nextBricks) {
         if (singlePlayerViewManager != null) {
             singlePlayerViewManager.updateNextBricks(nextBricks);
         }
     }
     
-    public void updateSinglePlayerHoldBrick(com.comp2042.logic.bricks.Brick heldBrick) {
+    /**
+     * Updates the hold brick display for single player mode.
+     * 
+     * @param heldBrick The Brick object being held, or null if no brick is held
+     */
+    public void updateSinglePlayerHoldBrick(com.comp2042.bricks.Brick heldBrick) {
         if (singlePlayerViewManager != null) {
             singlePlayerViewManager.updateHoldBrick(heldBrick);
         }
     }
     
+    /**
+     * Gets the multiplayer view manager instance.
+     * 
+     * @return The MultiplayerViewManager instance
+     */
     public MultiplayerViewManager getMultiplayerViewManager() {
         return multiplayerViewManager;
     }
     
+    /**
+     * Gets the pause panel instance.
+     * 
+     * @return The PausePanel instance
+     */
     public PausePanel getPausePanel() {
         return pausePanel;
     }
     
+    /**
+     * Gets the single player screen instance.
+     * 
+     * @return The SinglePlayerScreen instance
+     */
     public SinglePlayerScreen getSinglePlayerScreen() {
         return singlePlayerScreen;
     }
     
+    /**
+     * Gets the audio manager instance.
+     * 
+     * @return The AudioManager instance
+     */
     public AudioManager getAudioManager() {
         return audioManager;
     }
     
+    /**
+     * Gets the timer manager instance.
+     * 
+     * @return The TimerManager instance
+     */
     public TimerManager getTimerManager() {
         return timerManager;
     }
     
+    /**
+     * Gets the input handler instance.
+     * 
+     * @return The InputHandler instance
+     */
     public InputHandler getInputHandler() {
         return inputHandler;
     }
     
+    /**
+     * Gets the single player game loop timeline.
+     * 
+     * @return The Timeline for single player game loop
+     */
     public Timeline getTimeLine() {
         return gameLoopManager.getTimeLine();
     }
     
+    /**
+     * Gets the player 1 game loop timeline for multiplayer mode.
+     * 
+     * @return The Timeline for player 1's game loop
+     */
     public Timeline getTimeLine1() {
         return gameLoopManager.getTimeLine1();
     }
     
+    /**
+     * Gets the player 2 game loop timeline for multiplayer mode.
+     * 
+     * @return The Timeline for player 2's game loop
+     */
     public Timeline getTimeLine2() {
         return gameLoopManager.getTimeLine2();
     }
 
-    
+    /**
+     * Sets the game controller for player 1 in multiplayer mode.
+     * 
+     * @param gameController1 The GameController for player 1
+     */
     public void setGameController1(GameController gameController1) {
         this.gameController1 = gameController1;
         multiplayerViewManager.setGameController1(gameController1);
     }
     
+    /**
+     * Sets the game controller for player 2 in multiplayer mode.
+     * 
+     * @param gameController2 The GameController for player 2
+     */
     public void setGameController2(GameController gameController2) {
         this.gameController2 = gameController2;
         multiplayerViewManager.setGameController2(gameController2);
     }
     
+    /**
+     * Gets the event listener for single player mode.
+     * 
+     * @return The InputEventListener for single player
+     */
     public InputEventListener getEventListener() {
         return eventListener;
     }
 
     
+    /**
+     * Sets the input event listener for player 1.
+     * @param eventListener1 The InputEventListener for player 1
+     */
     public void setEventListener1(InputEventListener eventListener1) {
         this.eventListener1 = eventListener1;
     }
     
+    /**
+     * Sets the input event listener for player 2.
+     * @param eventListener2 The InputEventListener for player 2
+     */
     public void setEventListener2(InputEventListener eventListener2) {
         this.eventListener2 = eventListener2;
     }
 
     
     // Setters for compatibility (no-op since GameLoopManager manages timelines)
+    /**
+     * Sets the timeline for player 1 (no-op, managed by GameLoopManager).
+     * @param timeLine1 The timeline for player 1 (not used)
+     */
     public void setTimeLine1(Timeline timeLine1) {
         // No-op: GameLoopManager manages timelines
     }
     
+    /**
+     * Sets the timeline for player 2 (no-op, managed by GameLoopManager).
+     * @param timeLine2 The timeline for player 2 (not used)
+     */
     public void setTimeLine2(Timeline timeLine2) {
         // No-op: GameLoopManager manages timelines
     }
     
+    /**
+     * Sets the garbage process timeline for player 1 (no-op, managed by GameLoopManager).
+     * @param garbageProcessTimeline1 The garbage process timeline for player 1 (not used)
+     */
     public void setGarbageProcessTimeline1(Timeline garbageProcessTimeline1) {
         // No-op: GameLoopManager manages timelines
     }
     
+    /**
+     * Sets the garbage process timeline for player 2 (no-op, managed by GameLoopManager).
+     * @param garbageProcessTimeline2 The garbage process timeline for player 2 (not used)
+     */
     public void setGarbageProcessTimeline2(Timeline garbageProcessTimeline2) {
         // No-op: GameLoopManager manages timelines
     }
     
+    /**
+     * Gets the game board border pane.
+     * @return The BorderPane representing the game board
+     */
     public BorderPane getGameBoard() {
         return gameBoard;
     }
     
+    /**
+     * Gets the game stack pane.
+     * @return The StackPane containing game layers
+     */
     public StackPane getGameStack() {
         return gameStack;
     }
     
+    /**
+     * Gets the game panel grid pane.
+     * @return The GridPane representing the game panel
+     */
     public GridPane getGamePanel() {
         return gamePanel;
     }
     
+    /**
+     * Gets the brick panel grid pane.
+     * @return The GridPane for displaying the current brick
+     */
     public GridPane getBrickPanel() {
         return brickPanel;
     }
     
+    /**
+     * Gets the ghost panel grid pane.
+     * @return The GridPane for displaying the ghost brick preview
+     */
     public GridPane getGhostPanel() {
         return ghostPanel;
     }
     
+    /**
+     * Gets the settings panel.
+     * @return The SettingsPanel instance
+     */
     public SettingsPanel getSettingsPanel() {
         return settingsPanel;
     }
     
+    /**
+     * Gets the settings controller.
+     * @return The SettingsController instance
+     */
     public SettingsController getSettingsController() {
         return settingsController;
     }
     
+    /**
+     * Gets the main menu panel.
+     * @return The MainMenuPanel instance
+     */
     public MainMenuPanel getMainMenuPanel() {
         return mainMenuPanel;
     }
     
+    /**
+     * Gets the game over panel.
+     * @return The GameOverPanel instance
+     */
     public GameOverPanel getGameOverPanel() {
         return gameOverPanel;
     }
     
+    /**
+     * Gets the next bricks panel.
+     * @return The VBox containing the next bricks preview
+     */
     public VBox getNextBricksPanel() {
         return nextBricksPanel;
     }
     
+    /**
+     * Gets the hold brick panel grid pane.
+     * @return The GridPane for displaying the held brick
+     */
     public GridPane getHoldBrickPanel() {
         return holdBrickPanel;
     }
     
+    /**
+     * Gets the score label.
+     * @return The Label displaying the score
+     */
     public Label getScoreLabel() {
         return scoreLabel;
     }
     
+    /**
+     * Gets the level label.
+     * @return The Label displaying the level
+     */
     public Label getLevelLabel() {
         return levelLabel;
     }
     
+    /**
+     * Gets the lines label.
+     * @return The Label displaying the lines cleared
+     */
     public Label getLinesLabel() {
         return linesLabel;
     }
     
+    /**
+     * Gets the original left panel.
+     * @return The VBox representing the original left panel
+     */
     public VBox getOriginalLeftPanel() {
         return originalLeftPanel;
     }
     
+    /**
+     * Gets the original right panel.
+     * @return The VBox representing the original right panel
+     */
     public VBox getOriginalRightPanel() {
         return originalRightPanel;
     }
     
+    /**
+     * Gets the scene key pressed event handler.
+     * @return The EventHandler for key pressed events
+     */
     public javafx.event.EventHandler<KeyEvent> getSceneKeyPressedHandler() {
         return multiplayerViewManager.getSceneKeyPressedHandler();
     }
     
+    /**
+     * Gets the scene key released event handler.
+     * @return The EventHandler for key released events
+     */
     public javafx.event.EventHandler<KeyEvent> getSceneKeyReleasedHandler() {
         return multiplayerViewManager.getSceneKeyReleasedHandler();
     }
     
+    /**
+     * Sets the scene key pressed event handler.
+     * @param sceneKeyPressedHandler The EventHandler for key pressed events
+     */
     public void setSceneKeyPressedHandler(javafx.event.EventHandler<KeyEvent> sceneKeyPressedHandler) {
         this.sceneKeyPressedHandler = sceneKeyPressedHandler;
         multiplayerViewManager.setSceneKeyPressedHandler(sceneKeyPressedHandler);
     }
     
+    /**
+     * Sets the scene key released event handler.
+     * @param sceneKeyReleasedHandler The EventHandler for key released events
+     */
     public void setSceneKeyReleasedHandler(javafx.event.EventHandler<KeyEvent> sceneKeyReleasedHandler) {
         this.sceneKeyReleasedHandler = sceneKeyReleasedHandler;
         multiplayerViewManager.setSceneKeyReleasedHandler(sceneKeyReleasedHandler);
-    }
-    
-    /**
-     * Sets up a button with click and hover sound effects.
-     * @param button The button to set up
-     * @param action The action to execute when button is clicked
-     */
-    private void setupButtonWithSound(javafx.scene.control.Button button, Runnable action) {
-        if (button == null) return;
-        
-        // Add click sound
-        button.setOnAction(e -> {
-            audioManager.playClickButton();
-            if (action != null) {
-                action.run();
-            }
-        });
-        
-        // Add hover sound
-        button.setOnMouseEntered(e -> {
-            audioManager.playHover();
-        });
     }
     
 }

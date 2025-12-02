@@ -24,20 +24,34 @@ import javafx.scene.shape.Rectangle;
 import java.util.List;
 
 /**
- * Handles all pause panel action setup and execution.
- * Extracted from GuiController to improve separation of concerns.
+ * Handles all pause panel action setup and execution for both single player and multiplayer modes.
+ * This class was extracted from GuiController to improve separation of concerns and follows
+ * the Single Responsibility Principle by exclusively managing pause panel button actions.
+ * It sets up action handlers for resume, settings, restart, and quit to main menu buttons,
+ * configures button sound effects, and handles the complex logic for restarting games and
+ * quitting to the main menu in both single player and multiplayer modes. The handler
+ * coordinates with GameStateManager, MultiplayerViewManager, and various UI components
+ * to ensure proper state transitions and cleanup when switching between game modes.
  */
 public class PausePanelActionHandler {
     
     private final GuiController guiController;
     
+    /**
+     * Creates a new PausePanelActionHandler with the specified GUI controller.
+     * 
+     * @param guiController The GuiController instance to coordinate with for game operations
+     */
     public PausePanelActionHandler(GuiController guiController) {
         this.guiController = guiController;
     }
     
     /**
-     * Sets up all action handlers for the pause panel.
-     * @param panel The pause panel to configure
+     * Sets up all action handlers for the single player pause panel.
+     * Configures button actions for resume, settings, restart, and quit to main menu.
+     * Also sets up button sound effects for all buttons.
+     * 
+     * @param panel The PausePanel instance to configure with action handlers
      */
     public void setupPausePanelActions(PausePanel panel) {
         // Resume action - just resume the game
@@ -67,7 +81,10 @@ public class PausePanelActionHandler {
     /**
      * Sets up all action handlers for the multiplayer pause panel.
      * This method is used by MultiplayerScreen to set up its pause panel actions.
-     * @param panel The multiplayer pause panel to configure
+     * Configures button actions for resume, settings, restart, and quit to main menu.
+     * Also sets up button sound effects for all buttons.
+     * 
+     * @param panel The PausePanel instance for multiplayer mode to configure with action handlers
      */
     public void setupMultiplayerPausePanelActions(PausePanel panel) {
         // Resume action - just resume the game
@@ -94,6 +111,11 @@ public class PausePanelActionHandler {
         panel.setupButtonSounds(guiController.getAudioManager());
     }
     
+    /**
+     * Handles the restart action from the pause panel.
+     * Hides pause panels and winning panel, then restarts the game. For multiplayer mode,
+     * uses MultiplayerViewManager to restart. For single player mode, uses the newGame method.
+     */
     private void handleRestartAction() {
         GameStateManager gameStateManager = guiController.getGameStateManager();
         MultiplayerScreen multiplayerScreen = guiController.getMultiplayerScreen();
@@ -122,6 +144,13 @@ public class PausePanelActionHandler {
         }
     }
     
+    /**
+     * Handles the quit to main menu action from the pause panel.
+     * Stops all timelines, hides pause panels, handles multiplayer or single player quit
+     * logic, stops game music, plays main menu music, and shows the main menu. For multiplayer,
+     * delegates to MultiplayerViewManager. For single player, delegates to GameStateManager
+     * and handles UI cleanup.
+     */
     private void handleQuitAction() {
         GameStateManager gameStateManager = guiController.getGameStateManager();
         MultiplayerScreen multiplayerScreen = guiController.getMultiplayerScreen();
@@ -208,6 +237,14 @@ public class PausePanelActionHandler {
         }
     }
     
+    /**
+     * Handles the single player quit to main menu logic.
+     * Resets the game board state, clears all visual displays (game board, next bricks,
+     * hold brick, current brick, ghost panel), and hides game panels. Ensures the game
+     * board remains visible so the main menu can be displayed.
+     * 
+     * @param singlePlayerScreen The SinglePlayerScreen instance to clear and reset
+     */
     private void handleSinglePlayerQuit(SinglePlayerScreen singlePlayerScreen) {
         InputEventListener eventListener = guiController.getEventListener();
         GridPane brickPanel = guiController.getBrickPanel();
@@ -276,6 +313,19 @@ public class PausePanelActionHandler {
         // The main menu panel is inside gameBoard's StackPane
     }
     
+    /**
+     * Handles the multiplayer quit to main menu logic.
+     * Clears all multiplayer game panels, clears multiplayer references, stops timelines
+     * and timers, hides multiplayer screen, removes scene event filters, restores original
+     * panels, shows single player panels, ensures event listener exists, and requests focus
+     * on the game board. This method performs comprehensive cleanup to transition from
+     * multiplayer mode back to single player/main menu state.
+     * 
+     * @param gameStateManager The GameStateManager instance for state management
+     * @param multiplayerScreen The MultiplayerScreen instance to hide and clean up
+     * @param inputHandler The InputHandler instance for keyboard event management
+     * @param audioManager The AudioManager instance (currently unused but kept for consistency)
+     */
     private void handleMultiplayerQuit(GameStateManager gameStateManager, MultiplayerScreen multiplayerScreen, 
                                       InputHandler inputHandler, AudioManager audioManager) {
         SettingsPanel settingsPanel = guiController.getSettingsPanel();

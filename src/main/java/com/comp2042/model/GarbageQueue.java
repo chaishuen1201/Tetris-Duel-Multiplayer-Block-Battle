@@ -13,6 +13,10 @@ public class GarbageQueue {
     private final int boardWidth; // Number of columns (width of the board)
     private final Random random;
     
+    /**
+     * Constructs a new GarbageQueue with the specified board width.
+     * @param boardWidth The width of the board (number of columns)
+     */
     public GarbageQueue(int boardWidth) {
         this.queue = new ArrayDeque<>();
         this.boardWidth = boardWidth; // This should be the number of columns (height in matrix terms)
@@ -48,6 +52,7 @@ public class GarbageQueue {
     
     /**
      * Returns the number of pending garbage lines.
+     * @return The number of garbage lines currently in the queue
      */
     public int size() {
         return queue.size();
@@ -55,6 +60,7 @@ public class GarbageQueue {
     
     /**
      * Checks if the queue is empty.
+     * @return true if the queue is empty, false otherwise
      */
     public boolean isEmpty() {
         return queue.isEmpty();

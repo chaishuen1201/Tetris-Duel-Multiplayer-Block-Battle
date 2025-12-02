@@ -1,8 +1,8 @@
 package com.comp2042.model;
 
-import com.comp2042.logic.bricks.Brick;
-import com.comp2042.logic.bricks.BrickGenerator;
-import com.comp2042.logic.bricks.RandomBrickGenerator;
+import com.comp2042.bricks.Brick;
+import com.comp2042.logic.BrickGenerator;
+import com.comp2042.logic.RandomBrickGenerator;
 import com.comp2042.util.BrickRotator;
 import com.comp2042.util.MatrixOperations;
 import javafx.beans.property.IntegerProperty;
@@ -12,6 +12,17 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Implementation of the Board interface representing a Tetris game board.
+ * This class manages the complete game state including the game board matrix (2D array),
+ * current active brick, held brick, score tracking, level progression, lines cleared count,
+ * and garbage queue for multiplayer mode. It handles all brick operations including movement
+ * (down, left, right), rotation with wall kick support, hard drop, hold functionality,
+ * row clearing with score calculation, level progression based on lines cleared, and
+ * garbage block processing. The board uses JavaFX properties for reactive UI binding
+ * (level and lines), implements collision detection for all movements, and manages
+ * garbage queue operations for multiplayer attack mechanics.
+ */
 public class SimpleBoard implements Board {
 
     private static final int INITIAL_X = 3;
@@ -32,6 +43,14 @@ public class SimpleBoard implements Board {
     private Brick currentBrick;
     private GarbageQueue garbageQueue;
 
+    /**
+     * Creates a new SimpleBoard with the specified dimensions.
+     * Initializes the game board matrix, brick generator, brick rotator, score tracker,
+     * and garbage queue. The board starts empty with level 1 and 0 lines cleared.
+     * 
+     * @param width The width of the game board in cells (typically 10)
+     * @param height The height of the game board in cells (typically 20)
+     */
     public SimpleBoard(int width, int height) {
         this.width = width;
         this.height = height;
@@ -42,6 +61,13 @@ public class SimpleBoard implements Board {
         this.garbageQueue = new GarbageQueue(height); // Use height (columns) not width (rows)
     }
 
+    /**
+     * Moves the current brick down by one position.
+     * Checks for collisions before moving. If a collision would occur, the brick
+     * cannot move and false is returned.
+     * 
+     * @return true if the brick was successfully moved down, false if blocked by collision
+     */
     @Override
     public boolean moveBrickDown() {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
@@ -57,6 +83,13 @@ public class SimpleBoard implements Board {
         }
     }
 
+    /**
+     * Moves the current brick one position to the left.
+     * Checks for collisions before moving. If a collision would occur, the brick
+     * cannot move and false is returned.
+     * 
+     * @return true if the brick was successfully moved left, false if blocked by collision
+     */
     @Override
     public boolean moveBrickLeft() {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
@@ -72,6 +105,13 @@ public class SimpleBoard implements Board {
         }
     }
 
+    /**
+     * Moves the current brick one position to the right.
+     * Checks for collisions before moving. If a collision would occur, the brick
+     * cannot move and false is returned.
+     * 
+     * @return true if the brick was successfully moved right, false if blocked by collision
+     */
     @Override
     public boolean moveBrickRight() {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
@@ -87,6 +127,16 @@ public class SimpleBoard implements Board {
         }
     }
 
+    /**
+     * Rotates the current brick 90 degrees counter-clockwise.
+     * Implements wall kick functionality, trying multiple offset positions if the
+     * rotation at the current position would cause a collision. Attempts standard
+     * wall kick offsets (left 1, right 1, left 2, right 2, up 1, and combinations)
+     * to find a valid rotation position.
+     * 
+     * @return true if the brick was successfully rotated (at current position or with wall kick),
+     *         false if no valid rotation position could be found
+     */
     @Override
     public boolean rotateLeftBrick() {
         int[][] currentMatrix = MatrixOperations.copy(currentGameMatrix);
@@ -128,6 +178,15 @@ public class SimpleBoard implements Board {
         return false;
     }
 
+    /**
+     * Creates a new brick and places it at the initial spawn position.
+     * First clears any completely filled rows (safety check), then generates a new
+     * brick from the brick generator, resets the brick rotator, sets the initial
+     * offset position, and resets the hold ability. Returns true if the new brick
+     * cannot be placed at the spawn position (indicating game over).
+     * 
+     * @return true if the new brick cannot be placed (game over condition), false otherwise
+     */
     @Override
     public boolean createNewBrick() {
         // First, clear any completely filled rows (including rubbish rows) before checking game over
@@ -152,11 +211,26 @@ public class SimpleBoard implements Board {
                 (int) currentOffset.getX(), (int) currentOffset.getY());
     }
 
+    /**
+     * Gets the current game board matrix.
+     * Returns the 2D array representing the game board state, where 0 represents
+     * empty cells and non-zero values represent filled cells (with different values
+     * for different block types, including 8 for garbage blocks).
+     * 
+     * @return The 2D integer array representing the game board matrix [width][height]
+     */
     @Override
     public int[][] getBoardMatrix() {
         return currentGameMatrix;
     }
 
+    /**
+     * Gets the current view data for rendering the game state.
+     * Creates a ViewData object containing the current brick shape, position, and
+     * the next brick preview shape.
+     * 
+     * @return ViewData containing the current brick shape, position coordinates, and next brick shape
+     */
     @Override
     public ViewData getViewData() {
         return new ViewData(brickRotator.getCurrentShape(), 
@@ -165,6 +239,12 @@ public class SimpleBoard implements Board {
                 brickGenerator.getNextBrick().getShapeMatrix().get(0));
     }
 
+    /**
+     * Merges the current brick into the game board background.
+     * Permanently places the current brick at its current position into the board matrix,
+     * making it part of the static board state. This is called when a brick can no longer
+     * move down.
+     */
     @Override
     public void mergeBrickToBackground() {
         currentGameMatrix = MatrixOperations.merge(currentGameMatrix, brickRotator.getCurrentShape(), 
@@ -204,6 +284,17 @@ public class SimpleBoard implements Board {
         return foundRowToClear;
     }
 
+    /**
+     * Clears completed rows from the game board.
+     * Removes all completely filled rows, shifts remaining rows down, updates the lines
+     * cleared count, updates the level based on total lines cleared (1 level per 10 lines),
+     * counters garbage from the queue based on lines cleared, and calculates score bonus
+     * multiplied by the current level. Returns a ClearRow object with information about
+     * the cleared rows and level-multiplied score bonus.
+     * 
+     * @return ClearRow containing the number of lines removed, the new board matrix,
+     *         and the level-multiplied score bonus
+     */
     @Override
     public ClearRow clearRows() {
         ClearRow clearRow = MatrixOperations.checkRemoving(currentGameMatrix);
@@ -235,11 +326,22 @@ public class SimpleBoard implements Board {
         return clearRow;
     }
 
+    /**
+     * Gets the Score object for this board.
+     * 
+     * @return The Score instance tracking the player's score
+     */
     @Override
     public Score getScore() {
         return score;
     }
 
+    /**
+     * Resets the board to start a new game.
+     * Clears the game board matrix, resets the score, sets level to 1, sets lines to 0,
+     * clears the held brick, resets hold ability, clears the garbage queue, and creates
+     * a new initial brick.
+     */
     @Override
     public void newGame() {
         currentGameMatrix = new int[width][height];
@@ -254,14 +356,33 @@ public class SimpleBoard implements Board {
         createNewBrick();
     }
 
+    /**
+     * Gets the level property for reactive UI binding.
+     * The level increases by 1 for every 10 lines cleared.
+     * 
+     * @return The IntegerProperty representing the current level
+     */
     public IntegerProperty levelProperty() {
         return level;
     }
 
+    /**
+     * Gets the lines property for reactive UI binding.
+     * Tracks the total number of lines cleared in the current game.
+     * 
+     * @return The IntegerProperty representing the total lines cleared
+     */
     public IntegerProperty linesProperty() {
         return lines;
     }
 
+    /**
+     * Gets the list of next bricks for preview display.
+     * Returns the next 3 bricks if using RandomBrickGenerator, otherwise returns
+     * a list containing just the next brick.
+     * 
+     * @return A list of Brick objects representing upcoming pieces for preview
+     */
     public List<Brick> getNextBricks() {
         // Get the next 3 bricks for display
         if (brickGenerator instanceof RandomBrickGenerator) {
@@ -276,10 +397,23 @@ public class SimpleBoard implements Board {
         return nextBricks;
     }
 
+    /**
+     * Gets the currently held brick.
+     * 
+     * @return The Brick object that is currently held, or null if no brick is held
+     */
     public Brick getHeldBrick() {
         return heldBrick;
     }
 
+    /**
+     * Performs a hard drop, instantly moving the brick to the bottom of the board.
+     * Repeatedly moves the brick down until it can no longer move, then returns
+     * the number of cells dropped. This count is used for calculating hard drop
+     * bonus points (typically 2 points per cell).
+     * 
+     * @return The number of cells the brick was dropped
+     */
     public int hardDrop() {
         int cellsDropped = 0;
         while (moveBrickDown()) {
@@ -288,7 +422,13 @@ public class SimpleBoard implements Board {
         return cellsDropped;
     }
     
-    // Helper method to count non-zero cells in a brick shape
+    /**
+     * Helper method to count non-zero cells in a brick shape matrix.
+     * Used for calculating soft drop points based on the number of cells in the brick.
+     * 
+     * @param shape The 2D array representing the brick shape
+     * @return The number of non-zero cells in the shape
+     */
     private int countCellsInShape(int[][] shape) {
         int count = 0;
         for (int[] row : shape) {
@@ -301,12 +441,25 @@ public class SimpleBoard implements Board {
         return count;
     }
     
-    // Get the number of cells in the current brick shape
+    /**
+     * Gets the number of cells in the current brick shape.
+     * Used for calculating soft drop points (1 point per cell moved).
+     * 
+     * @return The number of non-zero cells in the current brick shape
+     */
     public int getCurrentBrickCellCount() {
         return countCellsInShape(brickRotator.getCurrentShape());
     }
     
-    // Calculate the ghost position (where the brick will land)
+    /**
+     * Calculates the ghost position (where the brick will land if dropped).
+     * Simulates dropping the brick down until it hits a collision, returning the
+     * position where it would land. This is used to display a ghost piece preview
+     * showing where the current brick will land.
+     * 
+     * @return The Point representing the position where the brick would land,
+     *         or the current position if the brick is null
+     */
     public Point getGhostPosition() {
         if (currentBrick == null) {
             return new Point(currentOffset);
@@ -333,6 +486,13 @@ public class SimpleBoard implements Board {
         return ghostPos;
     }
 
+    /**
+     * Holds the current brick and swaps with the previously held brick.
+     * If no brick is currently held, stores the current brick and creates a new one.
+     * If a brick is already held, swaps the current brick with the held brick.
+     * The hold ability is disabled after use and resets when a new brick is created.
+     * This prevents holding the same brick multiple times in a row.
+     */
     public void holdBrick() {
         if (!canHold || currentBrick == null) {
             return;
@@ -356,8 +516,12 @@ public class SimpleBoard implements Board {
     }
     
     /**
-     * Adds garbage lines to the queue.
-     * @param numLines Number of garbage lines to add
+     * Adds garbage lines to the queue for later processing.
+     * Garbage lines are added to the queue and processed gradually (one every 2 seconds)
+     * to give players time to react. This is used in multiplayer mode when opponents
+     * send garbage attacks.
+     * 
+     * @param numLines The number of garbage lines to add to the queue
      */
     public void addGarbageToQueue(int numLines) {
         if (garbageQueue != null && numLines > 0) {
@@ -367,7 +531,6 @@ public class SimpleBoard implements Board {
     
     /**
      * Processes pending garbage from the queue and adds it to the bottom of the board.
-     * Returns true if garbage was added, false otherwise.
      * 
      * The matrix is structured as [width][height] = [20][10].
      * Looking at checkRemoving and how the matrix is accessed:
@@ -377,6 +540,8 @@ public class SimpleBoard implements Board {
      * - matrix[i][j] represents column j in row i (j from 0 to 9)
      * So we have 20 rows and 10 columns, which matches BOARD_HEIGHT=20 and BOARD_WIDTH=10.
      * The bottom row is at index width-1 = 19.
+     * 
+     * @return true if garbage was successfully added to the board, false if the queue was empty or processing failed
      */
     public boolean processGarbageQueue() {
         if (garbageQueue == null || garbageQueue.isEmpty()) {
@@ -441,14 +606,19 @@ public class SimpleBoard implements Board {
     }
     
     /**
-     * Gets the number of pending garbage lines.
+     * Gets the number of pending garbage lines in the queue.
+     * 
+     * @return The number of garbage lines waiting to be processed, or 0 if the queue is empty or null
      */
     public int getPendingGarbageCount() {
         return garbageQueue != null ? garbageQueue.size() : 0;
     }
     
     /**
-     * Gets the garbage queue (for external access if needed).
+     * Gets the garbage queue instance for this board.
+     * Each board has its own isolated garbage queue that cannot affect other players.
+     * 
+     * @return The GarbageQueue instance for this board, or null if not initialized
      */
     public GarbageQueue getGarbageQueue() {
         return garbageQueue;

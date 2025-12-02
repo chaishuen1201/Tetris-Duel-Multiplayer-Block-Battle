@@ -370,7 +370,7 @@ class SimpleBoardTest {
     @Test
     void testNextBricks_AlwaysHasCorrectSize() {
         // Get next bricks
-        java.util.List<com.comp2042.logic.bricks.Brick> nextBricks = board.getNextBricks();
+        java.util.List<com.comp2042.bricks.Brick> nextBricks = board.getNextBricks();
         
         // Should have at least 1 brick, typically 3 for RandomBrickGenerator
         assertNotNull(nextBricks, "Next bricks should not be null");
@@ -381,14 +381,14 @@ class SimpleBoardTest {
     @Test
     void testNextBricks_UpdatesAfterCreatingNewBrick() {
         // Get initial next bricks
-        java.util.List<com.comp2042.logic.bricks.Brick> initialNextBricks = board.getNextBricks();
+        java.util.List<com.comp2042.bricks.Brick> initialNextBricks = board.getNextBricks();
         assertNotNull(initialNextBricks);
         
         // Create a new brick
         board.createNewBrick();
         
         // Get next bricks again
-        java.util.List<com.comp2042.logic.bricks.Brick> updatedNextBricks = board.getNextBricks();
+        java.util.List<com.comp2042.bricks.Brick> updatedNextBricks = board.getNextBricks();
         assertNotNull(updatedNextBricks);
         
         // Should still have correct size

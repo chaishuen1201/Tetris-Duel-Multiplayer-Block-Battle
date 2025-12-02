@@ -21,6 +21,19 @@ import com.comp2042.util.KeyBindingsManager;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Settings panel component for game configuration.
+ * This JavaFX BorderPane component provides a comprehensive settings interface
+ * for configuring game options including volume control (slider and mute button),
+ * ghost piece visibility toggle, and key rebinding for all game actions. The panel
+ * supports both single player and multiplayer modes with separate key bindings for
+ * each player. Key rebinding features real-time visual feedback, conflict detection
+ * between players, automatic key swapping when conflicts occur within the same mode,
+ * and formatted key code display. The panel uses CSS styling classes for theming,
+ * supports audio feedback for button interactions, and includes a scrollable controls
+ * section for managing multiple key bindings. The panel is focusable to receive key
+ * events during rebinding operations.
+ */
 public class SettingsPanel extends BorderPane {
     
     private AudioManager audioManager;
@@ -37,11 +50,26 @@ public class SettingsPanel extends BorderPane {
     private KeyBindingsManager keyBindingsManager;
     private ObjectProperty<RebindingInfo> rebindingInfoProperty = new SimpleObjectProperty<>();
     
+    /**
+     * Inner class containing information about an active key rebinding operation.
+     * Stores the player mode, action, and button associated with a rebinding
+     * operation in progress.
+     */
     public static class RebindingInfo {
+        /** The player mode (SINGLE, PLAYER1, or PLAYER2) for this rebinding */
         public final KeyBindingsManager.PlayerMode mode;
+        /** The game action being rebound */
         public final KeyBindingsManager.Action action;
+        /** The button that triggered the rebinding */
         public final Button button;
         
+        /**
+         * Creates a new RebindingInfo with the specified parameters.
+         * 
+         * @param mode The player mode for this rebinding
+         * @param action The game action being rebound
+         * @param button The button that triggered the rebinding
+         */
         public RebindingInfo(KeyBindingsManager.PlayerMode mode, KeyBindingsManager.Action action, Button button) {
             this.mode = mode;
             this.action = action;
@@ -49,6 +77,14 @@ public class SettingsPanel extends BorderPane {
         }
     }
 
+    /**
+     * Creates a new SettingsPanel with all UI components initialized.
+     * Sets up the layout with a "SETTINGS" title, volume control section (slider and mute button),
+     * ghost piece checkbox, scrollable controls section for key rebinding, and a back button.
+     * The panel is configured to be focusable and captures key events during rebinding operations.
+     * All components are styled with CSS classes and the controls display is initially populated
+     * with current key bindings for single player, player 1, and player 2.
+     */
     public SettingsPanel() {
         getStyleClass().addAll("settings-panel", "animated");
         keyBindingsManager = KeyBindingsManager.getInstance();
@@ -156,29 +192,57 @@ public class SettingsPanel extends BorderPane {
         setCenter(mainContainer);
     }
 
+    /**
+     * Gets the volume slider control.
+     * 
+     * @return The Slider for adjusting volume (0-100)
+     */
     public Slider getVolumeSlider() {
         return volumeSlider;
     }
 
+    /**
+     * Gets the mute button control.
+     * 
+     * @return The Button for toggling mute state
+     */
     public Button getMuteButton() {
         return muteButton;
     }
 
+    /**
+     * Gets the ghost piece checkbox control.
+     * 
+     * @return The CheckBox for toggling ghost piece visibility
+     */
     public CheckBox getGhostPieceCheckBox() {
         return ghostPieceCheckBox;
     }
 
+    /**
+     * Gets the back button control.
+     * 
+     * @return The Button for returning to the previous screen
+     */
     public Button getBackButton() {
         return backButton;
     }
 
+    /**
+     * Sets the action to execute when the BACK button is clicked.
+     * 
+     * @param action The Runnable to execute when BACK is clicked, or null to remove the action
+     */
     public void setOnBackAction(Runnable action) {
         this.onBackAction = action;
     }
     
     /**
      * Sets the audio manager for button sounds.
-     * @param audioManager The audio manager to use
+     * Configures click and hover sounds for all buttons in the panel, including
+     * the back button and all rebind buttons.
+     * 
+     * @param audioManager The AudioManager instance to use for playing button sounds
      */
     public void setAudioManager(AudioManager audioManager) {
         this.audioManager = audioManager;
@@ -187,6 +251,8 @@ public class SettingsPanel extends BorderPane {
     
     /**
      * Sets up button sounds for all buttons in this panel.
+     * Configures click and hover sounds for the back button and all rebind buttons.
+     * Does nothing if audioManager is null.
      */
     private void setupButtonSounds() {
         if (audioManager == null) return;
@@ -204,6 +270,15 @@ public class SettingsPanel extends BorderPane {
         }
     }
     
+    /**
+     * Sets up sound effects for a single button.
+     * Wraps the button's existing action handler to play a click sound before
+     * executing the original action, and adds a hover sound on mouse enter.
+     * Preserves the original action handler if one exists.
+     * 
+     * @param button The button to configure with sound effects
+     * @param audioManager The AudioManager instance to use for playing sounds
+     */
     private void setupButtonWithSound(Button button, AudioManager audioManager) {
         if (button == null || audioManager == null) return;
         
@@ -221,6 +296,12 @@ public class SettingsPanel extends BorderPane {
         });
     }
 
+    /**
+     * Updates the controls display to show current key bindings.
+     * Clears the existing controls container and rebuilds it with current
+     * key bindings for single player, player 1, and player 2. Each player
+     * mode displays its own section with action labels and rebind buttons.
+     */
     public void updateControlsDisplay() {
         controlsContainer.getChildren().clear();
         rebindButtons.clear();
@@ -238,6 +319,16 @@ public class SettingsPanel extends BorderPane {
         controlsContainer.getChildren().add(player2Box);
     }
 
+    /**
+     * Creates a VBox containing controls for a specific player mode.
+     * Creates a labeled section with a grid of action labels and rebind buttons
+     * for all applicable actions in the specified mode. Player 1 and Player 2
+     * modes exclude PAUSE and NEW_GAME actions.
+     * 
+     * @param title The title label for this player mode section
+     * @param mode The PlayerMode (SINGLE, PLAYER1, or PLAYER2) to create controls for
+     * @return A VBox containing the player controls section
+     */
     private VBox createPlayerControlsBox(String title, KeyBindingsManager.PlayerMode mode) {
         VBox playerBox = new VBox(5);
         playerBox.setAlignment(Pos.CENTER);
@@ -309,6 +400,16 @@ public class SettingsPanel extends BorderPane {
         return playerBox;
     }
 
+    /**
+     * Starts a key rebinding operation for the specified action.
+     * Cancels any existing rebinding operation, sets the button to "Press key" state,
+     * adds active styling, and sets the rebinding info property to notify listeners.
+     * 
+     * @param key The key string identifier for this binding (mode.action format)
+     * @param mode The PlayerMode for this rebinding
+     * @param action The Action being rebound
+     * @param button The Button that triggered the rebinding
+     */
     private void startRebinding(String key, KeyBindingsManager.PlayerMode mode, KeyBindingsManager.Action action, Button button) {
         if (currentRebindingButton != null) {
             // Cancel previous rebinding
@@ -335,6 +436,15 @@ public class SettingsPanel extends BorderPane {
         rebindingInfoProperty.set(new RebindingInfo(mode, action, button));
     }
     
+    /**
+     * Handles a key press during rebinding operation.
+     * Checks for conflicts with other players (for PLAYER1 and PLAYER2 modes),
+     * handles key swapping if the key is already bound to another action in the
+     * same mode, sets the new binding, saves to file, and updates the UI.
+     * Shows a warning dialog if a conflict is detected with another player.
+     * 
+     * @param newKey The KeyCode of the key that was pressed
+     */
     public void handleRebindingKey(KeyCode newKey) {
         RebindingInfo info = rebindingInfoProperty.get();
         if (info == null) {
@@ -388,14 +498,33 @@ public class SettingsPanel extends BorderPane {
         rebindingInfoProperty.set(null);
     }
     
+    /**
+     * Gets the rebinding info property for external listeners.
+     * This property is set when rebinding starts and cleared when rebinding completes.
+     * External components can listen to this property to handle rebinding operations.
+     * 
+     * @return The ObjectProperty containing the current RebindingInfo, or null if not rebinding
+     */
     public ObjectProperty<RebindingInfo> rebindingInfoProperty() {
         return rebindingInfoProperty;
     }
     
+    /**
+     * Checks if a key rebinding operation is currently in progress.
+     * 
+     * @return true if rebinding is active, false otherwise
+     */
     public boolean isRebinding() {
         return rebindingInfoProperty.get() != null;
     }
 
+    /**
+     * Updates the button text for a specific action after a key swap.
+     * Used when swapping keys between actions in the same mode.
+     * 
+     * @param mode The PlayerMode for the action
+     * @param action The Action whose button should be updated
+     */
     private void updateButtonForAction(KeyBindingsManager.PlayerMode mode, KeyBindingsManager.Action action) {
         String key = mode.getPrefix() + "." + action.getName();
         Button button = rebindButtons.get(key);
@@ -404,6 +533,12 @@ public class SettingsPanel extends BorderPane {
         }
     }
 
+    /**
+     * Extracts the PlayerMode from a key string identifier.
+     * 
+     * @param key The key string in format "mode.action"
+     * @return The PlayerMode extracted from the key, or null if invalid
+     */
     private KeyBindingsManager.PlayerMode getModeFromKey(String key) {
         if (key.startsWith("single.")) return KeyBindingsManager.PlayerMode.SINGLE;
         if (key.startsWith("player1.")) return KeyBindingsManager.PlayerMode.PLAYER1;
@@ -411,6 +546,12 @@ public class SettingsPanel extends BorderPane {
         return null;
     }
 
+    /**
+     * Extracts the Action from a key string identifier.
+     * 
+     * @param key The key string in format "mode.action"
+     * @return The Action extracted from the key, or null if invalid
+     */
     private KeyBindingsManager.Action getActionFromKey(String key) {
         String actionName = key.substring(key.indexOf('.') + 1);
         for (KeyBindingsManager.Action action : KeyBindingsManager.Action.values()) {
