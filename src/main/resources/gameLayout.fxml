@@ -97,12 +97,12 @@
                 </BorderPane>
 
                     <!-- Right Panel -->
-                <VBox spacing="30" styleClass="side-panel" prefWidth="150" maxWidth="150" 
+                <VBox spacing="30" styleClass="side-panel" prefWidth="150" maxWidth="150" minWidth="150"
                       maxHeight="619" alignment="TOP_CENTER">
                 <VBox styleClass="info-box">
                     <Label text="NEXT" styleClass="panel-title"/>
                     <VBox fx:id="nextBricksPanel" spacing="10" styleClass="next-bricks-panel"
-                          prefWidth="120" prefHeight="300" maxWidth="120" maxHeight="300"/>
+                          prefWidth="120" prefHeight="300" maxWidth="120" maxHeight="300" minWidth="120"/>
                 </VBox>
 
                 <VBox styleClass="info-box">

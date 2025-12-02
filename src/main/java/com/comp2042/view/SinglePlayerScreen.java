@@ -352,6 +352,9 @@ public class SinglePlayerScreen {
                 pane.setVgap(1);
                 pane.setHgap(1);
                 pane.setPrefSize(80, 80);
+                // Set max size to prevent expansion when wide pieces (like I-piece) are displayed
+                pane.setMaxSize(80, 80);
+                pane.setMinSize(80, 80);
                 // Hide panes initially - they'll be shown when game starts
                 pane.setVisible(false);
                 for (int r = 0; r < 4; r++) {

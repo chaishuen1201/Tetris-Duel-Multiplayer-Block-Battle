@@ -354,6 +354,8 @@
     -fx-border-radius: 15;
     -fx-background-radius: 15;
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.3), 15, 0, 3, 3);
+    -fx-max-width: 190px;
+    -fx-min-width: 190px;
 }
 
 .info-box {
@@ -409,6 +411,8 @@
     -fx-padding: 15;
     -fx-background-radius: 10;
     -fx-border-radius: 10;
+    -fx-max-width: 120px;
+    -fx-min-width: 120px;
 }
 
 /* ==============================================

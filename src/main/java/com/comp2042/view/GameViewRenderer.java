@@ -466,6 +466,9 @@ public class GameViewRenderer {
             pane.setVgap(1);
             pane.setHgap(1);
             pane.setPrefSize(nextBrickSize, nextBrickSize);
+            // Set max size to prevent expansion when wide pieces (like I-piece) are displayed
+            pane.setMaxSize(nextBrickSize, nextBrickSize);
+            pane.setMinSize(nextBrickSize, nextBrickSize);
             for (int r = 0; r < 4; r++) {
                 for (int c = 0; c < 4; c++) {
                     Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
@@ -488,6 +491,9 @@ public class GameViewRenderer {
             pane.setVgap(1);
             pane.setHgap(1);
             pane.setPrefSize(nextBrickSize, nextBrickSize);
+            // Set max size to prevent expansion when wide pieces (like I-piece) are displayed
+            pane.setMaxSize(nextBrickSize, nextBrickSize);
+            pane.setMinSize(nextBrickSize, nextBrickSize);
             for (int r = 0; r < 4; r++) {
                 for (int c = 0; c < 4; c++) {
                     Rectangle rect = new Rectangle(holdBrickSize, holdBrickSize);
