@@ -181,6 +181,7 @@ Expected output: `java version "21.0.x"`
 
 2. **Settings Panel**
    - Volume control slider for adjusting game audio
+   - Toggle on/off for the ghost brick preview
    - Customizable key bindings for all game controls
    - Support for rebinding controls for both single player and multiplayer modes
    - Key bindings saved persistently using properties file
@@ -221,11 +222,12 @@ Expected output: `java version "21.0.x"`
    - Transparent preview of where the current brick will land
    - Uses distinct visual styling for clarity
    - Updates in real-time as brick moves horizontally
+   - Player can choose to turn off this feature in setting panel
 
 10. **Multiplayer Mode**
     - Full 1v1 multiplayer support on the same computer
     - Side-by-side board display for both players
-    - Independent controls for Player 1 (WASD) and Player 2 (Arrow keys)
+    - Independent controls for Player 1 (WASD) and Player 2 (Arrow keys) - (key can be customize from setting panel)
     - Synchronized game start with ready system
     - Competitive gameplay with garbage line mechanics
 
@@ -253,7 +255,7 @@ Expected output: `java version "21.0.x"`
 
 15. **Garbage System (Multiplayer)**
     - Sending garbage lines to opponent when clearing multiple lines
-    - Garbage lines have random holes for clearability
+    - Garbage line batches have random holes for clearability
     - Visual and audio feedback when garbage is sent/received
     - Adds strategic depth to multiplayer matches
 
