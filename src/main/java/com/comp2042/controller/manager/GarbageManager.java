@@ -135,13 +135,18 @@ public class GarbageManager {
             SimpleBoard opponentBoard = opponentController.getSimpleBoard();
             if (opponentBoard != null) {
                 opponentBoard.addGarbageToQueue(numGarbageLines);
-                // Process garbage immediately instead of waiting for timeline
-                // This ensures garbage appears right away
-                Platform.runLater(() -> {
+                // Process garbage immediately on JavaFX thread to ensure simultaneous update
+                if (Platform.isFxApplicationThread()) {
                     if (opponentBoard.getPendingGarbageCount() > 0) {
                         processGarbageQueue(opponentNumber);
                     }
-                });
+                } else {
+                    Platform.runLater(() -> {
+                        if (opponentBoard.getPendingGarbageCount() > 0) {
+                            processGarbageQueue(opponentNumber);
+                        }
+                    });
+                }
             }
         }
     }
@@ -177,36 +182,68 @@ public class GarbageManager {
         }
         
         // Process all pending garbage lines at once to avoid delays
+        // Refresh display after each line to show updates immediately
         boolean potentialGameOver = false;
+        boolean topRowBlocked = false;
+        
         while (board.getPendingGarbageCount() > 0) {
+            // Check if top row has blocks before processing (definite game over condition)
+            int[][] matrix = board.getBoardMatrix();
+            if (matrix != null && matrix.length > 0) {
+                boolean topRowHasBlocks = false;
+                for (int col = 0; col < matrix[0].length; col++) {
+                    if (matrix[0][col] != 0) {
+                        topRowHasBlocks = true;
+                        break;
+                    }
+                }
+                if (topRowHasBlocks) {
+                    topRowBlocked = true;
+                    potentialGameOver = true;
+                    break; // Stop immediately if top row is blocked
+                }
+            }
+            
             boolean gameOver = board.processGarbageQueue();
             if (gameOver) {
                 potentialGameOver = true;
-                // Continue processing remaining garbage to ensure all lines are added
             }
-        }
-        
-        // Refresh the display after processing all garbage
-        if (board.getPendingGarbageCount() == 0) {
+            
+            // Refresh display immediately after each garbage line is processed
+            // This ensures the board updates simultaneously
             if (gameStateManager.isMultiplayerMode() && playerNumber > 0 && multiplayerScreen != null) {
                 renderer.refreshGameBackground(multiplayerScreen, board.getBoardMatrix(), playerNumber);
             } else if (singlePlayerViewManager != null) {
                 singlePlayerViewManager.refreshGameBackground(board.getBoardMatrix());
             }
+            
+            // If game over detected, stop processing remaining garbage
+            if (gameOver) {
+                break;
+            }
         }
         
         // Check if game over after adding all garbage
         if (potentialGameOver) {
-            // Get current view data to check brick position
-            ViewData viewData = board.getViewData();
-            if (viewData != null) {
-                // Check if the current brick position is blocked
-                if (MatrixOperations.intersect(board.getBoardMatrix(), 
-                        viewData.getBrickData(), 
-                        viewData.getXPosition(), 
-                        viewData.getYPosition())) {
-                    if (gameOverCallback != null) {
-                        gameOverCallback.gameOver(playerNumber);
+            // If top row is blocked, game over is immediate
+            if (topRowBlocked) {
+                if (gameOverCallback != null) {
+                    gameOverCallback.gameOver(playerNumber);
+                }
+            } else {
+                // Otherwise, verify that the current brick is actually blocked
+                ViewData viewData = board.getViewData();
+                if (viewData != null) {
+                    // Check if the current brick position is actually blocked
+                    // This prevents false game over when brick is still valid
+                    if (MatrixOperations.intersect(board.getBoardMatrix(), 
+                            viewData.getBrickData(), 
+                            viewData.getXPosition(), 
+                            viewData.getYPosition())) {
+                        // Brick is blocked at current position - game over
+                        if (gameOverCallback != null) {
+                            gameOverCallback.gameOver(playerNumber);
+                        }
                     }
                 }
             }

@@ -300,12 +300,6 @@ public class SimpleBoard implements Board {
         ClearRow clearRow = MatrixOperations.checkRemoving(currentGameMatrix);
         currentGameMatrix = clearRow.getNewMatrix();
         if (clearRow.getLinesRemoved() > 0) {
-            // IMPORTANT: Only remove garbage from THIS player's own board and queue
-            // Each player has their own isolated garbageQueue instance
-            
-            // Rubbish rows are only cleared by checkRemoving when they become completely filled
-            // (all cells non-zero, including filling the empty cell), just like normal rows.
-            // They are NOT removed as a reward when other lines are cleared.
             
             // Counter incoming garbage in THIS player's queue only
             // This only affects this board's own garbageQueue, not the opponent's

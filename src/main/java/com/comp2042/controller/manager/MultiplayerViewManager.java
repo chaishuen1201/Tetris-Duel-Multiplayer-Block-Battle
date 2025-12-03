@@ -1128,8 +1128,8 @@ public class MultiplayerViewManager {
         
         javafx.scene.control.Label label = multiplayerScreen.getLevelLabel(playerNumber);
         if (label != null && level != null) {
+            // Unbind first to clear any existing bindings
             label.textProperty().unbind();
-            label.textProperty().bind(level.asString("%d"));
             
             // Remove old listener if it exists to prevent duplicate listeners
             javafx.beans.value.ChangeListener<? super Number> oldListener = 
@@ -1142,9 +1142,15 @@ public class MultiplayerViewManager {
             javafx.beans.value.ChangeListener<? super Number> newListener = (obs, oldVal, newVal) -> {
                 int oldLevel = oldVal.intValue();
                 int newLevel = newVal.intValue();
-                // Play level-up sound only when level increases from a valid level (>= 1)
-                // This prevents false positives from initialization/reset (where oldLevel might be 0)
-                if (oldLevel >= 1 && newLevel > oldLevel && audioManager != null) {
+                // Play level-up sound only when:
+                // 1. Game has started (to prevent sounds during initialization)
+                // 2. Level increases from a valid level (>= 1)
+                // 3. Level actually increased (newLevel > oldLevel)
+                // This prevents false positives from initialization/reset/state changes
+                if (gameStateManager.isGameStarted() 
+                    && oldLevel >= 1 
+                    && newLevel > oldLevel 
+                    && audioManager != null) {
                     audioManager.playLevelUp();
                 }
             };
@@ -1158,6 +1164,9 @@ public class MultiplayerViewManager {
             
             // Add the new listener
             level.addListener(newListener);
+            
+            // Bind the label to the level property - this will automatically update when level changes
+            label.textProperty().bind(level.asString("%d"));
         }
     }
     
