@@ -1,26 +1,120 @@
-<?import com.comp2042.GameOverPanel?>
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.comp2042.view.GameOverPanel?>
+<?import com.comp2042.view.MainMenuPanel?>
+<?import com.comp2042.view.PausePanel?>
+<?import com.comp2042.view.SettingsPanel?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ToggleButton?>
-<?import javafx.scene.Group?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Text?>
+<?import javafx.scene.Group?>
 <?import java.net.URL?>
-<Pane fx:controller="com.comp2042.GuiController"
-      xmlns:fx="http://javafx.com/fxml">
-    <GridPane fx:id="brickPanel" vgap="1" hgap="1"/>
-    <BorderPane styleClass="gameBoard" fx:id="gameBoard">
-        <center>
-            <GridPane fx:id="gamePanel" hgap="1" vgap="1" layoutY="30" layoutX="40"/>
-        </center>
-    </BorderPane>
+<BorderPane fx:controller="com.comp2042.controller.GuiController"
+            xmlns:fx="http://javafx.com/fxml" styleClass="root-pane" prefWidth="800" prefHeight="700">
 
-    <Group fx:id="groupNotification" layoutX="14" layoutY="203">
-        <VBox alignment="CENTER">
-            <GameOverPanel fx:id="gameOverPanel"/>
+    <center>
+        <!-- VBox to center the fixed-size container -->
+        <VBox fx:id="centerVBox" alignment="CENTER" styleClass="game-area-container">
+            <!-- Wrapper container to keep all panels together and centered -->
+            <HBox fx:id="singlePlayerWrapper" alignment="CENTER" spacing="20" styleClass="game-container-wrapper"
+                  maxHeight="700">
+                <!-- Left Panel -->
+                <VBox spacing="30" styleClass="side-panel" prefWidth="150" maxWidth="150"
+                      maxHeight="619" alignment="TOP_CENTER">
+                    <VBox styleClass="info-box">
+                        <Label text="HOLD" styleClass="panel-title"/>
+                        <GridPane fx:id="holdBrickPanel" vgap="1" hgap="1" styleClass="brick-preview"
+                                  prefWidth="100" prefHeight="100" maxWidth="100" maxHeight="100"/>
+                    </VBox>
+
+                    <VBox styleClass="info-box">
+                        <Label text="SCORE" styleClass="panel-title"/>
+                        <Label fx:id="scoreLabel" text="0" styleClass="score-display"/>
+                    </VBox>
+
+                    <VBox styleClass="info-box">
+                        <Label text="LEVEL" styleClass="panel-title"/>
+                        <Label fx:id="levelLabel" text="1" styleClass="info-display"/>
+                    </VBox>
+
+                    <VBox styleClass="info-box">
+                        <Label text="LINES" styleClass="panel-title"/>
+                        <Label fx:id="linesLabel" text="0" styleClass="info-display"/>
+                    </VBox>
+                </VBox>
+
+                <!-- Center Game Area -->
+                <!-- Game board with black background - slightly larger to account for gaps -->
+                <BorderPane fx:id="gameBoard" styleClass="gameBoard"
+                                prefWidth="309" prefHeight="619"
+                                maxWidth="309" maxHeight="619"
+                                minWidth="309" minHeight="619">
+                        <center>
+                            <StackPane styleClass="game-stack"
+                                       prefWidth="300" prefHeight="600"
+                                       maxWidth="300" maxHeight="600">
+                                <!-- Game grid for background blocks -->
+                                <GridPane fx:id="gamePanel" hgap="1" vgap="1" styleClass="game-grid"
+                                          prefWidth="300" prefHeight="600"
+                                          maxWidth="300" maxHeight="600"/>
+
+                                <!-- Ghost panel for showing where brick will land -->
+                                <GridPane fx:id="ghostPanel" vgap="1" hgap="1" styleClass="brick-grid"
+                                          prefWidth="300" prefHeight="600"
+                                          maxWidth="300" maxHeight="600"
+                                          mouseTransparent="true"/>
+
+                                <!-- Brick panel for current falling brick -->
+                                <GridPane fx:id="brickPanel" vgap="1" hgap="1" styleClass="brick-grid"
+                                          prefWidth="300" prefHeight="600"
+                                          maxWidth="300" maxHeight="600"
+                                          mouseTransparent="true"/>
+
+                                <!-- Notification group -->
+                                <Group fx:id="groupNotification"/>
+
+                                <!-- Main menu panel -->
+                                <MainMenuPanel fx:id="mainMenuPanel"/>
+
+                                <!-- Countdown label -->
+                                <Label fx:id="countdownLabel" visible="false" styleClass="countdown-label"
+                                       StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
+
+                                <!-- Game over panel -->
+                                <GameOverPanel fx:id="gameOverPanel" visible="false"
+                                               StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
+
+                                <!-- Pause panel -->
+                                <PausePanel fx:id="pausePanel" visible="false"
+                                            StackPane.alignment="CENTER"/>
+
+                                <!-- Settings panel -->
+                                <SettingsPanel fx:id="settingsPanel" visible="false"
+                                               StackPane.alignment="CENTER" maxWidth="Infinity" maxHeight="Infinity"/>
+                            </StackPane>
+                        </center>
+                </BorderPane>
+
+                    <!-- Right Panel -->
+                <VBox spacing="30" styleClass="side-panel" prefWidth="150" maxWidth="150" minWidth="150"
+                      maxHeight="619" alignment="TOP_CENTER">
+                <VBox styleClass="info-box">
+                    <Label text="NEXT" styleClass="panel-title"/>
+                    <VBox fx:id="nextBricksPanel" spacing="10" styleClass="next-bricks-panel"
+                          prefWidth="120" prefHeight="300" maxWidth="120" maxHeight="300" minWidth="120"/>
+                </VBox>
+
+                <VBox styleClass="info-box">
+                    <Label text="TIME" styleClass="panel-title"/>
+                    <Label fx:id="timerLabel" text="00:00" styleClass="timer-display"/>
+                </VBox>
+            </VBox>
+            </HBox>
         </VBox>
-    </Group>
+    </center>
+
     <stylesheets>
         <URL value="@window_style.css"/>
     </stylesheets>
-</Pane>
+</BorderPane>
