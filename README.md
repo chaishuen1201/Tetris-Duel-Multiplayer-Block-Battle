@@ -30,10 +30,12 @@
 - 6.1 [Unexpected Problems & Solutions](#61-unexpected-problems--solutions)
 ### 7.0 Testing
 - 7.1 [Unit Tests](#71-unit-tests)
+- 7.2 [Running Tests](#72-running-tests)
 ### 8.0 Project Structure
 - 8.1 [Package Organization](#81-package-organization)
 - 8.2 [Resource Files](#82-resource-files)
 
+---
 
 ## 1.0 GitHub Repository
 ### 1.1 Repository Link
@@ -653,12 +655,18 @@ During the development of this enhanced Tetris game, several unexpected challeng
 The project includes comprehensive unit tests for core model, controller, utility, logic, and manager classes. Tests focus on game rules, critical logic, and edge cases that could break the game if they fail.
 
 #### Model Package Tests
-- **`ClearRowTest.java`** - Tests row clearing logic and score calculations
-- **`DownDataTest.java`** - Tests down movement data handling
-- **`GarbageQueueTest.java`** - Tests garbage queue operations for multiplayer mode, including adding/removing garbage lines, hole generation, queue management, and batch operations
-- **`HighScoreManagerTest.java`** - Tests high score management including sorting, limiting to top 3 scores, ignoring zero/negative scores, and score replacement logic
-- **`ScoreTest.java`** - Tests scoring system and level progression
-- **`SimpleBoardTest.java`** - Comprehensive tests for board operations including:
+- **`ClearRowTest.java`** - Tests row clearing logic and score calculations for different line clear combinations
+- **`DownDataTest.java`** - Tests down movement data handling and position tracking
+- **`GarbageQueueTest.java`** - Tests garbage queue operations for multiplayer mode:
+  - Adding and removing garbage lines
+  - Hole generation in garbage lines
+  - Queue management and batch operations
+- **`HighScoreManagerTest.java`** - Tests high score management:
+  - Score sorting and limiting to top 3 scores
+  - Ignoring zero and negative scores
+  - Score replacement when exceeding maximum
+- **`ScoreTest.java`** - Tests scoring system and level progression calculations
+- **`SimpleBoardTest.java`** - Comprehensive tests for board operations:
   - Basic brick movement (down, left, right) and rotation
   - Row clearing (single, double, triple, Tetris)
   - Hard drop functionality
@@ -666,44 +674,43 @@ The project includes comprehensive unit tests for core model, controller, utilit
   - Next brick updates
   - Garbage queue processing and game over detection
   - Level progression and score multipliers
-  - **Edge Cases:**
-    - Rotation near edges and corners with wall kick support
-    - Garbage insertion when board is almost full
-    - Level up at exact thresholds (10, 20 lines)
-    - Score multiplier based on level
-    - Multiple garbage lines sent simultaneously
-    - Garbage countering by line clears
-    - View state reflection (ViewData matches model state)
+  - Edge cases: rotation near edges/corners with wall kicks, garbage insertion when board is almost full, level up at exact thresholds, multiple garbage lines, view state reflection
 
 #### Controller Package Tests
-- **`GameControllerTest.java`** - Tests game controller logic including garbage calculation rules (1 line→0, 2 lines→1, 3 lines→2, 4 lines→4 garbage), line clearing integration, garbage sending behavior, and clearing only garbage rows (no garbage sent)
-- **`GameStateManagerTest.java`** - Tests game state management including:
+- **`GameControllerTest.java`** - Tests game controller logic:
+  - Garbage calculation rules (1 line→0, 2 lines→1, 3 lines→2, 4 lines→4 garbage)
+  - Line clearing integration and garbage sending behavior
+  - Clearing only garbage rows (no garbage sent)
+- **`GameStateManagerTest.java`** - Tests game state management:
   - Multiplayer winner determination (Player 1 loses → Player 2 wins, Player 2 loses → Player 1 wins)
   - Multiplayer tie detection (both players lose)
   - Single player game over
   - Pause/resume functionality (single and multiplayer)
   - State flags and reactive properties
   - Game started state transitions
-- **`GameLoopManagerTest.java`** - Tests game loop and speed calculation logic:
+- **`GameLoopManagerTest.java`** - Tests game loop and speed calculation:
   - Speed calculation formula: `rate = 1.0 + (level - 1) * 0.25`
   - Level-based speed increases (Level 1 = 1.0x, Level 2 = 1.25x, Level 3 = 1.5x, etc.)
   - Multiplayer independent level speeds
   - Edge cases (Level 0 defaults to Level 1)
   - Formula verification for levels 1-10
-- **`GarbageManagerTest.java`** - Tests garbage manager for multiplayer garbage sending, including correct opponent targeting, queue updates, single-player mode restrictions, and garbage calculation rules
+- **`GarbageManagerTest.java`** - Tests garbage manager for multiplayer:
+  - Correct opponent targeting and queue updates
+  - Single-player mode restrictions
+  - Garbage calculation rules
 
 #### Utility Package Tests
-- **`BrickRotatorTest.java`** - Tests brick rotation algorithms and rotation cycle
-- **`KeyBindingsManagerTest.java`** - Tests key binding management including:
+- **`BrickRotatorTest.java`** - Tests brick rotation algorithms and rotation cycle mechanics
+- **`KeyBindingsManagerTest.java`** - Tests key binding management:
   - Multiplayer key binding conflict detection (Player 1 vs Player 2)
   - Conflict detection between player modes
   - Key binding lookup and action mapping
   - Single player mode doesn't conflict with multiplayer
   - Multiple actions with same key handling
-- **`MatrixOperationsTest.java`** - Tests matrix manipulation utilities
+- **`MatrixOperationsTest.java`** - Tests matrix manipulation utilities for board operations
 
 #### Logic Package Tests
-- **`RandomBrickGeneratorTest.java`** - Tests brick generation logic including:
+- **`RandomBrickGeneratorTest.java`** - Tests brick generation logic:
   - Queue management (maintains at least 3 bricks)
   - `getBrick()` removes from queue and maintains queue size
   - `getNextBrick()` peeks without removing from queue
@@ -712,14 +719,8 @@ The project includes comprehensive unit tests for core model, controller, utilit
   - All 7 brick types can be generated
   - Edge cases (requesting 0 or 1 brick, multiple sequential calls)
 
-### 7.2 Test Coverage Philosophy
-Tests focus on **game rules and critical logic** rather than trivial getters/setters:
-- ✅ **Tested:** Game rules (scoring, movement, rotations, garbage logic), state transitions, speed calculations, queue management
-- ❌ **Not Tested:** Simple data classes (ViewData, MoveEvent), enums (EventType, EventSource), interfaces, UI rendering classes, trivial utilities (ColorStrategy)
-
-### 7.3 Running Tests
-Tests can be run using Maven or IntelliJ IDEA:
-- **Maven:** `mvn test` or use the Maven tool window in IntelliJ
+### 7.2 Running Tests
+Tests can be run using IntelliJ IDEA:
 - **IntelliJ:** Right-click on test class or package → "Run Tests"
 
 ---
