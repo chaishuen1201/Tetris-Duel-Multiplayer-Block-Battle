@@ -732,6 +732,15 @@ CW2025/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/comp2042/
+│   │   │   ├── bricks/                  # Brick type implementations
+│   │   │   │   ├── Brick.java           # Base brick class
+│   │   │   │   ├── IBrick.java          # I-shaped brick
+│   │   │   │   ├── JBrick.java          # J-shaped brick
+│   │   │   │   ├── LBrick.java          # L-shaped brick
+│   │   │   │   ├── OBrick.java          # O-shaped brick
+│   │   │   │   ├── SBrick.java          # S-shaped brick
+│   │   │   │   ├── TBrick.java          # T-shaped brick
+│   │   │   │   └── ZBrick.java          # Z-shaped brick
 │   │   │   ├── controller/                    # Game controllers and managers
 │   │   │   │   ├── input/                    # Input handling
 │   │   │   │   │   └── InputHandler.java    # Keyboard input processing
@@ -756,15 +765,6 @@ CW2025/
 │   │   │   │   ├── InputEventListener.java  # Input event listener interface
 │   │   │   │   └── MoveEvent.java           # Move event data class
 │   │   │   ├── logic/                        # Game logic
-│   │   │   │   ├── bricks/                  # Brick type implementations
-│   │   │   │   │   ├── Brick.java           # Base brick class
-│   │   │   │   │   ├── IBrick.java          # I-shaped brick
-│   │   │   │   │   ├── JBrick.java          # J-shaped brick
-│   │   │   │   │   ├── LBrick.java          # L-shaped brick
-│   │   │   │   │   ├── OBrick.java          # O-shaped brick
-│   │   │   │   │   ├── SBrick.java          # S-shaped brick
-│   │   │   │   │   ├── TBrick.java          # T-shaped brick
-│   │   │   │   │   └── ZBrick.java          # Z-shaped brick
 │   │   │   │   ├── BrickGenerator.java      # Brick generation interface
 │   │   │   │   └── RandomBrickGenerator.java # Random brick generator
 │   │   │   ├── model/                       # Data models
@@ -851,13 +851,13 @@ CW2025/
 
 The project follows a layered architecture with clear separation of concerns:
 
+- **`bricks`**: Concrete implementations of all Tetris brick types (I, J, L, O, S, T, Z)
 - **`controller`**: Contains all game controllers and manager classes that coordinate game logic, UI, and system resources
 - **`event`**: Implements the event-driven architecture for input handling and game actions
 - **`logic`**: Contains core game logic including brick types and generation algorithms
 - **`model`**: Data models representing game state, board, scores, and game entities
 - **`util`**: Utility classes for common operations (rotation, matrix operations, key bindings)
 - **`view`**: JavaFX UI components and rendering logic
-- **`bricks`**: Concrete implementations of all Tetris brick types (I, J, L, O, S, T, Z)
 
 ### 8.2 Resource Files
 
