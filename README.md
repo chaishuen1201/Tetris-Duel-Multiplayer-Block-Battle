@@ -133,7 +133,7 @@ Expected output: `java version "21.0.x"`
 
 #### Step 3: Configure Maven
 1. IntelliJ should automatically detect `pom.xml`
-2. If not, right-click on `pom.xml` → **Maven** → **Sync Project**
+2. If not, right-click on `pom.xml` → **+ Add as Maven Project** 
 3. Wait for dependencies to download (check progress bar)
 
 
