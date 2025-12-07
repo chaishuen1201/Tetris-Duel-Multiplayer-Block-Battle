@@ -116,26 +116,37 @@ Expected output: `java version "21.0.x"`
 
 ### 2.2 Project Setup in IntelliJ IDEA
 
-#### Step 1: Import Project
+#### Step 1: Clone/Download Project
+1. **Option A: Clone using Git (Recommended)**
+   - Open Command Prompt or Git Bash
+   - Navigate to your desired directory 
+   - Run: `git clone https://github.com/chaishuen1201/CW2025.git`
+   - The project will be cloned to `C:\Users\[your-path]\CW2025`
+
+2. **Option B: Download as ZIP**
+   - Go to the repository: https://github.com/chaishuen1201/CW2025
+   - Click **Code** → **Download ZIP**
+   - Extract the ZIP file to your desired location 
+
+#### Step 2: Import Project
 1. Open IntelliJ IDEA
 2. Click **Open** (not Import)
-3. Navigate to `C:\Users\chais\IdeaProjects\CW2025`
+3. Navigate to `C:\Users\[your-path]\CW2025` (your chosen location)
 4. Select the project folder and click **Open**
 5. IntelliJ will automatically detect it as a Maven project
 
-#### Step 2: Configure SDK
+#### Step 3: Configure SDK
 1. Go to **File** → **Project Structure** (`Ctrl+Alt+Shift+S`)
 2. Under **Project Settings** → **Project**:
-   - Set **Project SDK**: Click "New..." → **JDK**
-   - Navigate to: `C:\Program Files\Java\jdk-21.x.x`
-   - Click **OK**
+    - Set **Project SDK**: Click "New..." → **JDK**
+    - Navigate to: `C:\Program Files\Java\jdk-21.x.x`
+    - Click **OK**
 3. Set **Project language level**: **21 - Records, patterns, ...**
 
-#### Step 3: Configure Maven
+#### Step 4: Configure Maven
 1. IntelliJ should automatically detect `pom.xml`
-2. If not, right-click on `pom.xml` → **+ Add as Maven Project** 
+2. If not, right-click on `pom.xml` → **+ Add as Maven Project**
 3. Wait for dependencies to download (check progress bar)
-
 
 ### 2.3 Running the Application (Game)
 
@@ -181,9 +192,9 @@ Expected output: `java version "21.0.x"`
    - Smooth transitions between different game modes and screens
    - Background music integration for enhanced user experience
 
-2. **Settings Panel**
+2. **Settings Panel & Customizable Key**
    - Volume control slider for adjusting game audio
-   - Customizable key bindings for all game controls
+   - Customizable key bindings for all game controls (Single Player and Multiplayer (Player 1 & Player 2))
    - Support for rebinding controls for both single player and multiplayer modes
    - Key bindings saved persistently using properties file
 
