@@ -608,13 +608,17 @@ The following classes from the original codebase were **significantly refactored
 
 ### 5.7 Logic Package (Minimal Changes)
 
-The brick classes in `com.comp2042.logic.bricks` package were **relocated but not significantly modified**:
+The brick classes and generator classes were **relocated but not significantly modified**:
+
+**Brick classes in `com.comp2042.bricks` package:**
 - `Brick.java`
 - `IBrick.java`, `JBrick.java`, `LBrick.java`, `OBrick.java`, `SBrick.java`, `TBrick.java`, `ZBrick.java`
+
+**Generator classes in `com.comp2042.logic` package:**
 - `BrickGenerator.java`
 - `RandomBrickGenerator.java`
 
-**Changes:** Package relocation from `com.comp2042` to `com.comp2042.logic.bricks` for better organization. Core brick logic remains largely unchanged.
+**Changes:** Package relocation from `com.comp2042.logic.brick` to separate packages (`com.comp2042.bricks` for brick classes and `com.comp2042.logic` for generator classes) for better organization. Core brick logic remains largely unchanged.
 
 ---
 
