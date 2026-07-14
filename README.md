@@ -1,4 +1,23 @@
 # CW2025 Developing Maintainable Software (COMP2042 UNMC) - Tetris Game
+<table>
+  <tr>
+    <td>
+      <img src="https://github.com/user-attachments/assets/0c792d50-2246-409e-a611-c34287ab83ce" width="100%" />
+    </td>
+    <td>
+      <img src="https://github.com/user-attachments/assets/9ace8924-7ebe-4d9e-94e1-277b77c91d72" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://github.com/user-attachments/assets/833f7f9e-495a-459c-bd6e-7641544e5941" width="100%" />
+    </td>
+    <td>
+      <img src="https://github.com/user-attachments/assets/17c11116-a501-44cf-ba01-270e303752fe" width="100%" />
+    </td>
+  </tr>
+</table>
+
 
 ## Table of Contents
 
